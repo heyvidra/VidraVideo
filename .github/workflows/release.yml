@@ -1,0 +1,318 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  windows:
+    name: Windows MSI
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ============ Flutter 缓存 ============
+      - name: Cache Flutter SDK
+        uses: actions/cache@v4
+        with:
+          path: C:\hostedtoolcache\windows\flutter
+          key: flutter-windows-${{ runner.os }}-3.38.5
+          restore-keys: flutter-windows-${{ runner.os }}-
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.44.4
+          channel: stable
+          cache: true
+
+      - name: Cache Pub Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~\AppData\Local\Pub\Cache
+            .dart_tool
+            .packages
+          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: pub-${{ runner.os }}-
+
+      - name: Enable Windows Desktop
+        run: flutter config --enable-windows-desktop
+
+      - name: Get Dependencies
+        run: flutter pub get
+
+      - name: Static Analysis
+        run: dart analyze
+
+      - name: Test
+        run: flutter test
+
+      - name: Cache Build Output
+        uses: actions/cache@v4
+        with:
+          path: build\windows\x64\runner\Release
+          key: build-windows-${{ runner.os }}-${{ hashFiles('lib/**', 'windows/**', 'pubspec.yaml') }}
+          restore-keys: build-windows-${{ runner.os }}-
+
+      - name: Fetch vidraDlp native lib (media_ffi.dll)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.VIDRADLP_TOKEN }}
+        run: |
+          set -e
+          gh release download v0.0.1 -R heyvidra/VidraDlp \
+            -p 'vidradlp-full-*_nt-*x86_64.tar.gz' -O vidradlp.tar.gz
+          mkdir -p _vidradlp && tar -xzf vidradlp.tar.gz -C _vidradlp
+          cp "$(find _vidradlp -name media_ffi.dll | head -1)" windows/media_ffi.dll
+          ls -l windows/media_ffi.dll
+
+      - name: Flutter Build (Windows Release)
+        run: .\tool\build_windows.bat
+
+      - name: Cache WiX Toolset
+        id: cache-wix
+        uses: actions/cache@v4
+        with:
+          path: C:\ProgramData\chocolatey\lib\wixtoolset
+          key: wix-toolset-3.14
+
+      - name: Install WiX Toolset
+        if: steps.cache-wix.outputs.cache-hit != 'true'
+        run: choco install wixtoolset -y
+
+      - name: Generate WiX files with heat
+        shell: pwsh
+        run: |
+          cd installer
+          heat dir ..\build\windows\x64\runner\Release `
+            -platform x64 `
+            -cg VidraFiles `
+            -dr INSTALLFOLDER `
+            -gg -srd -sfrag -sreg `
+            -var var.SourceDir `
+            -out files.wxs
+
+      - name: Build MSI
+        shell: pwsh
+        run: |
+          $sourceDir = Resolve-Path "build\windows\x64\runner\Release"
+
+          # Ensure installer directory exists
+          New-Item -ItemType Directory -Force -Path installer | Out-Null
+
+          # Run candle
+          candle `
+            -dSourceDir="$sourceDir" `
+            -arch x64 `
+            -out installer\ `
+            installer\vidra.wxs installer\files.wxs installer\CustomUI.wxs
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Candle compilation failed"
+            exit $LASTEXITCODE
+          }
+
+          # Run light
+          light `
+            -ext WixUtilExtension `
+            -cultures:en-US `
+            -spdb `
+            -sice:ICE60 `
+            -out Vidra-Windows-x64.msi `
+            installer\vidra.wixobj installer\files.wixobj installer\CustomUI.wixobj
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Light linking failed"
+            exit $LASTEXITCODE
+          }
+
+      - name: Upload MSI Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Vidra-Windows-x64-MSI
+          path: Vidra-Windows-x64.msi
+
+  macos:
+    name: macOS DMG
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Flutter SDK
+        uses: actions/cache@v4
+        with:
+          path: /Users/runner/hostedtoolcache/flutter
+          key: flutter-macos-${{ runner.os }}-3.38.5
+          restore-keys: flutter-macos-${{ runner.os }}-
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.44.4
+          channel: stable
+          cache: true
+
+      - name: Cache Pub Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+            .packages
+          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: pub-${{ runner.os }}-
+
+      - name: Enable macOS Desktop
+        run: flutter config --enable-macos-desktop
+
+      - name: Get Dependencies
+        run: flutter pub get
+
+      - name: Static Analysis
+        run: dart analyze
+
+      - name: Test
+        run: flutter test
+
+      - name: Cache Build Output
+        uses: actions/cache@v4
+        with:
+          path: build/macos/Build/Products/Release
+          key: build-macos-${{ runner.os }}-${{ hashFiles('lib/**', 'macos/**', 'pubspec.yaml') }}
+          restore-keys: build-macos-${{ runner.os }}-
+
+      - name: Fetch vidraDlp native lib (libmedia_ffi.dylib)
+        env:
+          GH_TOKEN: ${{ secrets.VIDRADLP_TOKEN }}
+        run: |
+          set -e
+          gh release download v0.0.1 -R heyvidra/VidraDlp \
+            -p 'vidradlp-full-darwin-*.tar.gz' -O vidradlp.tar.gz
+          mkdir -p _vidradlp && tar -xzf vidradlp.tar.gz -C _vidradlp
+          cp "$(find _vidradlp -name libmedia_ffi.dylib | head -1)" macos/libmedia_ffi.dylib
+          file macos/libmedia_ffi.dylib
+
+      - name: Flutter Build (macOS Release)
+        run: flutter build macos --release --split-debug-info=debug-info
+
+      - name: Cache Homebrew
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/Homebrew
+            /usr/local/Cellar/create-dmg
+          key: brew-${{ runner.os }}-create-dmg
+          restore-keys: brew-${{ runner.os }}-
+
+      - name: Install create-dmg
+        run: brew install create-dmg
+
+      - name: Create DMG
+        run: |
+          mkdir dmg
+          cp -R build/macos/Build/Products/Release/Vidra.app dmg/
+          create-dmg \
+            --volname "Vidra" \
+            --window-size 500 300 \
+            --icon-size 100 \
+            --app-drop-link 350 150 \
+            Vidra-macOS-x64.dmg \
+            dmg
+
+      - name: Upload DMG Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Vidra-macOS-x64-DMG
+          path: Vidra-macOS-x64.dmg
+
+  # ============ 🎉 创建 GitHub Release ============
+  release:
+    name: Create GitHub Release
+    needs: [windows, macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 下载所有构建产物
+      - name: Download Windows MSI
+        uses: actions/download-artifact@v4
+        with:
+          name: Vidra-Windows-x64-MSI
+          path: ./artifacts
+
+      - name: Download macOS DMG
+        uses: actions/download-artifact@v4
+        with:
+          name: Vidra-macOS-x64-DMG
+          path: ./artifacts
+
+      # 提取版本号
+      - name: Get Version
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      # 生成 Release Notes
+      - name: Generate Release Notes
+        id: notes
+        run: |
+          cat > release_notes.md << 'EOF'
+          ## 🎉 Vidra ${{ steps.version.outputs.version }}
+
+          ### 📦 Downloads
+
+          | Platform | File |
+          |---|---|
+          | **Windows (64-bit)** | `Vidra-Windows-x64.msi` |
+          | **macOS (64-bit)** | `Vidra-macOS-x64.dmg` |
+
+          ### 🚀 What's New
+
+          - Bug fixes and performance improvements
+
+          ### 📝 Installation
+
+          **Windows:**
+          1. Download `Vidra-Windows-x64.msi`
+          2. Double-click to install
+          3. Follow the installation wizard
+
+          **macOS:**
+          1. Download `Vidra-macOS-x64.dmg`
+          2. Open the DMG file
+          3. Drag Vidra.app to Applications folder
+
+          ### 🐛 Known Issues
+
+          - None currently
+
+          ### 💬 Feedback
+
+          Please report issues on [GitHub Issues](https://github.com/${{ github.repository }}/issues)
+          EOF
+
+      # 创建 Release
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Vidra ${{ steps.version.outputs.version }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: false
+          files: |
+            ./artifacts/Vidra-Windows-x64.msi
+            ./artifacts/Vidra-macOS-x64.dmg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

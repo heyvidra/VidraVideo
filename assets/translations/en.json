@@ -1,0 +1,209 @@
+{
+  "navigation": {
+    "home": "Home",
+    "downloads": "Downloads",
+    "link_download": "Link Download",
+    "recent": "Recent",
+    "settings": "Settings",
+    "section_menu": "Menu",
+    "section_library": "Library",
+    "section_general": "General"
+  },
+  "recent": {
+    "title": "Recent Activity",
+    "clear_all": "Clear All",
+    "empty": "No recent playback history"
+  },
+  "dashboard": {
+    "search_hint": "Search",
+    "pin_to_top": "Pin to Top",
+    "unpin_from_top": "Unpin from Top",
+    "switch_to_light_mode": "Switch to Light Mode",
+    "switch_to_dark_mode": "Switch to Dark Mode",
+    "exit_dialog": {
+      "title": "Tip",
+      "content": "Closing the window will exit Vidra.",
+      "cancel": "Cancel",
+      "confirm": "Close"
+    }
+  },
+  "search": {
+    "placeholder": "Enter search keywords",
+    "prompt": "Please enter search keywords",
+    "title": "Search: {}",
+    "no_results": "No related videos found",
+    "count_format": "Found {} results related to \"{}\"",
+    "error": "Search error: {}"
+  },
+  "settings": {
+    "title": "Settings",
+    "download": {
+      "title": "Download Settings",
+      "location": "Download Location",
+      "concurrent": "Concurrent Downloads",
+      "recommended": "Recommended: {} · limited by network/CDN — too many is often slower",
+      "segment_concurrent": "Segments per download",
+      "segment_concurrent_desc": "Parallel HLS segment fetches within one download. Higher = faster; lower is gentler on the server.",
+      "cookie": {
+        "title": "Cookies file",
+        "none": "Not set",
+        "clear": "Clear",
+        "desc": "Netscape cookies.txt exported from a logged-in browser. Needed for login/age-restricted videos (e.g. YouTube)."
+      }
+    },
+    "storage": {
+      "title": "Storage",
+      "cache": "Cache",
+      "clear_cache": "Clear Cache",
+      "clear_confirm": "Are you sure you want to clear all cached data?"
+    },
+    "action": {
+      "open_folder": "Open Folder",
+      "change": "Change",
+      "clear": "Clear"
+    },
+    "status": {
+      "calculating": "Calculating...",
+      "cleared": "Cache cleared successfully"
+    }
+  },
+  "video": {
+    "detail": {
+      "not_found": "Video not found",
+      "error": "Error: {}",
+      "rating_suffix": " Rating",
+      "play_now": "Play Now",
+      "download": "Download",
+      "done": "Done",
+      "no_episodes_play": "No episodes available to play",
+      "no_episodes": "No episodes available",
+      "download_all": "Download All",
+      "sort_asc": "Ascending",
+      "sort_desc": "Descending",
+      "download_batch_added": "Added {} episodes to download list",
+      "download_added": "Added {} to download list",
+      "episode_prefix": "Episode {}",
+      "new_badge": "NEW",
+      "director": "Director",
+      "writer": "Writer",
+      "cast": "Cast",
+      "updated": "Updated",
+      "unknown": "Unknown",
+      "added_date": "Added: {}",
+      "cast_info": "Cast: {}",
+      "storyline": "Storyline"
+    },
+    "section": {
+      "episodes": "Episodes",
+      "storyline": "Storyline",
+      "details": "Details",
+      "no_description": "No description available."
+    },
+    "player": {
+      "initializing": "Initializing player...",
+      "no_episodes": "No episodes available",
+      "added_to_download": "Added {} to download list",
+      "episode_list": "Episode List",
+      "episode_download": "Episode Download",
+      "resume_dialog": {
+        "title": "Resume Playback",
+        "content": "Last watched at {}",
+        "resume": "Resume",
+        "restart": "Start Over"
+      },
+      "task_list": "Task List",
+      "playlist": "Playlist",
+      "next_episode": "Next Episode",
+      "playback_speed": "Speed",
+      "playback_quality": "Quality",
+      "quality_default": "Default",
+      "download_tasks": "Download Tasks",
+      "playback_settings": "Playback Settings",
+      "auto_next": "Auto Next Episode",
+      "skip_intro": "Skip Intro",
+      "skip_outro": "Skip Outro"
+    }
+  },
+  "download": {
+    "title": "Downloads",
+    "url": {
+      "title": "Link Download",
+      "dropzone": "Copy a link, then click here to start downloading",
+      "dropzone_hint": "Supports YouTube, Bilibili, and more — parses available qualities",
+      "parsing": "Parsing…",
+      "clipboard_empty": "No link found in the clipboard",
+      "field_label": "Video URL",
+      "paste": "Paste",
+      "parse": "Parse",
+      "parse_failed": "Could not parse this URL",
+      "retry": "Retry",
+      "quality": "Quality",
+      "quality_best": "Best (auto)",
+      "quality_audio": "Audio only",
+      "duration": "Duration",
+      "download": "Download",
+      "download_all": "Download all",
+      "added": "Added to download list",
+      "added_all": "Added {} to download list",
+      "added_badge": "Added",
+      "playlist_count": "{} videos"
+    },
+    "tab": {
+      "downloading": "Downloading",
+      "completed": "Completed"
+    },
+    "empty": {
+      "active": "No active downloads",
+      "completed": "No completed downloads"
+    },
+    "action": {
+      "pause": "Pause",
+      "resume": "Resume",
+      "cancel": "Cancel",
+      "cancel_all": "Cancel all",
+      "delete": "Delete",
+      "delete_task": "Delete task",
+      "play": "Play",
+      "reveal": "Show in folder",
+      "retry": "Retry"
+    },
+    "status": {
+      "completed": "Completed",
+      "failed": "Failed",
+      "paused": "Paused · {}/{}",
+      "downloading": "Downloading {}/{}",
+      "cancelled": "Cancelled",
+      "queued": "Queued"
+    },
+    "delete": {
+      "task_title": "Delete task?",
+      "task_content": "Are you sure you want to delete this task?",
+      "episode_title": "Delete episode?",
+      "episode_content": "Are you sure you want to delete this episode?",
+      "also_files": "Also delete downloaded files"
+    },
+    "downloading_progress": "Downloading {}/{}",
+    "episodes_count": "{} episodes",
+    "episode_fallback": "Episode",
+    "time_left": "{} left"
+  },
+  "filter": {
+    "all_types": "All Types",
+    "all_areas": "All Areas",
+    "all_years": "All Years",
+    "no_category": "No Category"
+  },
+  "common": {
+    "refresh": "Refresh",
+    "language": "Language",
+    "zh": "Chinese",
+    "en": "English",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "error": "Error: {}",
+    "loading": "Loading...",
+    "view_details": "View Details",
+    "waiting_for_video": "Waiting for video...",
+    "close": "Close"
+  }
+}

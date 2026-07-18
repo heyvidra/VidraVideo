@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+
+  <Product
+    Id="*"
+    Name="Vidra"
+    Language="1033"
+    Version="1.0.0"
+    Manufacturer="Vidra"
+    UpgradeCode="A1B2C3D4-E5F6-47A1-9C3D-1234567890AB">
+
+    <Package
+      InstallerVersion="500"
+      Compressed="yes"
+      InstallScope="perMachine"
+      Platform="x64"
+      Description="Vidra Video Editor"
+      Comments="Vidra - Powerful Video Editing Software" />
+
+    <MajorUpgrade 
+  DowngradeErrorMessage="A newer version of [ProductName] is already installed."
+  AllowDowngrades="no" />
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- ============ 🎨 使用自定义 UI ============ -->
+    <UIRef Id="VidraUI" />
+    
+    <!-- 图标 -->
+    <Icon Id="VidraIcon" SourceFile="assets\icon.ico" />
+    <Property Id="ARPPRODUCTICON" Value="VidraIcon" />
+    
+    <!-- Banner 图片 -->
+    <WixVariable Id="WixUIBannerBmp" Value="assets\banner.bmp" />
+    <WixVariable Id="WixUIDialogBmp" Value="assets\dialog.bmp" />
+    
+    <!-- 许可协议 -->
+    <WixVariable Id="WixUILicenseRtf" Value="assets\License.rtf" />
+
+    <!-- 目录结构 -->
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="Vidra"/>
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="Vidra"/>
+      </Directory>
+      <Directory Id="DesktopFolder" Name="Desktop"/>
+    </Directory>
+
+    <!-- 功能 -->
+    <Feature Id="MainFeature" Title="Vidra" Level="1">
+      <ComponentGroupRef Id="VidraFiles"/>
+      <ComponentRef Id="ApplicationShortcut"/>
+      <ComponentRef Id="DesktopShortcut"/>
+    </Feature>
+
+    <!-- 快捷方式 -->
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="ApplicationShortcut" Guid="12345678-1234-1234-1234-123456789012">
+        <Shortcut 
+          Id="ApplicationStartMenuShortcut"
+          Name="Vidra"
+          Description="Vidra Video Editor"
+          Target="[INSTALLFOLDER]vidra.exe"
+          WorkingDirectory="INSTALLFOLDER"
+          Icon="VidraIcon"/>
+        <Shortcut
+          Id="UninstallProduct"
+          Name="Uninstall Vidra"
+          Target="[System64Folder]msiexec.exe"
+          Arguments="/x [ProductCode]"
+          Icon="VidraIcon"/>
+        <RemoveFolder Id="CleanUpShortCut" Directory="ApplicationProgramsFolder" On="uninstall"/>
+        <RegistryValue Root="HKCU" Key="Software\Vidra" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="DesktopFolder">
+      <Component Id="DesktopShortcut" Guid="87654321-4321-4321-4321-210987654321">
+        <Shortcut 
+          Id="ApplicationDesktopShortcut"
+          Name="Vidra"
+          Target="[INSTALLFOLDER]vidra.exe"
+          WorkingDirectory="INSTALLFOLDER"
+          Icon="VidraIcon"/>
+        <RemoveFolder Id="CleanUpDesktopShortcut" Directory="DesktopFolder" On="uninstall"/>
+        <RegistryValue Root="HKCU" Key="Software\Vidra" Name="desktopShortcut" Type="integer" Value="1" KeyPath="yes"/>
+      </Component>
+    </DirectoryRef>
+
+  </Product>
+
+</Wix>

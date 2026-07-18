@@ -1,0 +1,330 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  
+  <Fragment>
+    
+    <UI Id="VidraUI">
+      
+      <!-- Font definitions -->
+      <TextStyle Id="VidraFont_Title" FaceName="Segoe UI" Size="14" Bold="yes" Red="255" Green="51" Blue="51" />
+      <TextStyle Id="VidraFont_Normal" FaceName="Segoe UI" Size="9" />
+      <TextStyle Id="VidraFont_Emphasis" FaceName="Segoe UI" Size="9" Bold="yes" />
+      
+      <!-- Set default UI font -->
+      <Property Id="DefaultUIFont" Value="VidraFont_Normal" />
+      <Property Id="ErrorDialog" Value="ErrorDlg" />
+      
+      <!-- 1. Welcome Dialog -->
+      <Dialog Id="WelcomeDlg" Width="370" Height="270" Title="Vidra Setup">
+        
+        <Control Id="Title" Type="Text" X="135" Y="65" Width="220" Height="60" Transparent="yes" NoPrefix="yes">
+          <Text>{\VidraFont_Title}Welcome to Vidra</Text>
+        </Control>
+        
+        <Control Id="Description" Type="Text" X="135" Y="105" Width="220" Height="50" Transparent="yes" NoPrefix="yes">
+          <Text>{\VidraFont_Normal}This wizard will guide you through the installation of Vidra - the powerful video editor.
+
+Click Next to continue.</Text>
+        </Control>
+        
+        <Control Id="Version" Type="Text" X="135" Y="160" Width="220" Height="15" Transparent="yes" NoPrefix="yes">
+          <Text>{\VidraFont_Normal}Version 1.0.0</Text>
+        </Control>
+        
+        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="&amp;Next &gt;">
+          <Publish Event="NewDialog" Value="LicenseDlg">1</Publish>
+        </Control>
+        
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="Cancel">
+          <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
+        </Control>
+        
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+        
+      </Dialog>
+      
+      
+      <!-- 2. License Dialog -->
+      <Dialog Id="LicenseDlg" Width="370" Height="270" Title="Vidra Setup - License Agreement">
+        
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes">
+          <Text>{\VidraFont_Title}License Agreement</Text>
+        </Control>
+        
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
+        
+        <Control Id="LicenseText" Type="ScrollableText" X="20" Y="60" Width="330" Height="120" Sunken="yes" TabSkip="no">
+          <Text SourceFile="assets\License.rtf" />
+        </Control>
+        
+        <Control Id="LicenseAcceptedCheckBox" Type="CheckBox" X="20" Y="190" Width="330" Height="18" CheckBoxValue="1" Property="LICENSEACCEPTED" Text="I &amp;accept the terms in the License Agreement" />
+        
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="&lt; &amp;Back">
+          <Publish Event="NewDialog" Value="WelcomeDlg">1</Publish>
+        </Control>
+        
+        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="&amp;Next &gt;">
+          <Publish Event="NewDialog" Value="InstallDirDlg">LICENSEACCEPTED = "1"</Publish>
+          <Condition Action="disable"><![CDATA[LICENSEACCEPTED <> "1"]]></Condition>
+          <Condition Action="enable">LICENSEACCEPTED = "1"</Condition>
+        </Control>
+        
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="Cancel">
+          <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
+        </Control>
+        
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+        
+      </Dialog>
+      
+      
+      <!-- 3. Install Directory Dialog -->
+      <Dialog Id="InstallDirDlg" Width="370" Height="270" Title="Vidra Setup - Destination Folder">
+        
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes">
+          <Text>{\VidraFont_Title}Choose Install Location</Text>
+        </Control>
+        
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
+        
+        <Control Id="Description" Type="Text" X="25" Y="70" Width="320" Height="20" Transparent="yes" NoPrefix="yes">
+          <Text>{\VidraFont_Normal}Setup will install Vidra in the following folder.</Text>
+        </Control>
+        
+        <Control Id="FolderLabel" Type="Text" X="25" Y="95" Width="290" Height="15" Transparent="yes" NoPrefix="yes">
+          <Text>{\VidraFont_Emphasis}Destination Folder:</Text>
+        </Control>
+        
+        <Control Id="Folder" Type="PathEdit" X="25" Y="115" Width="330" Height="18" Property="WIXUI_INSTALLDIR" Indirect="yes" />
+        
+        <Control Id="InstallTip" Type="Text" X="25" Y="150" Width="330" Height="30" Transparent="yes" NoPrefix="yes">
+          <Text>{\VidraFont_Normal}Click Install to begin the installation. Click Back to review or change settings.</Text>
+        </Control>
+        
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="&lt; &amp;Back">
+          <Publish Event="NewDialog" Value="LicenseDlg">1</Publish>
+        </Control>
+        
+        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="&amp;Install">
+          <Publish Event="EndDialog" Value="Return">1</Publish>
+        </Control>
+        
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="Cancel">
+          <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
+        </Control>
+        
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+        
+      </Dialog>
+      
+      
+      <!-- 4. Progress Dialog -->
+      <Dialog Id="ProgressDlg" Width="370" Height="270" Title="Vidra Setup - Installing" Modeless="yes">
+        
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes">
+          <Text>{\VidraFont_Title}Installing Vidra</Text>
+        </Control>
+        
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
+        
+        <Control Id="StatusLabel" Type="Text" X="35" Y="70" Width="300" Height="15" Transparent="yes" NoPrefix="yes">
+          <Text>{\VidraFont_Normal}Please wait while Vidra is being installed...</Text>
+        </Control>
+        
+        <Control Id="ProgressBar" Type="ProgressBar" X="35" Y="100" Width="300" Height="15" ProgressBlocks="yes" Text="Progress1">
+          <Subscribe Event="SetProgress" Attribute="Progress" />
+        </Control>
+        
+        <Control Id="ActionText" Type="Text" X="35" Y="130" Width="300" Height="20" Transparent="yes" NoPrefix="yes">
+          <Subscribe Event="ActionText" Attribute="Text" />
+        </Control>
+        
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="Cancel">
+          <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
+        </Control>
+        
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+        
+      </Dialog>
+      
+      
+      <!-- 5. Exit Dialog (Success) -->
+      <Dialog Id="ExitDlg" Width="370" Height="270" Title="Vidra Setup - Completed">
+        
+        <Control Id="Title" Type="Text" X="135" Y="65" Width="220" Height="60" Transparent="yes" NoPrefix="yes">
+          <Text>{\VidraFont_Title}Installation Complete!</Text>
+        </Control>
+        
+        <Control Id="Description" Type="Text" X="135" Y="110" Width="220" Height="60" Transparent="yes" NoPrefix="yes">
+          <Text>{\VidraFont_Normal}Vidra has been successfully installed on your computer.
+
+Click Finish to exit Setup.</Text>
+        </Control>
+        
+        <Control Id="LaunchCheckBox" Type="CheckBox" X="135" Y="180" Width="220" Height="18" Property="LAUNCHAPPONEXIT" CheckBoxValue="1" Text="&amp;Launch Vidra now" />
+        
+        <Control Id="Finish" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Cancel="yes" Text="&amp;Finish">
+          <Publish Event="DoAction" Value="LaunchApplication">LAUNCHAPPONEXIT</Publish>
+          <Publish Event="EndDialog" Value="Return">1</Publish>
+        </Control>
+        
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+        
+      </Dialog>
+      
+      
+      <!-- 6. Fatal Error Dialog -->
+      <Dialog Id="FatalError" Width="370" Height="270" Title="Vidra Setup - Error">
+        
+        <Control Id="Title" Type="Text" X="135" Y="65" Width="220" Height="60" Transparent="yes" NoPrefix="yes">
+          <Text>{\VidraFont_Title}Installation Failed</Text>
+        </Control>
+        
+        <Control Id="Description" Type="Text" X="135" Y="110" Width="220" Height="60" Transparent="yes" NoPrefix="yes">
+          <Text>{\VidraFont_Normal}Setup was interrupted before Vidra could be completely installed.
+
+Your system has not been modified.</Text>
+        </Control>
+        
+        <Control Id="Finish" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Cancel="yes" Text="&amp;Finish">
+          <Publish Event="EndDialog" Value="Exit">1</Publish>
+        </Control>
+        
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+        
+      </Dialog>
+      
+      
+      <!-- 7. User Exit Dialog -->
+      <Dialog Id="UserExit" Width="370" Height="270" Title="Vidra Setup - Cancelled">
+        
+        <Control Id="Title" Type="Text" X="135" Y="65" Width="220" Height="60" Transparent="yes" NoPrefix="yes">
+          <Text>{\VidraFont_Title}Installation Cancelled</Text>
+        </Control>
+        
+        <Control Id="Description" Type="Text" X="135" Y="110" Width="220" Height="60" Transparent="yes" NoPrefix="yes">
+          <Text>{\VidraFont_Normal}Setup was cancelled before Vidra could be completely installed.
+
+Your system has not been modified.</Text>
+        </Control>
+        
+        <Control Id="Finish" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Cancel="yes" Text="&amp;Finish">
+          <Publish Event="EndDialog" Value="Exit">1</Publish>
+        </Control>
+        
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+        
+      </Dialog>
+      
+      
+      <!-- 8. Files In Use Dialog -->
+      <Dialog Id="FilesInUse" Width="370" Height="270" Title="Vidra Setup - Files In Use" KeepModeless="yes">
+        
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes">
+          <Text>{\VidraFont_Title}Files In Use</Text>
+        </Control>
+        
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
+        
+        <Control Id="Description" Type="Text" X="20" Y="60" Width="330" Height="30" Transparent="yes" NoPrefix="yes">
+          <Text>{\VidraFont_Normal}The following applications are using files that need to be updated. Close these applications and click Retry to continue.</Text>
+        </Control>
+        
+        <Control Id="List" Type="ListBox" X="20" Y="100" Width="330" Height="80" Property="FileInUseProcess" Sunken="yes" TabSkip="yes" />
+        
+        <Control Id="Retry" Type="PushButton" X="180" Y="243" Width="56" Height="17" Default="yes" Text="&amp;Retry">
+          <Publish Event="EndDialog" Value="Retry">1</Publish>
+        </Control>
+        
+        <Control Id="Ignore" Type="PushButton" X="236" Y="243" Width="56" Height="17" Text="&amp;Ignore">
+          <Publish Event="EndDialog" Value="Ignore">1</Publish>
+        </Control>
+        
+        <Control Id="Exit" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="E&amp;xit">
+          <Publish Event="EndDialog" Value="Exit">1</Publish>
+        </Control>
+        
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+        
+      </Dialog>
+      
+      
+      <!-- 9. Error Dialog -->
+      <Dialog Id="ErrorDlg" Width="270" Height="105" Title="[ProductName] Setup" ErrorDialog="yes">
+        <Control Id="ErrorText" Type="Text" X="50" Y="15" Width="200" Height="60" TabSkip="no" Text="{\VidraFont_Normal}[ErrorText]" />
+        
+        <Control Id="Y" Type="PushButton" X="100" Y="80" Width="56" Height="17" Default="yes" Cancel="yes" Text="&amp;Yes">
+          <Publish Event="EndDialog" Value="ErrorYes">1</Publish>
+        </Control>
+        
+        <Control Id="N" Type="PushButton" X="161" Y="80" Width="56" Height="17" Cancel="yes" Text="&amp;No">
+          <Publish Event="EndDialog" Value="ErrorNo">1</Publish>
+        </Control>
+        
+        <Control Id="A" Type="PushButton" X="100" Y="80" Width="56" Height="17" Default="yes" Cancel="yes" Text="&amp;Abort">
+          <Publish Event="EndDialog" Value="ErrorAbort">1</Publish>
+        </Control>
+        
+        <Control Id="C" Type="PushButton" X="100" Y="80" Width="56" Height="17" Default="yes" Cancel="yes" Text="&amp;Cancel">
+          <Publish Event="EndDialog" Value="ErrorCancel">1</Publish>
+        </Control>
+        
+        <Control Id="I" Type="PushButton" X="161" Y="80" Width="56" Height="17" Cancel="yes" Text="&amp;Ignore">
+          <Publish Event="EndDialog" Value="ErrorIgnore">1</Publish>
+        </Control>
+        
+        <Control Id="O" Type="PushButton" X="100" Y="80" Width="56" Height="17" Default="yes" Cancel="yes" Text="&amp;OK">
+          <Publish Event="EndDialog" Value="ErrorOk">1</Publish>
+        </Control>
+        
+        <Control Id="R" Type="PushButton" X="161" Y="80" Width="56" Height="17" Cancel="yes" Text="&amp;Retry">
+          <Publish Event="EndDialog" Value="ErrorRetry">1</Publish>
+        </Control>
+      </Dialog>
+      
+      
+      <!-- 10. Cancel Dialog -->
+      <Dialog Id="CancelDlg" Width="260" Height="85" Title="Vidra Setup" NoMinimize="yes">
+        <Control Id="No" Type="PushButton" X="132" Y="57" Width="56" Height="17" Default="yes" Cancel="yes" Text="&amp;No">
+          <Publish Event="EndDialog" Value="Return">1</Publish>
+        </Control>
+        
+        <Control Id="Yes" Type="PushButton" X="72" Y="57" Width="56" Height="17" Text="&amp;Yes">
+          <Publish Event="EndDialog" Value="Exit">1</Publish>
+        </Control>
+        
+        <Control Id="Text" Type="Text" X="48" Y="15" Width="194" Height="30">
+          <Text>{\VidraFont_Normal}Are you sure you want to cancel Vidra installation?</Text>
+        </Control>
+      </Dialog>
+      
+      
+      <!-- UI Sequence -->
+      <InstallUISequence>
+        <Show Dialog="WelcomeDlg" Before="ProgressDlg">NOT Installed</Show>
+        <Show Dialog="ProgressDlg" Before="ExecuteAction" />
+        <Show Dialog="ExitDlg" OnExit="success">NOT Installed</Show>
+        <Show Dialog="FatalError" OnExit="error">NOT Installed</Show>
+        <Show Dialog="UserExit" OnExit="cancel">NOT Installed</Show>
+      </InstallUISequence>
+      
+      <AdminUISequence>
+        <Show Dialog="WelcomeDlg" Before="ProgressDlg" />
+        <Show Dialog="ProgressDlg" Before="ExecuteAction" />
+        <Show Dialog="ExitDlg" OnExit="success" />
+        <Show Dialog="FatalError" OnExit="error" />
+        <Show Dialog="UserExit" OnExit="cancel" />
+      </AdminUISequence>
+      
+      <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+      <Property Id="LICENSEACCEPTED" Secure="yes" />
+      <Property Id="LAUNCHAPPONEXIT" Value="0" />
+      
+    </UI>
+    
+    <Property Id="WixShellExecTarget" Value="[#fil_vidra.exe]" />
+    <CustomAction Id="LaunchApplication" BinaryKey="WixCA" DllEntry="WixShellExec" Impersonate="yes" />
+    
+  </Fragment>
+  
+</Wix>
