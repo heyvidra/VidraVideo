@@ -91,6 +91,9 @@ class MockDataSource implements VideoDataSource {
   String resolveUrl(String url) => url;
 
   @override
+  Future<String?> resolveEpisodeUrl(String url) async => url;
+
+  @override
   Future<String?> getDownloadUrl(Video video, {VideoEpisode? episode}) async {
     return episode?.qualities?.firstOrNull?.url ??
         video.urls?.firstOrNull?.qualities?.firstOrNull?.url;

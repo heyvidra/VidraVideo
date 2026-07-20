@@ -34,6 +34,15 @@ abstract class VideoDataSource {
   /// Resolves a potentially relative URL to a full URL.
   String resolveUrl(String url);
 
+  /// Turns a stored episode URL into a playable stream URL.
+  ///
+  /// Sources whose detail payload already carries stream URLs just hand the
+  /// URL back. Sources that store a placeholder (dbku keeps a `/vodplay/` page
+  /// path, since the stream sits behind one more request) resolve it here.
+  /// Implementations must be idempotent: passing an already-resolved URL
+  /// returns it untouched.
+  Future<String?> resolveEpisodeUrl(String url);
+
   /// Returns the download URL for a specific video or episode.
   Future<String?> getDownloadUrl(Video video, {VideoEpisode? episode});
 }

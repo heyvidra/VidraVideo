@@ -138,6 +138,10 @@ class OlevodDataSource implements VideoDataSource {
     return '$_cdnBaseUrl/$url';
   }
 
+  // Olevod's detail payload already carries stream URLs, so nothing to resolve.
+  @override
+  Future<String?> resolveEpisodeUrl(String url) async => url;
+
   @override
   Future<String?> getDownloadUrl(Video video, {VideoEpisode? episode}) async {
     final targetEpisode = episode ?? video.urls?.firstOrNull;

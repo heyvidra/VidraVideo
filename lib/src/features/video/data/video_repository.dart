@@ -10,6 +10,7 @@ import '../domain/video_settings.dart';
 import '../domain/category.dart'; // Relative to this file
 import '../../settings/presentation/settings_provider.dart';
 import 'video_data_source.dart';
+import 'demo_dbku/dbku_data_source.dart';
 import 'demo_olevod/olevod_data_source.dart';
 import 'mock/mock_data_source.dart';
 
@@ -20,7 +21,7 @@ final initialDataSourceIdProvider = Provider<String>((ref) {
 
 final availableDataSourcesProvider = Provider<List<VideoDataSource>>((ref) {
   final dio = ref.watch(dioProvider);
-  return [OlevodDataSource(dio), MockDataSource()];
+  return [OlevodDataSource(dio), DbkuDataSource(dio), MockDataSource()];
 });
 
 class DataSourceIdNotifier extends Notifier<String> {
