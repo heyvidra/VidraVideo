@@ -65,7 +65,13 @@ class OlevodDataSource implements VideoDataSource {
       }
       return VideoResponse(list: [], total: 0, page: 1);
     } on DioException catch (e) {
-      logD('Olevod', 'Error fetching videos: $e');
+      // The signature is a function of the clock, so the timestamp that fed it
+      // is the first thing worth seeing when the server rejects a request.
+      logR(
+        'Olevod',
+        'fetchVideos failed: ${e.response?.statusCode} ${e.response?.data} '
+        '(path=$path sign=$sign now=${DateTime.now().toUtc().toIso8601String()})',
+      );
       throw ApiException.fromDioException(e);
     }
   }
