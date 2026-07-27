@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:vidra_player_kit/vidra_player_kit.dart';
 
 import 'src/config/app_config.dart';
+import 'src/core/network/bundled_roots.dart';
 import 'src/core/utils/log.dart';
 import 'src/core/utils/window.dart';
 
@@ -33,6 +34,7 @@ Future<void> main() async {
 Future<void> _runApp() async {
   WidgetsFlutterBinding.ensureInitialized();
   await EasyLocalization.ensureInitialized();
+  await installBundledRoots();
 
   try {
     VidraPlayerKit.ensureInitialized();
