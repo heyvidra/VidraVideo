@@ -175,6 +175,9 @@ jobs:
         with:
           name: Vidra-Windows-x64-MSI
           path: Vidra-Windows-x64.msi
+          # Only the release job downloads these, and it runs minutes
+          # later; keeping them longer just eats the storage quota.
+          retention-days: 7
 
   macos:
     name: macOS DMG
@@ -270,6 +273,9 @@ jobs:
         with:
           name: Vidra-macOS-x64-DMG
           path: Vidra-macOS-x64.dmg
+          # Only the release job downloads these, and it runs minutes
+          # later; keeping them longer just eats the storage quota.
+          retention-days: 7
 
   # ============ 🎉 创建 GitHub Release ============
   release:
