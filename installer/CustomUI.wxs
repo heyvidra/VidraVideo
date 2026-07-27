@@ -3,16 +3,6 @@
   
   <Fragment>
 
-    <!--
-      The artwork is sized to the WixUI convention — 493x312 for the side panel,
-      493x58 for the header strip — and the dialogs below are laid out around it
-      (welcome text starts at X=135, interior titles at Y=6). Declared here as
-      Binary rows rather than through the WixUIBannerBmp/WixUIDialogBmp
-      variables, which only mean something to WixUIExtension's stock dialogs.
-    -->
-    <Binary Id="VidraDialogBmp" SourceFile="assets\dialog.bmp" />
-    <Binary Id="VidraBannerBmp" SourceFile="assets\banner.bmp" />
-
     <UI Id="VidraUI">
 
       <!-- Font definitions -->
@@ -27,19 +17,17 @@
       <!-- 1. Welcome Dialog -->
       <Dialog Id="WelcomeDlg" Width="370" Height="270" Title="Vidra Setup">
 
-        <Control Id="Bitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="234" TabSkip="no" Text="VidraDialogBmp" />
-        
-        <Control Id="Title" Type="Text" X="135" Y="65" Width="220" Height="60" Transparent="yes" NoPrefix="yes">
+        <Control Id="Title" Type="Text" X="25" Y="55" Width="320" Height="20" Transparent="yes" NoPrefix="yes">
           <Text>{\VidraFont_Title}Welcome to Vidra</Text>
         </Control>
         
-        <Control Id="Description" Type="Text" X="135" Y="105" Width="220" Height="50" Transparent="yes" NoPrefix="yes">
+        <Control Id="Description" Type="Text" X="25" Y="90" Width="320" Height="60" Transparent="yes" NoPrefix="yes">
           <Text>{\VidraFont_Normal}This wizard will guide you through the installation of Vidra, a desktop player for your video libraries.
 
 Click Next to continue.</Text>
         </Control>
         
-        <Control Id="Version" Type="Text" X="135" Y="160" Width="220" Height="15" Transparent="yes" NoPrefix="yes">
+        <Control Id="Version" Type="Text" X="25" Y="165" Width="320" Height="15" Transparent="yes" NoPrefix="yes">
           <Text>{\VidraFont_Normal}Version [ProductVersion]</Text>
         </Control>
         
@@ -59,8 +47,6 @@ Click Next to continue.</Text>
       <!-- 2. License Dialog -->
       <Dialog Id="LicenseDlg" Width="370" Height="270" Title="Vidra Setup - License Agreement">
 
-        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="VidraBannerBmp" />
-        
         <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes">
           <Text>{\VidraFont_Title}License Agreement</Text>
         </Control>
@@ -95,8 +81,6 @@ Click Next to continue.</Text>
       <!-- 3. Install Directory Dialog -->
       <Dialog Id="InstallDirDlg" Width="370" Height="270" Title="Vidra Setup - Destination Folder">
 
-        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="VidraBannerBmp" />
-        
         <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes">
           <Text>{\VidraFont_Title}Choose Install Location</Text>
         </Control>
@@ -137,8 +121,6 @@ Click Next to continue.</Text>
       <!-- 4. Progress Dialog -->
       <Dialog Id="ProgressDlg" Width="370" Height="270" Title="Vidra Setup - Installing" Modeless="yes">
 
-        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="VidraBannerBmp" />
-        
         <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes">
           <Text>{\VidraFont_Title}Installing Vidra</Text>
         </Control>
@@ -169,19 +151,17 @@ Click Next to continue.</Text>
       <!-- 5. Exit Dialog (Success) -->
       <Dialog Id="ExitDlg" Width="370" Height="270" Title="Vidra Setup - Completed">
 
-        <Control Id="Bitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="234" TabSkip="no" Text="VidraDialogBmp" />
-        
-        <Control Id="Title" Type="Text" X="135" Y="65" Width="220" Height="60" Transparent="yes" NoPrefix="yes">
+        <Control Id="Title" Type="Text" X="25" Y="55" Width="320" Height="20" Transparent="yes" NoPrefix="yes">
           <Text>{\VidraFont_Title}Installation Complete!</Text>
         </Control>
         
-        <Control Id="Description" Type="Text" X="135" Y="110" Width="220" Height="60" Transparent="yes" NoPrefix="yes">
+        <Control Id="Description" Type="Text" X="25" Y="90" Width="320" Height="60" Transparent="yes" NoPrefix="yes">
           <Text>{\VidraFont_Normal}Vidra has been successfully installed on your computer.
 
 Click Finish to exit Setup.</Text>
         </Control>
         
-        <Control Id="LaunchCheckBox" Type="CheckBox" X="135" Y="180" Width="220" Height="18" Property="LAUNCHAPPONEXIT" CheckBoxValue="1" Text="&amp;Launch Vidra now" />
+        <Control Id="LaunchCheckBox" Type="CheckBox" X="25" Y="165" Width="320" Height="18" Property="LAUNCHAPPONEXIT" CheckBoxValue="1" Text="&amp;Launch Vidra now" />
         
         <Control Id="Finish" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Cancel="yes" Text="&amp;Finish">
           <Publish Event="DoAction" Value="LaunchApplication">LAUNCHAPPONEXIT</Publish>
@@ -196,13 +176,11 @@ Click Finish to exit Setup.</Text>
       <!-- 6. Fatal Error Dialog -->
       <Dialog Id="FatalError" Width="370" Height="270" Title="Vidra Setup - Error">
 
-        <Control Id="Bitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="234" TabSkip="no" Text="VidraDialogBmp" />
-        
-        <Control Id="Title" Type="Text" X="135" Y="65" Width="220" Height="60" Transparent="yes" NoPrefix="yes">
+        <Control Id="Title" Type="Text" X="25" Y="55" Width="320" Height="20" Transparent="yes" NoPrefix="yes">
           <Text>{\VidraFont_Title}Installation Failed</Text>
         </Control>
         
-        <Control Id="Description" Type="Text" X="135" Y="110" Width="220" Height="60" Transparent="yes" NoPrefix="yes">
+        <Control Id="Description" Type="Text" X="25" Y="90" Width="320" Height="60" Transparent="yes" NoPrefix="yes">
           <Text>{\VidraFont_Normal}Setup was interrupted before Vidra could be completely installed.
 
 Your system has not been modified.</Text>
@@ -220,13 +198,11 @@ Your system has not been modified.</Text>
       <!-- 7. User Exit Dialog -->
       <Dialog Id="UserExit" Width="370" Height="270" Title="Vidra Setup - Cancelled">
 
-        <Control Id="Bitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="234" TabSkip="no" Text="VidraDialogBmp" />
-        
-        <Control Id="Title" Type="Text" X="135" Y="65" Width="220" Height="60" Transparent="yes" NoPrefix="yes">
+        <Control Id="Title" Type="Text" X="25" Y="55" Width="320" Height="20" Transparent="yes" NoPrefix="yes">
           <Text>{\VidraFont_Title}Installation Cancelled</Text>
         </Control>
         
-        <Control Id="Description" Type="Text" X="135" Y="110" Width="220" Height="60" Transparent="yes" NoPrefix="yes">
+        <Control Id="Description" Type="Text" X="25" Y="90" Width="320" Height="60" Transparent="yes" NoPrefix="yes">
           <Text>{\VidraFont_Normal}Setup was cancelled before Vidra could be completely installed.
 
 Your system has not been modified.</Text>
@@ -244,8 +220,6 @@ Your system has not been modified.</Text>
       <!-- 8. Files In Use Dialog -->
       <Dialog Id="FilesInUse" Width="370" Height="270" Title="Vidra Setup - Files In Use" KeepModeless="yes">
 
-        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="VidraBannerBmp" />
-        
         <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes">
           <Text>{\VidraFont_Title}Files In Use</Text>
         </Control>
