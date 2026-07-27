@@ -2,9 +2,19 @@
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
   
   <Fragment>
-    
+
+    <!--
+      The artwork is sized to the WixUI convention — 493x312 for the side panel,
+      493x58 for the header strip — and the dialogs below are laid out around it
+      (welcome text starts at X=135, interior titles at Y=6). Declared here as
+      Binary rows rather than through the WixUIBannerBmp/WixUIDialogBmp
+      variables, which only mean something to WixUIExtension's stock dialogs.
+    -->
+    <Binary Id="VidraDialogBmp" SourceFile="assets\dialog.bmp" />
+    <Binary Id="VidraBannerBmp" SourceFile="assets\banner.bmp" />
+
     <UI Id="VidraUI">
-      
+
       <!-- Font definitions -->
       <TextStyle Id="VidraFont_Title" FaceName="Segoe UI" Size="14" Bold="yes" Red="255" Green="51" Blue="51" />
       <TextStyle Id="VidraFont_Normal" FaceName="Segoe UI" Size="9" />
@@ -16,19 +26,21 @@
       
       <!-- 1. Welcome Dialog -->
       <Dialog Id="WelcomeDlg" Width="370" Height="270" Title="Vidra Setup">
+
+        <Control Id="Bitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="234" TabSkip="no" Text="VidraDialogBmp" />
         
         <Control Id="Title" Type="Text" X="135" Y="65" Width="220" Height="60" Transparent="yes" NoPrefix="yes">
           <Text>{\VidraFont_Title}Welcome to Vidra</Text>
         </Control>
         
         <Control Id="Description" Type="Text" X="135" Y="105" Width="220" Height="50" Transparent="yes" NoPrefix="yes">
-          <Text>{\VidraFont_Normal}This wizard will guide you through the installation of Vidra - the powerful video editor.
+          <Text>{\VidraFont_Normal}This wizard will guide you through the installation of Vidra, a desktop player for your video libraries.
 
 Click Next to continue.</Text>
         </Control>
         
         <Control Id="Version" Type="Text" X="135" Y="160" Width="220" Height="15" Transparent="yes" NoPrefix="yes">
-          <Text>{\VidraFont_Normal}Version 1.0.0</Text>
+          <Text>{\VidraFont_Normal}Version [ProductVersion]</Text>
         </Control>
         
         <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="&amp;Next &gt;">
@@ -46,6 +58,8 @@ Click Next to continue.</Text>
       
       <!-- 2. License Dialog -->
       <Dialog Id="LicenseDlg" Width="370" Height="270" Title="Vidra Setup - License Agreement">
+
+        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="VidraBannerBmp" />
         
         <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes">
           <Text>{\VidraFont_Title}License Agreement</Text>
@@ -80,6 +94,8 @@ Click Next to continue.</Text>
       
       <!-- 3. Install Directory Dialog -->
       <Dialog Id="InstallDirDlg" Width="370" Height="270" Title="Vidra Setup - Destination Folder">
+
+        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="VidraBannerBmp" />
         
         <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes">
           <Text>{\VidraFont_Title}Choose Install Location</Text>
@@ -120,6 +136,8 @@ Click Next to continue.</Text>
       
       <!-- 4. Progress Dialog -->
       <Dialog Id="ProgressDlg" Width="370" Height="270" Title="Vidra Setup - Installing" Modeless="yes">
+
+        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="VidraBannerBmp" />
         
         <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes">
           <Text>{\VidraFont_Title}Installing Vidra</Text>
@@ -150,6 +168,8 @@ Click Next to continue.</Text>
       
       <!-- 5. Exit Dialog (Success) -->
       <Dialog Id="ExitDlg" Width="370" Height="270" Title="Vidra Setup - Completed">
+
+        <Control Id="Bitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="234" TabSkip="no" Text="VidraDialogBmp" />
         
         <Control Id="Title" Type="Text" X="135" Y="65" Width="220" Height="60" Transparent="yes" NoPrefix="yes">
           <Text>{\VidraFont_Title}Installation Complete!</Text>
@@ -175,6 +195,8 @@ Click Finish to exit Setup.</Text>
       
       <!-- 6. Fatal Error Dialog -->
       <Dialog Id="FatalError" Width="370" Height="270" Title="Vidra Setup - Error">
+
+        <Control Id="Bitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="234" TabSkip="no" Text="VidraDialogBmp" />
         
         <Control Id="Title" Type="Text" X="135" Y="65" Width="220" Height="60" Transparent="yes" NoPrefix="yes">
           <Text>{\VidraFont_Title}Installation Failed</Text>
@@ -197,6 +219,8 @@ Your system has not been modified.</Text>
       
       <!-- 7. User Exit Dialog -->
       <Dialog Id="UserExit" Width="370" Height="270" Title="Vidra Setup - Cancelled">
+
+        <Control Id="Bitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="234" TabSkip="no" Text="VidraDialogBmp" />
         
         <Control Id="Title" Type="Text" X="135" Y="65" Width="220" Height="60" Transparent="yes" NoPrefix="yes">
           <Text>{\VidraFont_Title}Installation Cancelled</Text>
@@ -219,6 +243,8 @@ Your system has not been modified.</Text>
       
       <!-- 8. Files In Use Dialog -->
       <Dialog Id="FilesInUse" Width="370" Height="270" Title="Vidra Setup - Files In Use" KeepModeless="yes">
+
+        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="VidraBannerBmp" />
         
         <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes">
           <Text>{\VidraFont_Title}Files In Use</Text>
@@ -318,11 +344,11 @@ Your system has not been modified.</Text>
       
       <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
       <Property Id="LICENSEACCEPTED" Secure="yes" />
-      <Property Id="LAUNCHAPPONEXIT" Value="0" />
+      <Property Id="LAUNCHAPPONEXIT" Value="1" />
       
     </UI>
     
-    <Property Id="WixShellExecTarget" Value="[#fil_vidra.exe]" />
+    <Property Id="WixShellExecTarget" Value="[INSTALLFOLDER]vidra.exe" />
     <CustomAction Id="LaunchApplication" BinaryKey="WixCA" DllEntry="WixShellExec" Impersonate="yes" />
     
   </Fragment>
