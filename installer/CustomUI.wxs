@@ -153,18 +153,34 @@ Click Next to continue.</Text>
 
         <Control Id="Title" Type="Text" X="25" Y="55" Width="320" Height="20" Transparent="yes" NoPrefix="yes">
           <Text>{\VidraFont_Title}Installation Complete!</Text>
+          <Condition Action="hide">REMOVE~="ALL"</Condition>
+        </Control>
+
+        <Control Id="RemovedTitle" Type="Text" X="25" Y="55" Width="320" Height="20" Transparent="yes" NoPrefix="yes" Hidden="yes">
+          <Text>{\VidraFont_Title}Uninstall Complete</Text>
+          <Condition Action="show">REMOVE~="ALL"</Condition>
         </Control>
         
         <Control Id="Description" Type="Text" X="25" Y="90" Width="320" Height="60" Transparent="yes" NoPrefix="yes">
           <Text>{\VidraFont_Normal}Vidra has been successfully installed on your computer.
 
 Click Finish to exit Setup.</Text>
+          <Condition Action="hide">REMOVE~="ALL"</Condition>
+        </Control>
+
+        <Control Id="RemovedDescription" Type="Text" X="25" Y="90" Width="320" Height="60" Transparent="yes" NoPrefix="yes" Hidden="yes">
+          <Text>{\VidraFont_Normal}Vidra has been removed from your computer.
+
+Click Finish to exit Setup.</Text>
+          <Condition Action="show">REMOVE~="ALL"</Condition>
         </Control>
         
-        <Control Id="LaunchCheckBox" Type="CheckBox" X="25" Y="165" Width="320" Height="18" Property="LAUNCHAPPONEXIT" CheckBoxValue="1" Text="&amp;Launch Vidra now" />
+        <Control Id="LaunchCheckBox" Type="CheckBox" X="25" Y="165" Width="320" Height="18" Property="LAUNCHAPPONEXIT" CheckBoxValue="1" Text="&amp;Launch Vidra now">
+          <Condition Action="hide">REMOVE~="ALL"</Condition>
+        </Control>
         
         <Control Id="Finish" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Cancel="yes" Text="&amp;Finish">
-          <Publish Event="DoAction" Value="LaunchApplication">LAUNCHAPPONEXIT</Publish>
+          <Publish Event="DoAction" Value="LaunchApplication"><![CDATA[LAUNCHAPPONEXIT AND NOT REMOVE~="ALL"]]></Publish>
           <Publish Event="EndDialog" Value="Return">1</Publish>
         </Control>
         
@@ -173,6 +189,39 @@ Click Finish to exit Setup.</Text>
       </Dialog>
       
       
+      <!-- 5b. Maintenance Dialog (product already installed) -->
+      <Dialog Id="MaintenanceDlg" Width="370" Height="270" Title="Vidra Setup - Maintenance">
+
+        <Control Id="Title" Type="Text" X="25" Y="55" Width="320" Height="20" Transparent="yes" NoPrefix="yes">
+          <Text>{\VidraFont_Title}Vidra is already installed</Text>
+        </Control>
+
+        <Control Id="Description" Type="Text" X="25" Y="90" Width="320" Height="60" Transparent="yes" NoPrefix="yes">
+          <Text>{\VidraFont_Normal}Version [ProductVersion] is installed on this computer.
+
+Repair reinstalls the program files. Remove uninstalls Vidra.</Text>
+        </Control>
+
+        <Control Id="Repair" Type="PushButton" X="112" Y="243" Width="56" Height="17" Default="yes" Text="&amp;Repair">
+          <Publish Property="REINSTALL" Value="ALL">1</Publish>
+          <Publish Property="REINSTALLMODE" Value="vomus">1</Publish>
+          <Publish Event="EndDialog" Value="Return">1</Publish>
+        </Control>
+
+        <Control Id="Remove" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="Re&amp;move">
+          <Publish Property="REMOVE" Value="ALL">1</Publish>
+          <Publish Event="EndDialog" Value="Return">1</Publish>
+        </Control>
+
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="Cancel">
+          <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
+        </Control>
+
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+
+      </Dialog>
+
+
       <!-- 6. Fatal Error Dialog -->
       <Dialog Id="FatalError" Width="370" Height="270" Title="Vidra Setup - Error">
 
@@ -302,10 +351,14 @@ Your system has not been modified.</Text>
       <!-- UI Sequence -->
       <InstallUISequence>
         <Show Dialog="WelcomeDlg" Before="ProgressDlg">NOT Installed</Show>
+        <!-- Without this, running the MSI again on an installed machine showed
+             nothing but the progress bar: every wizard step was gated on
+             NOT Installed. -->
+        <Show Dialog="MaintenanceDlg" Before="ProgressDlg">Installed AND NOT RESUME AND NOT Preselected AND NOT PATCH</Show>
         <Show Dialog="ProgressDlg" Before="ExecuteAction" />
-        <Show Dialog="ExitDlg" OnExit="success">NOT Installed</Show>
-        <Show Dialog="FatalError" OnExit="error">NOT Installed</Show>
-        <Show Dialog="UserExit" OnExit="cancel">NOT Installed</Show>
+        <Show Dialog="ExitDlg" OnExit="success" />
+        <Show Dialog="FatalError" OnExit="error" />
+        <Show Dialog="UserExit" OnExit="cancel" />
       </InstallUISequence>
       
       <AdminUISequence>

@@ -41,9 +41,6 @@
     <Property Id="ARPPRODUCTICON" Value="VidraIcon" />
     <Property Id="ARPURLINFOABOUT" Value="https://github.com/heyvidra/VidraVideo" />
     <Property Id="ARPHELPLINK" Value="https://github.com/heyvidra/VidraVideo/issues" />
-    <!-- The MSI has no repair story worth offering: it is a self-contained
-         file copy, so reinstalling is the repair. -->
-    <Property Id="ARPNOREPAIR" Value="1" />
 
     <!-- 目录结构 -->
     <Directory Id="TARGETDIR" Name="SourceDir">
