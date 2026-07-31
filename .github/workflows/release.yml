@@ -64,7 +64,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build\windows\x64\runner\Release
-          key: build-windows-${{ runner.os }}-${{ hashFiles('lib/**', 'windows/**', 'pubspec.yaml') }}
+          # assets/** and pubspec_fonts.yaml belong in the key: they are what
+          # ends up in flutter_assets, so a font or image change has to miss.
+          key: build-windows-${{ runner.os }}-${{ hashFiles('lib/**', 'windows/**', 'assets/**', 'pubspec.yaml', 'pubspec_fonts.yaml', 'tool/**') }}
           restore-keys: build-windows-${{ runner.os }}-
 
       - name: Fetch vidraDlp native lib (media_ffi.dll)
@@ -81,6 +83,26 @@ jobs:
 
       - name: Flutter Build (Windows Release)
         run: .\tool\build_windows.bat
+
+      # build_windows.bat appends pubspec_fonts.yaml to pubspec.yaml and strips
+      # it again afterwards, so nothing downstream can tell whether the fonts
+      # actually made it in. Without them Windows has no bundled CJK face and
+      # every Chinese glyph falls back — check rather than ship that.
+      - name: Verify bundled fonts
+        shell: pwsh
+        run: |
+          $fonts = "build\windows\x64\runner\Release\data\flutter_assets\assets\fonts"
+          $expected = (Select-String -Path pubspec_fonts.yaml -Pattern 'asset:').Count
+          $found = @(Get-ChildItem -Path $fonts -Recurse -Filter *.ttf -ErrorAction SilentlyContinue)
+          Write-Host "Bundled $($found.Count) of $expected font files"
+          if ($found.Count -ne $expected) {
+            Get-ChildItem -Path "build\windows\x64\runner\Release\data\flutter_assets" -ErrorAction SilentlyContinue
+            throw "pubspec_fonts.yaml was not applied: expected $expected .ttf files under $fonts"
+          }
+          $manifest = "build\windows\x64\runner\Release\data\flutter_assets\FontManifest.json"
+          if (-not (Select-String -Path $manifest -Pattern 'HarmonyOSSans_SC' -Quiet)) {
+            throw "FontManifest.json is missing the HarmonyOSSans_SC family"
+          }
 
       - name: Cache WiX Toolset
         id: cache-wix
@@ -110,12 +132,21 @@ jobs:
         run: |
           $sourceDir = Resolve-Path "build\windows\x64\runner\Release"
 
+          # MajorUpgrade only replaces the installed build when ProductVersion
+          # changes, so it has to come from the tag rather than a literal.
+          $version = "${{ inputs.version || github.ref_name }}" -replace '^v', ''
+          if ($version -notmatch '^\d+\.\d+\.\d+$') {
+            throw "'$version' is not a x.y.z version MSI can use"
+          }
+          Write-Host "Building MSI for version $version"
+
           # Ensure installer directory exists
           New-Item -ItemType Directory -Force -Path installer | Out-Null
 
           # Run candle
           candle `
             -dSourceDir="$sourceDir" `
+            -dProductVersion="$version" `
             -arch x64 `
             -out installer\ `
             installer\vidra.wxs installer\files.wxs installer\CustomUI.wxs
@@ -126,8 +157,11 @@ jobs:
           }
 
           # Run light
+          # -b installer: icon.ico / *.bmp / License.rtf are referenced relative
+          # to the .wxs files, and light binds from the working directory.
           light `
             -ext WixUtilExtension `
+            -b installer `
             -cultures:en-US `
             -spdb `
             -sice:ICE60 `
@@ -144,6 +178,9 @@ jobs:
         with:
           name: Vidra-Windows-x64-MSI
           path: Vidra-Windows-x64.msi
+          # Only the release job downloads these, and it runs minutes
+          # later; keeping them longer just eats the storage quota.
+          retention-days: 7
 
   macos:
     name: macOS DMG
@@ -239,6 +276,9 @@ jobs:
         with:
           name: Vidra-macOS-x64-DMG
           path: Vidra-macOS-x64.dmg
+          # Only the release job downloads these, and it runs minutes
+          # later; keeping them longer just eats the storage quota.
+          retention-days: 7
 
   # ============ 🎉 创建 GitHub Release ============
   release:

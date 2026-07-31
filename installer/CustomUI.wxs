@@ -2,9 +2,9 @@
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
   
   <Fragment>
-    
+
     <UI Id="VidraUI">
-      
+
       <!-- Font definitions -->
       <TextStyle Id="VidraFont_Title" FaceName="Segoe UI" Size="14" Bold="yes" Red="255" Green="51" Blue="51" />
       <TextStyle Id="VidraFont_Normal" FaceName="Segoe UI" Size="9" />
@@ -16,19 +16,19 @@
       
       <!-- 1. Welcome Dialog -->
       <Dialog Id="WelcomeDlg" Width="370" Height="270" Title="Vidra Setup">
-        
-        <Control Id="Title" Type="Text" X="135" Y="65" Width="220" Height="60" Transparent="yes" NoPrefix="yes">
+
+        <Control Id="Title" Type="Text" X="25" Y="55" Width="320" Height="20" Transparent="yes" NoPrefix="yes">
           <Text>{\VidraFont_Title}Welcome to Vidra</Text>
         </Control>
         
-        <Control Id="Description" Type="Text" X="135" Y="105" Width="220" Height="50" Transparent="yes" NoPrefix="yes">
-          <Text>{\VidraFont_Normal}This wizard will guide you through the installation of Vidra - the powerful video editor.
+        <Control Id="Description" Type="Text" X="25" Y="90" Width="320" Height="60" Transparent="yes" NoPrefix="yes">
+          <Text>{\VidraFont_Normal}This wizard will guide you through the installation of Vidra, a desktop player for your video libraries.
 
 Click Next to continue.</Text>
         </Control>
         
-        <Control Id="Version" Type="Text" X="135" Y="160" Width="220" Height="15" Transparent="yes" NoPrefix="yes">
-          <Text>{\VidraFont_Normal}Version 1.0.0</Text>
+        <Control Id="Version" Type="Text" X="25" Y="165" Width="320" Height="15" Transparent="yes" NoPrefix="yes">
+          <Text>{\VidraFont_Normal}Version [ProductVersion]</Text>
         </Control>
         
         <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="&amp;Next &gt;">
@@ -46,7 +46,7 @@ Click Next to continue.</Text>
       
       <!-- 2. License Dialog -->
       <Dialog Id="LicenseDlg" Width="370" Height="270" Title="Vidra Setup - License Agreement">
-        
+
         <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes">
           <Text>{\VidraFont_Title}License Agreement</Text>
         </Control>
@@ -80,7 +80,7 @@ Click Next to continue.</Text>
       
       <!-- 3. Install Directory Dialog -->
       <Dialog Id="InstallDirDlg" Width="370" Height="270" Title="Vidra Setup - Destination Folder">
-        
+
         <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes">
           <Text>{\VidraFont_Title}Choose Install Location</Text>
         </Control>
@@ -120,7 +120,7 @@ Click Next to continue.</Text>
       
       <!-- 4. Progress Dialog -->
       <Dialog Id="ProgressDlg" Width="370" Height="270" Title="Vidra Setup - Installing" Modeless="yes">
-        
+
         <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes">
           <Text>{\VidraFont_Title}Installing Vidra</Text>
         </Control>
@@ -150,21 +150,37 @@ Click Next to continue.</Text>
       
       <!-- 5. Exit Dialog (Success) -->
       <Dialog Id="ExitDlg" Width="370" Height="270" Title="Vidra Setup - Completed">
-        
-        <Control Id="Title" Type="Text" X="135" Y="65" Width="220" Height="60" Transparent="yes" NoPrefix="yes">
+
+        <Control Id="Title" Type="Text" X="25" Y="55" Width="320" Height="20" Transparent="yes" NoPrefix="yes">
           <Text>{\VidraFont_Title}Installation Complete!</Text>
+          <Condition Action="hide">REMOVE~="ALL"</Condition>
+        </Control>
+
+        <Control Id="RemovedTitle" Type="Text" X="25" Y="55" Width="320" Height="20" Transparent="yes" NoPrefix="yes" Hidden="yes">
+          <Text>{\VidraFont_Title}Uninstall Complete</Text>
+          <Condition Action="show">REMOVE~="ALL"</Condition>
         </Control>
         
-        <Control Id="Description" Type="Text" X="135" Y="110" Width="220" Height="60" Transparent="yes" NoPrefix="yes">
+        <Control Id="Description" Type="Text" X="25" Y="90" Width="320" Height="60" Transparent="yes" NoPrefix="yes">
           <Text>{\VidraFont_Normal}Vidra has been successfully installed on your computer.
 
 Click Finish to exit Setup.</Text>
+          <Condition Action="hide">REMOVE~="ALL"</Condition>
+        </Control>
+
+        <Control Id="RemovedDescription" Type="Text" X="25" Y="90" Width="320" Height="60" Transparent="yes" NoPrefix="yes" Hidden="yes">
+          <Text>{\VidraFont_Normal}Vidra has been removed from your computer.
+
+Click Finish to exit Setup.</Text>
+          <Condition Action="show">REMOVE~="ALL"</Condition>
         </Control>
         
-        <Control Id="LaunchCheckBox" Type="CheckBox" X="135" Y="180" Width="220" Height="18" Property="LAUNCHAPPONEXIT" CheckBoxValue="1" Text="&amp;Launch Vidra now" />
+        <Control Id="LaunchCheckBox" Type="CheckBox" X="25" Y="165" Width="320" Height="18" Property="LAUNCHAPPONEXIT" CheckBoxValue="1" Text="&amp;Launch Vidra now">
+          <Condition Action="hide">REMOVE~="ALL"</Condition>
+        </Control>
         
         <Control Id="Finish" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Cancel="yes" Text="&amp;Finish">
-          <Publish Event="DoAction" Value="LaunchApplication">LAUNCHAPPONEXIT</Publish>
+          <Publish Event="DoAction" Value="LaunchApplication"><![CDATA[LAUNCHAPPONEXIT AND NOT REMOVE~="ALL"]]></Publish>
           <Publish Event="EndDialog" Value="Return">1</Publish>
         </Control>
         
@@ -173,14 +189,47 @@ Click Finish to exit Setup.</Text>
       </Dialog>
       
       
+      <!-- 5b. Maintenance Dialog (product already installed) -->
+      <Dialog Id="MaintenanceDlg" Width="370" Height="270" Title="Vidra Setup - Maintenance">
+
+        <Control Id="Title" Type="Text" X="25" Y="55" Width="320" Height="20" Transparent="yes" NoPrefix="yes">
+          <Text>{\VidraFont_Title}Vidra is already installed</Text>
+        </Control>
+
+        <Control Id="Description" Type="Text" X="25" Y="90" Width="320" Height="60" Transparent="yes" NoPrefix="yes">
+          <Text>{\VidraFont_Normal}Version [ProductVersion] is installed on this computer.
+
+Repair reinstalls the program files. Remove uninstalls Vidra.</Text>
+        </Control>
+
+        <Control Id="Repair" Type="PushButton" X="112" Y="243" Width="56" Height="17" Default="yes" Text="&amp;Repair">
+          <Publish Property="REINSTALL" Value="ALL">1</Publish>
+          <Publish Property="REINSTALLMODE" Value="vomus">1</Publish>
+          <Publish Event="EndDialog" Value="Return">1</Publish>
+        </Control>
+
+        <Control Id="Remove" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="Re&amp;move">
+          <Publish Property="REMOVE" Value="ALL">1</Publish>
+          <Publish Event="EndDialog" Value="Return">1</Publish>
+        </Control>
+
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="Cancel">
+          <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
+        </Control>
+
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+
+      </Dialog>
+
+
       <!-- 6. Fatal Error Dialog -->
       <Dialog Id="FatalError" Width="370" Height="270" Title="Vidra Setup - Error">
-        
-        <Control Id="Title" Type="Text" X="135" Y="65" Width="220" Height="60" Transparent="yes" NoPrefix="yes">
+
+        <Control Id="Title" Type="Text" X="25" Y="55" Width="320" Height="20" Transparent="yes" NoPrefix="yes">
           <Text>{\VidraFont_Title}Installation Failed</Text>
         </Control>
         
-        <Control Id="Description" Type="Text" X="135" Y="110" Width="220" Height="60" Transparent="yes" NoPrefix="yes">
+        <Control Id="Description" Type="Text" X="25" Y="90" Width="320" Height="60" Transparent="yes" NoPrefix="yes">
           <Text>{\VidraFont_Normal}Setup was interrupted before Vidra could be completely installed.
 
 Your system has not been modified.</Text>
@@ -197,12 +246,12 @@ Your system has not been modified.</Text>
       
       <!-- 7. User Exit Dialog -->
       <Dialog Id="UserExit" Width="370" Height="270" Title="Vidra Setup - Cancelled">
-        
-        <Control Id="Title" Type="Text" X="135" Y="65" Width="220" Height="60" Transparent="yes" NoPrefix="yes">
+
+        <Control Id="Title" Type="Text" X="25" Y="55" Width="320" Height="20" Transparent="yes" NoPrefix="yes">
           <Text>{\VidraFont_Title}Installation Cancelled</Text>
         </Control>
         
-        <Control Id="Description" Type="Text" X="135" Y="110" Width="220" Height="60" Transparent="yes" NoPrefix="yes">
+        <Control Id="Description" Type="Text" X="25" Y="90" Width="320" Height="60" Transparent="yes" NoPrefix="yes">
           <Text>{\VidraFont_Normal}Setup was cancelled before Vidra could be completely installed.
 
 Your system has not been modified.</Text>
@@ -219,7 +268,7 @@ Your system has not been modified.</Text>
       
       <!-- 8. Files In Use Dialog -->
       <Dialog Id="FilesInUse" Width="370" Height="270" Title="Vidra Setup - Files In Use" KeepModeless="yes">
-        
+
         <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes">
           <Text>{\VidraFont_Title}Files In Use</Text>
         </Control>
@@ -302,10 +351,14 @@ Your system has not been modified.</Text>
       <!-- UI Sequence -->
       <InstallUISequence>
         <Show Dialog="WelcomeDlg" Before="ProgressDlg">NOT Installed</Show>
+        <!-- Without this, running the MSI again on an installed machine showed
+             nothing but the progress bar: every wizard step was gated on
+             NOT Installed. -->
+        <Show Dialog="MaintenanceDlg" Before="ProgressDlg">Installed AND NOT RESUME AND NOT Preselected AND NOT PATCH</Show>
         <Show Dialog="ProgressDlg" Before="ExecuteAction" />
-        <Show Dialog="ExitDlg" OnExit="success">NOT Installed</Show>
-        <Show Dialog="FatalError" OnExit="error">NOT Installed</Show>
-        <Show Dialog="UserExit" OnExit="cancel">NOT Installed</Show>
+        <Show Dialog="ExitDlg" OnExit="success" />
+        <Show Dialog="FatalError" OnExit="error" />
+        <Show Dialog="UserExit" OnExit="cancel" />
       </InstallUISequence>
       
       <AdminUISequence>
@@ -318,11 +371,11 @@ Your system has not been modified.</Text>
       
       <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
       <Property Id="LICENSEACCEPTED" Secure="yes" />
-      <Property Id="LAUNCHAPPONEXIT" Value="0" />
+      <Property Id="LAUNCHAPPONEXIT" Value="1" />
       
     </UI>
     
-    <Property Id="WixShellExecTarget" Value="[#fil_vidra.exe]" />
+    <Property Id="WixShellExecTarget" Value="[INSTALLFOLDER]vidra.exe" />
     <CustomAction Id="LaunchApplication" BinaryKey="WixCA" DllEntry="WixShellExec" Impersonate="yes" />
     
   </Fragment>

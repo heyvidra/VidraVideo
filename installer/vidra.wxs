@@ -1,11 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
 
+  <!--
+    ProductVersion comes from the release tag (see .github/workflows/release.yml);
+    it defaults to 0.0.0 so a local `candle` run still compiles. It has to change
+    between releases or MajorUpgrade will not replace the installed build.
+  -->
+  <?ifndef ProductVersion ?>
+  <?define ProductVersion = "0.0.0" ?>
+  <?endif?>
+
   <Product
     Id="*"
     Name="Vidra"
     Language="1033"
-    Version="1.0.0"
+    Version="$(var.ProductVersion)"
     Manufacturer="Vidra"
     UpgradeCode="A1B2C3D4-E5F6-47A1-9C3D-1234567890AB">
 
@@ -14,27 +23,24 @@
       Compressed="yes"
       InstallScope="perMachine"
       Platform="x64"
-      Description="Vidra Video Editor"
-      Comments="Vidra - Powerful Video Editing Software" />
+      Description="Vidra $(var.ProductVersion) Setup"
+      Comments="Vidra - Video Streaming App" />
 
-    <MajorUpgrade 
-  DowngradeErrorMessage="A newer version of [ProductName] is already installed."
-  AllowDowngrades="no" />
+    <MajorUpgrade
+      DowngradeErrorMessage="A newer version of [ProductName] is already installed."
+      AllowDowngrades="no" />
     <MediaTemplate EmbedCab="yes" />
 
     <!-- ============ 🎨 使用自定义 UI ============ -->
     <UIRef Id="VidraUI" />
-    
+
     <!-- 图标 -->
     <Icon Id="VidraIcon" SourceFile="assets\icon.ico" />
+
+    <!-- Add/Remove Programs 条目 -->
     <Property Id="ARPPRODUCTICON" Value="VidraIcon" />
-    
-    <!-- Banner 图片 -->
-    <WixVariable Id="WixUIBannerBmp" Value="assets\banner.bmp" />
-    <WixVariable Id="WixUIDialogBmp" Value="assets\dialog.bmp" />
-    
-    <!-- 许可协议 -->
-    <WixVariable Id="WixUILicenseRtf" Value="assets\License.rtf" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/heyvidra/VidraVideo" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/heyvidra/VidraVideo/issues" />
 
     <!-- 目录结构 -->
     <Directory Id="TARGETDIR" Name="SourceDir">
@@ -57,10 +63,10 @@
     <!-- 快捷方式 -->
     <DirectoryRef Id="ApplicationProgramsFolder">
       <Component Id="ApplicationShortcut" Guid="12345678-1234-1234-1234-123456789012">
-        <Shortcut 
+        <Shortcut
           Id="ApplicationStartMenuShortcut"
           Name="Vidra"
-          Description="Vidra Video Editor"
+          Description="Vidra - Video Streaming App"
           Target="[INSTALLFOLDER]vidra.exe"
           WorkingDirectory="INSTALLFOLDER"
           Icon="VidraIcon"/>
@@ -77,13 +83,15 @@
 
     <DirectoryRef Id="DesktopFolder">
       <Component Id="DesktopShortcut" Guid="87654321-4321-4321-4321-210987654321">
-        <Shortcut 
+        <Shortcut
           Id="ApplicationDesktopShortcut"
           Name="Vidra"
+          Description="Vidra - Video Streaming App"
           Target="[INSTALLFOLDER]vidra.exe"
           WorkingDirectory="INSTALLFOLDER"
           Icon="VidraIcon"/>
-        <RemoveFolder Id="CleanUpDesktopShortcut" Directory="DesktopFolder" On="uninstall"/>
+        <!-- No RemoveFolder here: the Desktop is the user's, not ours to delete.
+             Uninstall drops the shortcut, which is all that was added. -->
         <RegistryValue Root="HKCU" Key="Software\Vidra" Name="desktopShortcut" Type="integer" Value="1" KeyPath="yes"/>
       </Component>
     </DirectoryRef>

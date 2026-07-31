@@ -30,7 +30,10 @@ class ApiException implements Exception {
       _ =>
         (error.message?.contains('SocketException') ?? false)
             ? 'No internet connection'
-            : 'Unexpected error occurred',
+            // ponytail: the underlying error is the only thing that tells a
+            // Windows TLS failure apart from a DNS/proxy one, and it is what
+            // the user reads off the error screen. Keep it verbatim.
+            : 'Unexpected error occurred: ${error.error ?? error.message}',
     };
     if (message != null) return ApiException(message: message);
     return ApiException.fromResponse(error.response);
@@ -42,9 +45,13 @@ class ApiException implements Exception {
     }
     final statusCode = response.statusCode;
     final data = response.data;
-    final apiMessage = data is Map<String, dynamic>
-        ? data['message'] as String?
-        : null;
+    // olevod answers a bare `用户签名非法` string, not JSON — keeping it beats
+    // flattening every 4xx to "Unauthorized".
+    final apiMessage = switch (data) {
+      Map<String, dynamic>() => data['message'] as String?,
+      String s when s.trim().isNotEmpty && s.length < 200 => s.trim(),
+      _ => null,
+    };
     return ApiException(
       message:
           apiMessage ??

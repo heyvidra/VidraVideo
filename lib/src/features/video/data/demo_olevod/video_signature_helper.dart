@@ -92,7 +92,11 @@ class VideoSignatureHelper {
         n.substring(30);
   }
 
-  static String generate() {
-    return _fe(DateTime.now().millisecondsSinceEpoch ~/ 1000); // Unix seconds
+  /// Signs [at] (defaults to now). The server only accepts a timestamp within
+  /// roughly an hour of its own, so callers with a skewed clock pass a
+  /// corrected time rather than the local one — see [OlevodDataSource].
+  static String generate([DateTime? at]) {
+    final t = at ?? DateTime.now();
+    return _fe(t.millisecondsSinceEpoch ~/ 1000); // Unix seconds
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:io' show HttpDate;
+
 import 'package:dio/dio.dart';
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/utils/log.dart';
@@ -14,7 +16,56 @@ class OlevodDataSource implements VideoDataSource {
 
   final Dio _dio;
 
+  /// How far this machine's clock is from the API server's. Stays zero on a
+  /// correctly-set machine; [_signedGet] fills it in on the first rejection.
+  Duration _skew = Duration.zero;
+
   OlevodDataSource(this._dio);
+
+  /// GET with a `_vv` signature, retried once against the server's own clock.
+  ///
+  /// The signature is a function of the current Unix second and the API only
+  /// accepts about an hour of drift, so a device whose clock (or time zone) is
+  /// wrong gets 401 on every call. Every response carries a `Date` header, so
+  /// the rejection itself says what time the server thinks it is: learn the
+  /// offset from it and sign again. One bad request per app run, then correct
+  /// for good — no user action, and it works in any time zone.
+  Future<Response<dynamic>> _signedGet(String path) async {
+    try {
+      return await _dio.get(
+        path,
+        queryParameters: {'_vv': VideoSignatureHelper.generate(_now())},
+      );
+    } on DioException catch (e) {
+      final response = e.response;
+      if (response == null || !_learnSkew(response)) rethrow;
+      logR('Olevod', 'Clock is off by $_skew, re-signing against server time');
+      return _dio.get(
+        path,
+        queryParameters: {'_vv': VideoSignatureHelper.generate(_now())},
+      );
+    }
+  }
+
+  DateTime _now() => DateTime.now().add(_skew);
+
+  /// Returns true when [response] moved [_skew] enough to be worth a retry.
+  bool _learnSkew(Response<dynamic> response) {
+    final date = response.headers.value('date');
+    if (date == null) return false;
+    final DateTime serverTime;
+    try {
+      serverTime = HttpDate.parse(date);
+    } on Exception {
+      return false;
+    }
+    final skew = serverTime.difference(DateTime.now());
+    // A minute of drift is well inside what the API tolerates; anything less
+    // is not what a 401 was about, and retrying would just fail again.
+    if ((skew - _skew).abs() < const Duration(minutes: 1)) return false;
+    _skew = skew;
+    return true;
+  }
 
   @override
   String get id => 'olevod';
@@ -42,12 +93,11 @@ class OlevodDataSource implements VideoDataSource {
 
     final path =
         '$_apiBaseUrl/v1/pub/vod/list/true/3/0/$areaStr/$catIdStr/$subIdStr/$yearStr/update/$page/48';
-    final sign = VideoSignatureHelper.generate();
 
     // Network errors propagate as ApiException so the UI can distinguish
     // "no results" from "request failed".
     try {
-      final response = await _dio.get(path, queryParameters: {'_vv': sign});
+      final response = await _signedGet(path);
       if (response.statusCode == 200) {
         final data = response.data;
         if (data['code'] == 0) {
@@ -65,7 +115,11 @@ class OlevodDataSource implements VideoDataSource {
       }
       return VideoResponse(list: [], total: 0, page: 1);
     } on DioException catch (e) {
-      logD('Olevod', 'Error fetching videos: $e');
+      logR(
+        'Olevod',
+        'fetchVideos failed: ${e.response?.statusCode} ${e.response?.data} '
+        '(path=$path skew=$_skew)',
+      );
       throw ApiException.fromDioException(e);
     }
   }
@@ -73,10 +127,9 @@ class OlevodDataSource implements VideoDataSource {
   @override
   Future<Video?> getVideoDetail(int id) async {
     final path = '$_apiBaseUrl/v1/pub/vod/detail/$id/true';
-    final sign = VideoSignatureHelper.generate();
 
     try {
-      final response = await _dio.get(path, queryParameters: {'_vv': sign});
+      final response = await _signedGet(path);
       if (response.statusCode == 200) {
         final data = response.data;
         if (data['code'] == 0) {
@@ -101,10 +154,9 @@ class OlevodDataSource implements VideoDataSource {
   Future<List<Video>> searchVideos(String keyword) async {
     final encodedKeyword = Uri.encodeComponent(keyword);
     final path = '$_apiBaseUrl/v1/pub/index/search/$encodedKeyword/vod/0/1/4';
-    final sign = VideoSignatureHelper.generate();
 
     try {
-      final response = await _dio.get(path, queryParameters: {'_vv': sign});
+      final response = await _signedGet(path);
       if (response.statusCode == 200) {
         final data = response.data;
         if (data['code'] == 0) {
