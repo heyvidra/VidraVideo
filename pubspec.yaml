@@ -20,15 +20,15 @@ dependencies:
   vidra_player:
     git:
       url: https://github.com/heyvidra/VidraPlayer.git
-      # v1.0.1; pinned to the commit so it unifies with vidra_player_kit's
+      # v1.1.0; pinned to the commit so it unifies with vidra_player_kit's
       # internal `vidra_player: path: ../../` dep (pub won't match a tag to a commit).
-      ref: 02fcbf949a5fc612edf08bc8b26fa3c7d0fb34a0
+      ref: 2fe1299738ed79db05e868a127bf935e6f11c667
 
   vidra_player_kit:
     git:
       url: https://github.com/heyvidra/VidraPlayer.git
       path: packages/vidra_player_fvp
-      ref: v1.0.1
+      ref: v1.1.0
 
   dio: ^5.9.2
   ffi: ^2.1.0
