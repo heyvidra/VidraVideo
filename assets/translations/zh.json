@@ -12,7 +12,8 @@
   "recent": {
     "title": "最近播放",
     "clear_all": "清除全部",
-    "empty": "暂无播放历史"
+    "empty": "暂无播放历史",
+    "watched_to": "看到 {}"
   },
   "dashboard": {
     "search_hint": "搜索",
@@ -91,7 +92,9 @@
       "unknown": "未知",
       "added_date": "添加: {}",
       "cast_info": "主演: {}",
-      "storyline": "简介"
+      "storyline": "简介",
+      "continue_watching": "继续观看 {}",
+      "continue_watching_short": "继续观看"
     },
     "section": {
       "episodes": "剧集",
@@ -122,6 +125,12 @@
       "auto_next": "自动下一集",
       "skip_intro": "跳过片头",
       "skip_outro": "跳过片尾"
+    },
+    "list": {
+      "categories_failed": "分类加载失败",
+      "clear_history_title": "清除全部播放历史？",
+      "clear_history_body": "将删除全部观看记录、缓存的剧集信息，以及每部剧的跳过片头/片尾设置。此操作无法撤销。",
+      "clear_history_confirm": "清除全部"
     }
   },
   "download": {
@@ -204,6 +213,7 @@
     "loading": "加载中...",
     "view_details": "查看详情",
     "waiting_for_video": "正在准备视频...",
-    "close": "关闭"
+    "close": "关闭",
+    "retry": "重试"
   }
 }

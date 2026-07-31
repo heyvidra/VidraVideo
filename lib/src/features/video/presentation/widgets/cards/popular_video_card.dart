@@ -12,11 +12,27 @@ class PopularVideoCard extends ConsumerStatefulWidget {
   final bool showDetails;
   final bool enableHover;
 
+  /// Replaces the default "open the detail page" tap. The recent-play list
+  /// passes a straight-to-playback action: for a show already in progress the
+  /// detail page is a detour, not a destination.
+  final VoidCallback? onTap;
+
+  /// How far into the remembered episode, 0..1. Drawn as a hairline across the
+  /// bottom of the cover, so "where was I" is answerable without opening it.
+  final double? watchProgress;
+
+  /// e.g. "看到 第 5 集" — replaces the catalog's own remarks line, which says
+  /// how many episodes exist, not how many you have watched.
+  final String? watchLabel;
+
   const PopularVideoCard({
     super.key,
     required this.video,
     this.showDetails = true,
     this.enableHover = true,
+    this.onTap,
+    this.watchProgress,
+    this.watchLabel,
   });
 
   @override
@@ -63,17 +79,19 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
     return format(hits / 1000000000, 'b');
   }
 
+  void _openDetail() {
+    final sourceId = widget.video.sourceId;
+    final path = sourceId != null
+        ? '/detail/${widget.video.apiId}?sourceId=$sourceId'
+        : '/detail/${widget.video.apiId}';
+    context.push(path);
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return InkWell(
-      onTap: () {
-        final sourceId = widget.video.sourceId;
-        final path = sourceId != null
-            ? '/detail/${widget.video.apiId}?sourceId=$sourceId'
-            : '/detail/${widget.video.apiId}';
-        context.push(path);
-      },
+      onTap: widget.onTap ?? _openDetail,
       child: MouseRegion(
         onEnter: widget.enableHover
             ? (_) {
@@ -217,6 +235,22 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
                 ),
               ),
 
+              if ((widget.watchProgress ?? 0) > 0.01)
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    height: 3,
+                    color: Colors.white24,
+                    child: FractionallySizedBox(
+                      alignment: Alignment.centerLeft,
+                      widthFactor: widget.watchProgress!.clamp(0.0, 1.0),
+                      child: Container(color: const Color(0xFF00E5FF)),
+                    ),
+                  ),
+                ),
+
               // Bottom Overlay
               Positioned(
                 bottom: 0,
@@ -250,12 +284,18 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
                         ),
                       ),
                       const SizedBox(width: 8),
-                      if (widget.video.remarks != null)
+                      // "看到第 5 集" wins over "更新至第 05 集": on a card you
+                      // are returning to, your own progress is the answer you
+                      // came for, and both together won't fit.
+                      if (widget.watchLabel != null ||
+                          widget.video.remarks != null)
                         Expanded(
                           child: Text(
-                            widget.video.remarks!, // e.g. "更新至第05集"
-                            style: const TextStyle(
-                              color: Colors.white,
+                            widget.watchLabel ?? widget.video.remarks!,
+                            style: TextStyle(
+                              color: widget.watchLabel != null
+                                  ? const Color(0xFF00E5FF)
+                                  : Colors.white,
                               fontSize: 12,
                             ),
                             overflow: TextOverflow.ellipsis,
@@ -459,6 +499,49 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
             ),
           ),
         ),
+
+        // Secondary way in, shown only when tapping the card does something
+        // OTHER than open the detail page. Without it, giving the recent-play
+        // cards a straight-to-playback tap left the episode list unreachable
+        // from the one screen a viewer returns to.
+        if (widget.onTap != null)
+          Positioned(
+            top: 150,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Material(
+                color: Colors.black45,
+                borderRadius: BorderRadius.circular(16),
+                child: InkWell(
+                  // Its own tap target: the card's InkWell sits underneath and
+                  // would otherwise start playback instead.
+                  onTap: _openDetail,
+                  borderRadius: BorderRadius.circular(16),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.list, color: Colors.white, size: 14),
+                        const SizedBox(width: 5),
+                        Text(
+                          tr('common.view_details'),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }

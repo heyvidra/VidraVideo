@@ -37,6 +37,11 @@ class VideoListScreen extends HookConsumerWidget {
       data: (data) => data,
       orElse: () => <Category>[],
     );
+    // categoriesProvider is not autoDispose, so a cold-start failure would sit
+    // in its cache for the life of the app. Surfacing it as its own retry is
+    // the only way back — silently falling through to an empty category bar
+    // left the screen looking like it was still loading, forever.
+    final categoriesFailed = categoriesAsync.hasError;
 
     // Scrollbars already hidden app-wide via NoScrollbarBehavior in main.dart
     return CustomScrollView(
@@ -50,28 +55,32 @@ class VideoListScreen extends HookConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: CategoryFilter(
-                    selectedCategory: filter.category,
-                    categories: categories,
-                    selectedSubType: filter.subType,
-                    selectedArea: filter.area,
-                    selectedYear: filter.year,
-                    onCategoryChanged: (Category cat) {
-                      // Category change resets all sub-filters to "all"
-                      ref.read(videoListFilterProvider.notifier).state =
-                          VideoListFilter(category: cat);
-                    },
-                    onFilterChanged: (subType, area, year) {
-                      ref
-                          .read(videoListFilterProvider.notifier)
-                          .state = VideoListFilter(
-                        category: filter.category,
-                        subType: subType,
-                        area: area,
-                        year: year,
-                      );
-                    },
-                  ),
+                  child: categoriesFailed
+                      ? _CategoriesError(
+                          onRetry: () => ref.invalidate(categoriesProvider),
+                        )
+                      : CategoryFilter(
+                          selectedCategory: filter.category,
+                          categories: categories,
+                          selectedSubType: filter.subType,
+                          selectedArea: filter.area,
+                          selectedYear: filter.year,
+                          onCategoryChanged: (Category cat) {
+                            // Category change resets all sub-filters to "all"
+                            ref.read(videoListFilterProvider.notifier).state =
+                                VideoListFilter(category: cat);
+                          },
+                          onFilterChanged: (subType, area, year) {
+                            ref
+                                .read(videoListFilterProvider.notifier)
+                                .state = VideoListFilter(
+                              category: filter.category,
+                              subType: subType,
+                              area: area,
+                              year: year,
+                            );
+                          },
+                        ),
                 ),
               ],
             ),
@@ -154,6 +163,12 @@ class VideoListScreen extends HookConsumerWidget {
                         ),
                         const SizedBox(height: 12),
                         TextButton(
+                          // Retries the LIST only. Invalidating categories here
+                          // looks helpful but rebuilds VideoListFilterNotifier,
+                          // which resets the selection to categories.first and
+                          // drops the user's area/year — so "refresh" would
+                          // silently discard the very filter that failed.
+                          // Category failures get their own retry above.
                           onPressed: () =>
                               ref.read(videoListProvider.notifier).refresh(),
                           child: Text(tr('common.refresh')),
@@ -169,6 +184,31 @@ class VideoListScreen extends HookConsumerWidget {
             ),
           ),
         ],
+      ],
+    );
+  }
+}
+
+/// Stands in for the category bar when its request failed, so the failure is
+/// visible and recoverable rather than looking like a slow load.
+class _CategoriesError extends StatelessWidget {
+  final VoidCallback onRetry;
+
+  const _CategoriesError({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        Icon(Icons.cloud_off_outlined, size: 18, color: scheme.error),
+        const SizedBox(width: 8),
+        Text(
+          tr('video.list.categories_failed'),
+          style: TextStyle(color: scheme.error, fontSize: 13),
+        ),
+        const SizedBox(width: 4),
+        TextButton(onPressed: onRetry, child: Text(tr('common.retry'))),
       ],
     );
   }

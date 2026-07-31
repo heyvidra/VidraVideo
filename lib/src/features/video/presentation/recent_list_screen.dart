@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'play_history_provider.dart';
+import '../domain/play_history.dart';
 import '../domain/video_collection.dart';
 import '../../../common/skeleton/video_card_skeleton.dart';
 import 'widgets/cards/popular_video_card.dart';
+import 'package:vidra/src/window/player_window_launcher.dart';
 
 class RecentListScreen extends ConsumerStatefulWidget {
   const RecentListScreen({super.key});
@@ -41,9 +43,7 @@ class _RecentListScreenState extends ConsumerState<RecentListScreen> {
             tooltip: tr('common.refresh'),
           ),
           TextButton(
-            onPressed: () {
-              ref.read(playHistoryProvider.notifier).clearHistory();
-            },
+            onPressed: () => _confirmClearAll(context, ref),
             child: Text(
               tr('recent.clear_all'),
               style: const TextStyle(color: Colors.red),
@@ -73,7 +73,8 @@ class _RecentListScreenState extends ConsumerState<RecentListScreen> {
             ),
             itemCount: history.length,
             itemBuilder: (context, index) {
-              final item = history[index];
+              final entry = history[index];
+              final item = entry.video;
 
               try {
                 // Map VideoHistory to Video model for PopularVideoCard
@@ -93,10 +94,45 @@ class _RecentListScreenState extends ConsumerState<RecentListScreen> {
                   sourceId: item.sourceId,
                 );
 
+                // A film is located by its timestamp; only episodic content
+                // has a meaningful "which one". See isEpisodicType — sources
+                // file a film's audio tracks and mirrors under the episode
+                // list, so its "episode title" is 立即播放 / 粤语播放.
+                final String? watchLabel;
+                if (isEpisodicType(item.type)) {
+                  final episodeLabel =
+                      item.lastEpisodeTitle ??
+                      tr(
+                        'video.detail.episode_prefix',
+                        args: [(item.lastEpisodeIndex + 1).toString()],
+                      );
+                  watchLabel = tr('recent.watched_to', args: [episodeLabel]);
+                } else if (entry.position > Duration.zero) {
+                  watchLabel = tr(
+                    'recent.watched_to',
+                    args: [_formatPosition(entry.position)],
+                  );
+                } else {
+                  watchLabel = null;
+                }
+
                 return Stack(
                   key: ValueKey('history_${item.id}'),
                   children: [
-                    PopularVideoCard(video: video),
+                    PopularVideoCard(
+                      video: video,
+                      // Straight back into the episode they left. This list
+                      // exists precisely because they intend to keep watching;
+                      // routing it through the detail page made the shortcut
+                      // longer than the long way round.
+                      onTap: () => PlayerWindowLauncher.open(
+                        videoId: item.videoId,
+                        episodeIndex: item.lastEpisodeIndex,
+                        sourceId: item.sourceId,
+                      ),
+                      watchLabel: watchLabel,
+                      watchProgress: entry.progress,
+                    ),
                     Positioned(
                       top: 4,
                       right: 4,
@@ -140,5 +176,42 @@ class _RecentListScreenState extends ConsumerState<RecentListScreen> {
             Center(child: Text(tr('common.error', args: [err.toString()]))),
       ),
     );
+  }
+
+  static String _formatPosition(Duration d) {
+    final h = d.inHours;
+    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final sec = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return h > 0 ? '$h:$m:$sec' : '${d.inMinutes}:$sec';
+  }
+
+  /// "Clear all" wipes far more than the list it sits above — watch positions,
+  /// cached episode data, and every show's intro/outro skip points all go with
+  /// it, irreversibly. Name what is being destroyed before doing it.
+  Future<void> _confirmClearAll(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(tr('video.list.clear_history_title')),
+        content: Text(tr('video.list.clear_history_body')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(tr('common.cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(dialogContext).colorScheme.error,
+            ),
+            child: Text(tr('video.list.clear_history_confirm')),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      ref.read(playHistoryProvider.notifier).clearHistory();
+    }
   }
 }

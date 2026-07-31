@@ -97,3 +97,30 @@ class EpisodeHistory {
     );
   }
 }
+
+/// A recent-play row together with how far into it the viewer got.
+class RecentPlayback {
+  final VideoHistory video;
+  final EpisodeHistory? lastEpisode;
+
+  const RecentPlayback({required this.video, this.lastEpisode});
+
+  double get progress =>
+      (lastEpisode == null || lastEpisode!.durationMillis <= 0)
+      ? 0.0
+      : (lastEpisode!.positionMillis / lastEpisode!.durationMillis).clamp(
+          0.0,
+          1.0,
+        );
+
+  Duration get position =>
+      Duration(milliseconds: lastEpisode?.positionMillis ?? 0);
+}
+
+/// Whether this kind of content is measured in episodes.
+///
+/// Sources file a film's playback lines under the episode list and name them
+/// things like 立即播放 / 粤语播放 / 英语播放 — audio tracks and mirrors, not
+/// instalments. Echoing one back reads as nonsense ("看到 立即播放"), so a film
+/// is located by its timestamp instead.
+bool isEpisodicType(String? type) => !(type ?? '').contains('电影');

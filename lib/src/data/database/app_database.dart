@@ -130,6 +130,12 @@ class VideoSettings extends Table {
   IntColumn get videoId => integer()();
   IntColumn get introDuration => integer().withDefault(const Constant(0))();
   IntColumn get outroDuration => integer().withDefault(const Constant(0))();
+
+  /// Master switch for intro/outro skipping. Lives here, per show, because
+  /// "this one has a post-credits scene" is a property of the show. It was
+  /// hardcoded true on read and dropped on write, so turning it off survived
+  /// exactly until the next launch.
+  BoolColumn get autoSkip => boolean().withDefault(const Constant(true))();
 }
 
 @TableIndex(
@@ -241,7 +247,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -253,6 +259,11 @@ class AppDatabase extends _$AppDatabase {
       // v3: add AppSettings.cookieFile (nullable) for gated-site cookies.
       if (from < 3) {
         await m.addColumn(appSettings, appSettings.cookieFile);
+      }
+      // v4: add VideoSettings.autoSkip (default true, matching the old
+      // hardcoded value, so existing rows keep behaving as they do today).
+      if (from < 4) {
+        await m.addColumn(videoSettings, videoSettings.autoSkip);
       }
     },
   );

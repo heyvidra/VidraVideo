@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart'; // For Value, OrderingTerm, etc.
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/log.dart';
 import '../../../data/database/app_database.dart' as db;
@@ -19,15 +20,33 @@ final initialDataSourceIdProvider = Provider<String>((ref) {
   throw UnimplementedError('initialDataSourceIdProvider must be overridden');
 });
 
+/// The source a fresh install lands on. Must be a real one: the first screen a
+/// new user sees is this source's catalog, and a mock catalog there reads as a
+/// broken app, not as a demo.
+const kDefaultDataSourceId = 'olevod';
+
 final availableDataSourcesProvider = Provider<List<VideoDataSource>>((ref) {
   final dio = ref.watch(dioProvider);
-  return [OlevodDataSource(dio), DbkuDataSource(dio), MockDataSource()];
+  return [
+    OlevodDataSource(dio),
+    DbkuDataSource(dio),
+    // Fixture data for development only — never offered in a release build.
+    if (kDebugMode) MockDataSource(),
+  ];
 });
 
 class DataSourceIdNotifier extends Notifier<String> {
   @override
   String build() {
-    return ref.watch(initialDataSourceIdProvider);
+    final saved = ref.watch(initialDataSourceIdProvider);
+    final sources = ref.watch(availableDataSourcesProvider);
+    // A persisted id can outlive its source — 'mock' is registered in debug
+    // builds only, so anyone who picked it once would carry a dangling id into
+    // release. activeDataSourceProvider falls back to sources.first either way,
+    // but leaving the id dangling means the switcher shows a source with no
+    // menu entry ticked, and it never heals.
+    if (sources.any((s) => s.id == saved)) return saved;
+    return sources.first.id;
   }
 
   Future<void> setSource(String id) async {

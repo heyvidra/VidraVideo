@@ -85,6 +85,7 @@ extension VideoSettingMapper on db.VideoSetting {
       videoId: videoId,
       introDuration: introDuration,
       outroDuration: outroDuration,
+      autoSkip: autoSkip,
     );
   }
 }
@@ -97,6 +98,7 @@ extension VideoSettingsCompanionMapper on domain.VideoSettings {
       videoId: videoId,
       introDuration: Value(introDuration),
       outroDuration: Value(outroDuration),
+      autoSkip: Value(autoSkip),
     );
   }
 }

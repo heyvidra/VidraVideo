@@ -176,7 +176,7 @@ class VidraMediaRepository implements MediaRepository {
     );
     return vidra_model.PlayerSetting(
       videoId: videoId,
-      autoSkip: true,
+      autoSkip: settings.autoSkip,
       skipIntro: settings.introDuration,
       skipOutro: settings.outroDuration,
     );
@@ -190,6 +190,7 @@ class VidraMediaRepository implements MediaRepository {
       sourceId: parsed.sourceId,
       introDuration: setting.skipIntro,
       outroDuration: setting.skipOutro,
+      autoSkip: setting.autoSkip,
     );
     await _videoRepository.saveVideoSettings(domainSettings);
   }

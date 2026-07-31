@@ -5,6 +5,7 @@ import 'package:vidra/src/features/video/data/history_repository.dart';
 import 'package:vidra/src/features/video/domain/video_collection.dart';
 import 'package:vidra/src/features/video/domain/play_history.dart';
 import 'package:vidra/src/features/download/data/download_provider.dart';
+import 'package:vidra/src/features/download/domain/download_task.dart';
 import 'package:vidra/src/window/player_window_launcher.dart';
 
 class EpisodeItem extends ConsumerWidget {
@@ -64,16 +65,23 @@ class EpisodeItem extends ConsumerWidget {
           )
         : 0.0;
 
-    // Check if this episode is in download tasks
+    // The badge reports THIS episode's own download status. It used to be a
+    // green "download_done" for anything merely present in the task list, so a
+    // queued, still-downloading or outright failed episode all claimed to be
+    // saved offline — the one state the badge exists to communicate.
     final downloadTasksAsync = ref.watch(downloadTasksProvider);
-    final isInDownloadTasks = downloadTasksAsync.when(
-      data: (tasks) => tasks.any(
-        (task) =>
-            task.videoId == videoId &&
-            task.episodes.any((e) => e.index == originalIndex),
-      ),
-      loading: () => false,
-      error: (_, _) => false,
+    final downloadStatus = downloadTasksAsync.when(
+      data: (tasks) {
+        for (final task in tasks) {
+          if (task.videoId != videoId) continue;
+          for (final e in task.episodes) {
+            if (e.index == originalIndex) return e.status;
+          }
+        }
+        return null;
+      },
+      loading: () => null,
+      error: (_, _) => null,
     );
 
     return InkWell(
@@ -101,7 +109,7 @@ class EpisodeItem extends ConsumerWidget {
             _buildCenterContent(theme),
             if (episode.isNew == true) _buildNewBadge(theme),
             if (hasWatched && watchProgress > 0.9) _buildWatchedCheck(),
-            if (isInDownloadTasks) _buildDownloadIndicator(),
+            if (downloadStatus != null) _buildDownloadIndicator(downloadStatus),
           ],
         ),
       ),
@@ -254,17 +262,34 @@ class EpisodeItem extends ConsumerWidget {
     );
   }
 
-  Widget _buildDownloadIndicator() {
+  Widget _buildDownloadIndicator(DownloadStatus status) {
+    final (color, icon) = switch (status) {
+      DownloadStatus.completed => (
+        const Color(0xFF4CAF50),
+        Icons.download_done,
+      ),
+      DownloadStatus.downloading => (
+        const Color(0xFF2196F3),
+        Icons.downloading,
+      ),
+      DownloadStatus.queued => (const Color(0xFF757575), Icons.schedule),
+      DownloadStatus.paused => (const Color(0xFF757575), Icons.pause),
+      DownloadStatus.failed => (const Color(0xFFE53935), Icons.error_outline),
+      // Cancelled leaves nothing on disk; treat it as "not downloaded".
+      DownloadStatus.cancelled => (null, null),
+    };
+    if (color == null || icon == null) return const SizedBox.shrink();
+
     return Positioned(
       bottom: 4,
       right: 4,
       child: Container(
         padding: const EdgeInsets.all(2),
         decoration: BoxDecoration(
-          color: const Color(0xFF4CAF50),
+          color: color,
           borderRadius: BorderRadius.circular(4),
         ),
-        child: const Icon(Icons.download_done, color: Colors.white, size: 10),
+        child: Icon(icon, color: Colors.white, size: 10),
       ),
     );
   }

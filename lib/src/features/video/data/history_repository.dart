@@ -35,6 +35,37 @@ class HistoryRepository {
     return history.map((h) => h.toDomain()).toList();
   }
 
+  /// The recent list plus each row's position in the episode it stopped on.
+  ///
+  /// Two queries, not one per card: the grid renders a dozen at a time and a
+  /// per-card round trip would be a dozen DB hits per frame.
+  Future<List<RecentPlayback>> getRecentPlaybacks() async {
+    final videos = await getAllVideoHistory();
+    if (videos.isEmpty) return const [];
+
+    final rows =
+        await (_db.select(_db.episodeHistory)..where(
+              (t) => t.videoId.isIn(videos.map((v) => v.videoId).toList()),
+            ))
+            .get();
+
+    // videoId collides across sources, so the key has to carry sourceId.
+    final byKey = {
+      for (final r in rows)
+        '${r.sourceId}|${r.videoId}|${r.episodeIndex}': r.toDomain(),
+    };
+
+    return videos
+        .map(
+          (v) => RecentPlayback(
+            video: v,
+            lastEpisode:
+                byKey['${v.sourceId}|${v.videoId}|${v.lastEpisodeIndex}'],
+          ),
+        )
+        .toList();
+  }
+
   Future<VideoHistory?> getVideoHistory(int videoId, String? sourceId) async {
     final sid = sourceId ?? _defaultSourceId;
     final h =

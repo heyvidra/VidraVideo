@@ -47,7 +47,8 @@ Future<void> _runApp() async {
   final settingsRepository = SettingsRepository(database);
   final appSettings = await settingsRepository.getSettings();
 
-  final initialDataSourceId = appSettings.lastDataSourceId ?? 'mock';
+  final initialDataSourceId =
+      appSettings.lastDataSourceId ?? kDefaultDataSourceId;
   final savedLocale = appSettings.locale;
   final initialThemeMode = appSettings.themeMode;
 

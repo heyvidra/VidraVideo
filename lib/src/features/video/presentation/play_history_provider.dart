@@ -16,21 +16,32 @@ final episodeHistoriesProvider = FutureProvider.autoDispose
       return {for (var h in histories) h.episodeIndex: h};
     });
 
+/// The video-level history row for one show, i.e. which episode it was left on.
+/// Backs the detail page's "continue watching" button — [HistoryRepository
+/// .getVideoHistory] was written but had no callers.
+final videoHistoryProvider = FutureProvider.autoDispose
+    .family<VideoHistory?, ({int videoId, String? sourceId})>((ref, arg) async {
+      final repository = ref.watch(historyRepositoryProvider);
+      return repository.getVideoHistory(arg.videoId, arg.sourceId);
+    });
+
 final playHistoryProvider =
-    AsyncNotifierProvider<PlayHistoryNotifier, List<VideoHistory>>(
+    AsyncNotifierProvider<PlayHistoryNotifier, List<RecentPlayback>>(
       PlayHistoryNotifier.new,
     );
 
-class PlayHistoryNotifier extends AsyncNotifier<List<VideoHistory>> {
+class PlayHistoryNotifier extends AsyncNotifier<List<RecentPlayback>> {
   HistoryRepository get _repository => ref.watch(historyRepositoryProvider);
 
   @override
-  Future<List<VideoHistory>> build() async {
-    return await _repository.getAllVideoHistory();
+  Future<List<RecentPlayback>> build() async {
+    return await _repository.getRecentPlaybacks();
   }
 
   Future<void> manualRefresh() async {
-    state = const AsyncValue.loading();
+    // No AsyncValue.loading() first: this runs on every window-resumed event,
+    // and dropping to loading makes the whole list blink through its skeleton
+    // each time the user comes back from the player.
     state = await AsyncValue.guard(() => build());
   }
 

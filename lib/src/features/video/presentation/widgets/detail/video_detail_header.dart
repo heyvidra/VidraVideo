@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:vidra/src/features/video/domain/video_collection.dart';
 import 'package:vidra/src/features/video/data/video_repository.dart';
+import 'package:vidra/src/features/video/domain/play_history.dart';
+import 'package:vidra/src/features/video/domain/resume_target.dart';
+import 'package:vidra/src/features/video/presentation/play_history_provider.dart';
 import 'package:vidra/src/window/player_window_launcher.dart';
 
 class VideoDetailHeader extends ConsumerWidget {
@@ -183,20 +186,47 @@ class _TypeBadge extends StatelessWidget {
   }
 }
 
-class _PlayButton extends StatelessWidget {
+/// The page's primary action. Reads history so a viewer on episode 12 is
+/// offered episode 12 — it used to be hardcoded to `episodeIndex: 0`, which
+/// made the biggest button on the page a one-click trip back to the start.
+class _PlayButton extends ConsumerWidget {
   final Video video;
   const _PlayButton({required this.video});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final key = (videoId: video.apiId, sourceId: video.sourceId);
+    final episodes = video.urls ?? [];
+
+    // Both are already in flight for this page (the episode grid watches the
+    // same episodeHistoriesProvider), so this costs no extra query.
+    final histories =
+        ref.watch(episodeHistoriesProvider(key)).value ??
+        const <int, EpisodeHistory>{};
+    final videoHistory = ref.watch(videoHistoryProvider(key)).value;
+
+    final target = resolveResumeTarget(
+      histories: histories,
+      lastEpisodeIndex: videoHistory?.lastEpisodeIndex,
+      episodeCount: episodes.isEmpty ? null : episodes.length,
+    );
+
+    final episodeLabel =
+        (target.episodeIndex < episodes.length
+            ? episodes[target.episodeIndex].title
+            : null) ??
+        tr(
+          'video.detail.episode_prefix',
+          args: [(target.episodeIndex + 1).toString()],
+        );
+
     return ElevatedButton.icon(
       onPressed: () async {
-        final episodes = video.urls ?? [];
         if (episodes.isNotEmpty) {
           await PlayerWindowLauncher.open(
             videoId: video.apiId,
-            episodeIndex: 0,
+            episodeIndex: target.episodeIndex,
             sourceId: video.sourceId,
           );
         } else {
@@ -205,8 +235,19 @@ class _PlayButton extends StatelessWidget {
           );
         }
       },
-      icon: const Icon(Icons.play_arrow),
-      label: Text(tr('video.detail.play_now')),
+      icon: Icon(
+        target.isFirstTime ? Icons.play_arrow : Icons.play_circle_outline,
+      ),
+      label: Text(
+        target.isFirstTime
+            ? tr('video.detail.play_now')
+            // Same rule as the recent-play cards: naming a film's "episode"
+            // surfaces the source's 立即播放 / 粤语播放 line labels, which read
+            // as gibberish next to "continue watching".
+            : isEpisodicType(video.type)
+            ? tr('video.detail.continue_watching', args: [episodeLabel])
+            : tr('video.detail.continue_watching_short'),
+      ),
       style: ElevatedButton.styleFrom(
         backgroundColor: theme.primaryColor,
         foregroundColor: Colors.white,

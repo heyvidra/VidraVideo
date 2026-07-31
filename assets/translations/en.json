@@ -12,7 +12,8 @@
   "recent": {
     "title": "Recent Activity",
     "clear_all": "Clear All",
-    "empty": "No recent playback history"
+    "empty": "No recent playback history",
+    "watched_to": "Up to {}"
   },
   "dashboard": {
     "search_hint": "Search",
@@ -91,7 +92,9 @@
       "unknown": "Unknown",
       "added_date": "Added: {}",
       "cast_info": "Cast: {}",
-      "storyline": "Storyline"
+      "storyline": "Storyline",
+      "continue_watching": "Continue {}",
+      "continue_watching_short": "Continue"
     },
     "section": {
       "episodes": "Episodes",
@@ -122,6 +125,12 @@
       "auto_next": "Auto Next Episode",
       "skip_intro": "Skip Intro",
       "skip_outro": "Skip Outro"
+    },
+    "list": {
+      "categories_failed": "Couldn't load categories",
+      "clear_history_title": "Clear all playback history?",
+      "clear_history_body": "This deletes every watch record, the cached episode data, and the per-show intro/outro skip points. It cannot be undone.",
+      "clear_history_confirm": "Clear all"
     }
   },
   "download": {
@@ -204,6 +213,7 @@
     "loading": "Loading...",
     "view_details": "View Details",
     "waiting_for_video": "Waiting for video...",
-    "close": "Close"
+    "close": "Close",
+    "retry": "Retry"
   }
 }

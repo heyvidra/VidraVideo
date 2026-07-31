@@ -1482,6 +1482,21 @@ class $VideoSettingsTable extends VideoSettings
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _autoSkipMeta = const VerificationMeta(
+    'autoSkip',
+  );
+  @override
+  late final GeneratedColumn<bool> autoSkip = GeneratedColumn<bool>(
+    'auto_skip',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("auto_skip" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1489,6 +1504,7 @@ class $VideoSettingsTable extends VideoSettings
     videoId,
     introDuration,
     outroDuration,
+    autoSkip,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1537,6 +1553,12 @@ class $VideoSettingsTable extends VideoSettings
         ),
       );
     }
+    if (data.containsKey('auto_skip')) {
+      context.handle(
+        _autoSkipMeta,
+        autoSkip.isAcceptableOrUnknown(data['auto_skip']!, _autoSkipMeta),
+      );
+    }
     return context;
   }
 
@@ -1566,6 +1588,10 @@ class $VideoSettingsTable extends VideoSettings
         DriftSqlType.int,
         data['${effectivePrefix}outro_duration'],
       )!,
+      autoSkip: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}auto_skip'],
+      )!,
     );
   }
 
@@ -1581,12 +1607,19 @@ class VideoSetting extends DataClass implements Insertable<VideoSetting> {
   final int videoId;
   final int introDuration;
   final int outroDuration;
+
+  /// Master switch for intro/outro skipping. Lives here, per show, because
+  /// "this one has a post-credits scene" is a property of the show. It was
+  /// hardcoded true on read and dropped on write, so turning it off survived
+  /// exactly until the next launch.
+  final bool autoSkip;
   const VideoSetting({
     required this.id,
     this.sourceId,
     required this.videoId,
     required this.introDuration,
     required this.outroDuration,
+    required this.autoSkip,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1598,6 +1631,7 @@ class VideoSetting extends DataClass implements Insertable<VideoSetting> {
     map['video_id'] = Variable<int>(videoId);
     map['intro_duration'] = Variable<int>(introDuration);
     map['outro_duration'] = Variable<int>(outroDuration);
+    map['auto_skip'] = Variable<bool>(autoSkip);
     return map;
   }
 
@@ -1610,6 +1644,7 @@ class VideoSetting extends DataClass implements Insertable<VideoSetting> {
       videoId: Value(videoId),
       introDuration: Value(introDuration),
       outroDuration: Value(outroDuration),
+      autoSkip: Value(autoSkip),
     );
   }
 
@@ -1624,6 +1659,7 @@ class VideoSetting extends DataClass implements Insertable<VideoSetting> {
       videoId: serializer.fromJson<int>(json['videoId']),
       introDuration: serializer.fromJson<int>(json['introDuration']),
       outroDuration: serializer.fromJson<int>(json['outroDuration']),
+      autoSkip: serializer.fromJson<bool>(json['autoSkip']),
     );
   }
   @override
@@ -1635,6 +1671,7 @@ class VideoSetting extends DataClass implements Insertable<VideoSetting> {
       'videoId': serializer.toJson<int>(videoId),
       'introDuration': serializer.toJson<int>(introDuration),
       'outroDuration': serializer.toJson<int>(outroDuration),
+      'autoSkip': serializer.toJson<bool>(autoSkip),
     };
   }
 
@@ -1644,12 +1681,14 @@ class VideoSetting extends DataClass implements Insertable<VideoSetting> {
     int? videoId,
     int? introDuration,
     int? outroDuration,
+    bool? autoSkip,
   }) => VideoSetting(
     id: id ?? this.id,
     sourceId: sourceId.present ? sourceId.value : this.sourceId,
     videoId: videoId ?? this.videoId,
     introDuration: introDuration ?? this.introDuration,
     outroDuration: outroDuration ?? this.outroDuration,
+    autoSkip: autoSkip ?? this.autoSkip,
   );
   VideoSetting copyWithCompanion(VideoSettingsCompanion data) {
     return VideoSetting(
@@ -1662,6 +1701,7 @@ class VideoSetting extends DataClass implements Insertable<VideoSetting> {
       outroDuration: data.outroDuration.present
           ? data.outroDuration.value
           : this.outroDuration,
+      autoSkip: data.autoSkip.present ? data.autoSkip.value : this.autoSkip,
     );
   }
 
@@ -1672,14 +1712,21 @@ class VideoSetting extends DataClass implements Insertable<VideoSetting> {
           ..write('sourceId: $sourceId, ')
           ..write('videoId: $videoId, ')
           ..write('introDuration: $introDuration, ')
-          ..write('outroDuration: $outroDuration')
+          ..write('outroDuration: $outroDuration, ')
+          ..write('autoSkip: $autoSkip')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, sourceId, videoId, introDuration, outroDuration);
+  int get hashCode => Object.hash(
+    id,
+    sourceId,
+    videoId,
+    introDuration,
+    outroDuration,
+    autoSkip,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1688,7 +1735,8 @@ class VideoSetting extends DataClass implements Insertable<VideoSetting> {
           other.sourceId == this.sourceId &&
           other.videoId == this.videoId &&
           other.introDuration == this.introDuration &&
-          other.outroDuration == this.outroDuration);
+          other.outroDuration == this.outroDuration &&
+          other.autoSkip == this.autoSkip);
 }
 
 class VideoSettingsCompanion extends UpdateCompanion<VideoSetting> {
@@ -1697,12 +1745,14 @@ class VideoSettingsCompanion extends UpdateCompanion<VideoSetting> {
   final Value<int> videoId;
   final Value<int> introDuration;
   final Value<int> outroDuration;
+  final Value<bool> autoSkip;
   const VideoSettingsCompanion({
     this.id = const Value.absent(),
     this.sourceId = const Value.absent(),
     this.videoId = const Value.absent(),
     this.introDuration = const Value.absent(),
     this.outroDuration = const Value.absent(),
+    this.autoSkip = const Value.absent(),
   });
   VideoSettingsCompanion.insert({
     this.id = const Value.absent(),
@@ -1710,6 +1760,7 @@ class VideoSettingsCompanion extends UpdateCompanion<VideoSetting> {
     required int videoId,
     this.introDuration = const Value.absent(),
     this.outroDuration = const Value.absent(),
+    this.autoSkip = const Value.absent(),
   }) : videoId = Value(videoId);
   static Insertable<VideoSetting> custom({
     Expression<int>? id,
@@ -1717,6 +1768,7 @@ class VideoSettingsCompanion extends UpdateCompanion<VideoSetting> {
     Expression<int>? videoId,
     Expression<int>? introDuration,
     Expression<int>? outroDuration,
+    Expression<bool>? autoSkip,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1724,6 +1776,7 @@ class VideoSettingsCompanion extends UpdateCompanion<VideoSetting> {
       if (videoId != null) 'video_id': videoId,
       if (introDuration != null) 'intro_duration': introDuration,
       if (outroDuration != null) 'outro_duration': outroDuration,
+      if (autoSkip != null) 'auto_skip': autoSkip,
     });
   }
 
@@ -1733,6 +1786,7 @@ class VideoSettingsCompanion extends UpdateCompanion<VideoSetting> {
     Value<int>? videoId,
     Value<int>? introDuration,
     Value<int>? outroDuration,
+    Value<bool>? autoSkip,
   }) {
     return VideoSettingsCompanion(
       id: id ?? this.id,
@@ -1740,6 +1794,7 @@ class VideoSettingsCompanion extends UpdateCompanion<VideoSetting> {
       videoId: videoId ?? this.videoId,
       introDuration: introDuration ?? this.introDuration,
       outroDuration: outroDuration ?? this.outroDuration,
+      autoSkip: autoSkip ?? this.autoSkip,
     );
   }
 
@@ -1761,6 +1816,9 @@ class VideoSettingsCompanion extends UpdateCompanion<VideoSetting> {
     if (outroDuration.present) {
       map['outro_duration'] = Variable<int>(outroDuration.value);
     }
+    if (autoSkip.present) {
+      map['auto_skip'] = Variable<bool>(autoSkip.value);
+    }
     return map;
   }
 
@@ -1771,7 +1829,8 @@ class VideoSettingsCompanion extends UpdateCompanion<VideoSetting> {
           ..write('sourceId: $sourceId, ')
           ..write('videoId: $videoId, ')
           ..write('introDuration: $introDuration, ')
-          ..write('outroDuration: $outroDuration')
+          ..write('outroDuration: $outroDuration, ')
+          ..write('autoSkip: $autoSkip')
           ..write(')'))
         .toString();
   }
@@ -5190,6 +5249,7 @@ typedef $$VideoSettingsTableCreateCompanionBuilder =
       required int videoId,
       Value<int> introDuration,
       Value<int> outroDuration,
+      Value<bool> autoSkip,
     });
 typedef $$VideoSettingsTableUpdateCompanionBuilder =
     VideoSettingsCompanion Function({
@@ -5198,6 +5258,7 @@ typedef $$VideoSettingsTableUpdateCompanionBuilder =
       Value<int> videoId,
       Value<int> introDuration,
       Value<int> outroDuration,
+      Value<bool> autoSkip,
     });
 
 class $$VideoSettingsTableFilterComposer
@@ -5231,6 +5292,11 @@ class $$VideoSettingsTableFilterComposer
 
   ColumnFilters<int> get outroDuration => $composableBuilder(
     column: $table.outroDuration,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get autoSkip => $composableBuilder(
+    column: $table.autoSkip,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -5268,6 +5334,11 @@ class $$VideoSettingsTableOrderingComposer
     column: $table.outroDuration,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get autoSkip => $composableBuilder(
+    column: $table.autoSkip,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$VideoSettingsTableAnnotationComposer
@@ -5297,6 +5368,9 @@ class $$VideoSettingsTableAnnotationComposer
     column: $table.outroDuration,
     builder: (column) => column,
   );
+
+  GeneratedColumn<bool> get autoSkip =>
+      $composableBuilder(column: $table.autoSkip, builder: (column) => column);
 }
 
 class $$VideoSettingsTableTableManager
@@ -5335,12 +5409,14 @@ class $$VideoSettingsTableTableManager
                 Value<int> videoId = const Value.absent(),
                 Value<int> introDuration = const Value.absent(),
                 Value<int> outroDuration = const Value.absent(),
+                Value<bool> autoSkip = const Value.absent(),
               }) => VideoSettingsCompanion(
                 id: id,
                 sourceId: sourceId,
                 videoId: videoId,
                 introDuration: introDuration,
                 outroDuration: outroDuration,
+                autoSkip: autoSkip,
               ),
           createCompanionCallback:
               ({
@@ -5349,12 +5425,14 @@ class $$VideoSettingsTableTableManager
                 required int videoId,
                 Value<int> introDuration = const Value.absent(),
                 Value<int> outroDuration = const Value.absent(),
+                Value<bool> autoSkip = const Value.absent(),
               }) => VideoSettingsCompanion.insert(
                 id: id,
                 sourceId: sourceId,
                 videoId: videoId,
                 introDuration: introDuration,
                 outroDuration: outroDuration,
+                autoSkip: autoSkip,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
