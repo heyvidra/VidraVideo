@@ -25,23 +25,20 @@ final videoHistoryProvider = FutureProvider.autoDispose
       return repository.getVideoHistory(arg.videoId, arg.sourceId);
     });
 
-/// What has been watched on the OTHER sources, keyed by [crossSourceKey].
+/// Every watched title, keyed by [crossSourceKey], one entry per source.
 ///
 /// One index for the whole screen rather than a query per card: a catalog page
-/// renders dozens of cards and the history table is dozens of rows, so a lookup
-/// per card would be dozens of round trips to answer from a map that fits in a
-/// breath. NOT autoDispose — it is read by every list and the detail page, and
-/// rebuilding it on each navigation is the same work again.
+/// renders dozens of cards against a table of dozens of rows. Not keyed by the
+/// active source — which source is "current" belongs to the video being
+/// annotated, not to the screen, and conflating the two showed a video its own
+/// progress under another platform's name.
 final crossSourceWatchesProvider =
-    FutureProvider.family<Map<String, CrossSourceWatch>, String>((
-      ref,
-      currentSourceId,
-    ) async {
+    FutureProvider<Map<String, List<CrossSourceWatch>>>((ref) async {
       final repository = ref.watch(historyRepositoryProvider);
       // Rebuild when playback history changes, or a show watched in this
       // session would not be annotated until the app restarts.
       ref.watch(playHistoryProvider);
-      return repository.getCrossSourceWatches(currentSourceId);
+      return repository.getCrossSourceWatches();
     });
 
 final playHistoryProvider =

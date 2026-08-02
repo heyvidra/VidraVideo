@@ -169,37 +169,38 @@ class HistoryRepository {
 
   // --- Cross-source watch state ---
 
-  /// What has been watched on OTHER sources, keyed by [crossSourceKey].
+  /// Every watched title, keyed by [crossSourceKey], with one entry per source.
   ///
-  /// The two catalogs share no ids, so the same show can only be recognised by
-  /// what it says about itself. Measured on this database: the four titles
-  /// present in both sources match CHARACTER FOR CHARACTER, years included —
-  /// so this matches exactly rather than fuzzily. Fuzzy matching is where the
-  /// false positives would come from, and a false positive here labels a show
-  /// you have never opened with someone else's progress.
+  /// Deliberately NOT filtered by "the current source" here: which source is
+  /// current is a property of the SCREEN, while the thing being annotated is a
+  /// video that may come from a different one — arriving from search, or a link
+  /// carrying ?sourceId=. Filtering on the wrong one showed a video its OWN
+  /// progress labelled as another platform's.
+  ///
+  /// A list, not a single entry, because a show watched on both sources still
+  /// has something to say about the one you are not looking at.
+  ///
+  /// The two catalogs share no ids, so a show is recognised by what it says
+  /// about itself. Measured on this database: the titles present in both
+  /// sources match CHARACTER FOR CHARACTER, years included, so this matches
+  /// exactly rather than fuzzily. A false positive here labels a show you have
+  /// never opened with somebody else's progress.
   ///
   /// Skip markers are deliberately NOT shared: the two sources are different
   /// encodes with different intros, and `episode_skip_data` stays per-source.
-  Future<Map<String, CrossSourceWatch>> getCrossSourceWatches(
-    String currentSourceId,
-  ) async {
-    // Read all and filter here rather than in SQL: sourceId is nullable, so a
-    // `<> 'olevod'` predicate would silently drop the null rows too, and the
-    // table is dozens of rows.
+  Future<Map<String, List<CrossSourceWatch>>> getCrossSourceWatches() async {
     final rows = await _db.select(_db.videoHistory).get();
-    final out = <String, CrossSourceWatch>{};
+    final out = <String, List<CrossSourceWatch>>{};
     for (final r in rows) {
       final sid = r.sourceId;
-      if (sid == null || sid == currentSourceId) continue;
-      final key = crossSourceKey(r.videoTitle, r.year);
-      final existing = out[key];
-      // Same show on two other sources: keep whichever was watched last.
-      if (existing != null && !r.updatedAt.isAfter(existing.updatedAt)) continue;
-      out[key] = CrossSourceWatch(
-        sourceId: sid,
-        lastEpisodeIndex: r.lastEpisodeIndex,
-        lastEpisodeTitle: r.lastEpisodeTitle,
-        updatedAt: r.updatedAt,
+      if (sid == null) continue;
+      out.putIfAbsent(crossSourceKey(r.videoTitle, r.year), () => []).add(
+        CrossSourceWatch(
+          sourceId: sid,
+          lastEpisodeIndex: r.lastEpisodeIndex,
+          lastEpisodeTitle: r.lastEpisodeTitle,
+          updatedAt: r.updatedAt,
+        ),
       );
     }
     return out;

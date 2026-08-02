@@ -66,13 +66,13 @@ void main() {
       at: DateTime(2026, 8, 1),
     );
 
-    final found = await repo.getCrossSourceWatches('dbku');
-    expect(found.keys, [crossSourceKey('兵自风中来', '2026')]);
-    expect(found.values.single.sourceId, 'olevod');
-    expect(found.values.single.lastEpisodeIndex, 4);
-    // Its own source is not "cross-source" — echoing your own progress back as
-    // if it came from elsewhere is worse than saying nothing.
-    expect(found[crossSourceKey('江海潮生', '2026')], isNull);
+    final found = await repo.getCrossSourceWatches();
+    expect(found[crossSourceKey('兵自风中来', '2026')]!.single.sourceId, 'olevod');
+    expect(found[crossSourceKey('兵自风中来', '2026')]!.single.lastEpisodeIndex, 4);
+    // Every source is returned; excluding the video's OWN source is the
+    // lookup's job, because which source is "current" belongs to the video
+    // being annotated and not to the screen showing it.
+    expect(found[crossSourceKey('江海潮生', '2026')]!.single.sourceId, 'dbku');
   });
 
   test('the year separates a remake from its original', () async {
@@ -96,7 +96,10 @@ void main() {
     );
   });
 
-  test('two other sources on one title: the later watch wins', () async {
+  List<CrossSourceWatch> found(Map<String, List<CrossSourceWatch>> m) =>
+      m[crossSourceKey('九门', '2026')]!;
+
+  test('every source that watched a title is kept, newest first', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
     final repo = HistoryRepository(db, 'dbku');
@@ -120,9 +123,12 @@ void main() {
       at: DateTime(2026, 8, 1),
     );
 
-    final found = await repo.getCrossSourceWatches('dbku');
-    final match = found[crossSourceKey('九门', '2026')]!;
-    expect(match.sourceId, 'other');
-    expect(match.lastEpisodeIndex, 11, reason: 'the later watch is the answer');
+    final entries = found(await repo.getCrossSourceWatches());
+    expect(entries.map((e) => e.sourceId), containsAll(['olevod', 'other']));
+    // Both are kept; the badge picks the most recent of whichever sources are
+    // not the video's own.
+    entries.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    expect(entries.first.sourceId, 'other');
+    expect(entries.first.lastEpisodeIndex, 11);
   });
 }

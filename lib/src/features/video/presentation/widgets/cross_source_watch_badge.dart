@@ -10,9 +10,19 @@ import 'package:vidra/src/features/video/presentation/play_history_provider.dart
 /// The two catalogs share no ids, so a show is matched on title + year — see
 /// [crossSourceKey] for why that is exact rather than fuzzy.
 CrossSourceWatch? crossSourceWatchFor(WidgetRef ref, Video video) {
-  final currentSource = ref.watch(activeDataSourceProvider).id;
-  final watches = ref.watch(crossSourceWatchesProvider(currentSource)).value;
-  return watches?[crossSourceKey(video.title, video.year?.toString())];
+  final watches = ref.watch(crossSourceWatchesProvider).value;
+  final entries = watches?[crossSourceKey(video.title, video.year?.toString())];
+  if (entries == null) return null;
+
+  // The video's OWN source is not news. Filtered against `video.sourceId`, not
+  // the screen's active source: arriving from search or a ?sourceId= link makes
+  // those differ, and the wrong one told you where you already are.
+  CrossSourceWatch? best;
+  for (final w in entries) {
+    if (w.sourceId == video.sourceId) continue;
+    if (best == null || w.updatedAt.isAfter(best.updatedAt)) best = w;
+  }
+  return best;
 }
 
 /// The source's own display name, falling back to the raw id.
