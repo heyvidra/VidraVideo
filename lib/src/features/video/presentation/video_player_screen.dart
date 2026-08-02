@@ -253,7 +253,9 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
         autoPlay: true,
         hideMouseWhenIdle: true,
         muteOnStart: false,
-        enableThumbnail: false,
+        // Thumbnails were retired here when previews were macOS-native-only;
+        // the player's sprite sweep (v1.3.0) serves hover previews on every
+        // platform now, so the default (enabled) is back.
       ),
       leading: IconButton(
         icon: const Icon(Icons.close),
