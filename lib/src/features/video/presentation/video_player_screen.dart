@@ -20,6 +20,17 @@ import '../../../window/video_player_window.dart';
 class VideoPlayerScreen extends ConsumerStatefulWidget {
   final String videoId;
   final String? sourceId;
+
+  /// Play this address directly instead of resolving [videoId] in the catalog.
+  ///
+  /// For a pasted link that has been parsed but not downloaded: nothing in the
+  /// repository describes it, so the title, cover and address arrive with the
+  /// launch. Only a MUXED format can come through here — a video-only stream
+  /// is half a file, and the HD options are merge selectors that are playable
+  /// only after the muxer has run.
+  final String? directUrl;
+  final String? directTitle;
+  final String? directCoverUrl;
   final int initialEpisodeIndex;
   final VideoPlayerWindowCloseController? closeController;
 
@@ -27,6 +38,9 @@ class VideoPlayerScreen extends ConsumerStatefulWidget {
     super.key,
     required this.videoId,
     this.sourceId,
+    this.directUrl,
+    this.directTitle,
+    this.directCoverUrl,
     this.initialEpisodeIndex = 0,
     this.closeController,
   });
@@ -329,7 +343,30 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
 
           VideoMetadata? metadata;
           List<VideoEpisode> episodes = const [];
-          if (video != null && video.urls != null && video.urls!.isNotEmpty) {
+          final direct = widget.directUrl;
+          if (direct != null && direct.isNotEmpty) {
+            // A parsed link, not a catalog entry: nothing to resolve, so build
+            // the one-episode playlist straight from what the launch carried.
+            metadata = VideoMetadata(
+              id: 'direct_${widget.videoId}',
+              title: widget.directTitle ?? '',
+              coverUrl: widget.directCoverUrl ?? '',
+            );
+            episodes = [
+              VideoEpisode(
+                index: 0,
+                title: widget.directTitle ?? '',
+                qualities: [
+                  VideoQuality(
+                    label: tr('download.url.preview'),
+                    source: VideoSource.network(direct),
+                  ),
+                ],
+              ),
+            ];
+          } else if (video != null &&
+              video.urls != null &&
+              video.urls!.isNotEmpty) {
             metadata = _mapMetadata(video);
             episodes = _episodesFor(video);
           } else {

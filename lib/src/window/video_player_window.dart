@@ -109,6 +109,13 @@ class _VideoPlayerWindowState extends State<VideoPlayerWindow>
   String? _sourceId;
   int _episodeIndex = 0;
 
+  /// A stream that exists nowhere in the catalog — a pasted link, parsed but
+  /// not downloaded. There is no videoId to resolve, so what the player needs
+  /// travels with the launch request instead.
+  String? _directUrl;
+  String? _directTitle;
+  String? _directCoverUrl;
+
   @override
   void initState() {
     super.initState();
@@ -147,6 +154,12 @@ class _VideoPlayerWindowState extends State<VideoPlayerWindow>
       if (args.containsKey('episodeIndex')) {
         _episodeIndex = int.tryParse(args['episodeIndex'].toString()) ?? 0;
       }
+      // Read unconditionally: a second launch into the same window must be able
+      // to CLEAR these, or a catalog video opened after a pasted link would
+      // still play the link.
+      _directUrl = args['directUrl']?.toString();
+      _directTitle = args['directTitle']?.toString();
+      _directCoverUrl = args['directCoverUrl']?.toString();
     }
   }
 
@@ -176,10 +189,13 @@ class _VideoPlayerWindowState extends State<VideoPlayerWindow>
     return Stack(
       children: [
         VideoPlayerScreen(
-          key: ValueKey('$_videoId-$_sourceId'),
+          key: ValueKey('$_videoId-$_sourceId-$_directUrl'),
           videoId: _videoId!,
           sourceId: _sourceId,
           initialEpisodeIndex: _episodeIndex,
+          directUrl: _directUrl,
+          directTitle: _directTitle,
+          directCoverUrl: _directCoverUrl,
           closeController: widget.closeController,
         ),
         // Move handle over the top-bar title area, inset so the close button

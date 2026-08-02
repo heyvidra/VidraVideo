@@ -9,6 +9,7 @@ import '../../../core/utils/format.dart';
 import '../data/download_provider.dart';
 import '../data/media_info_provider.dart';
 import '../domain/media_info.dart';
+import '../../../window/player_window_launcher.dart';
 import 'widgets/download_ui.dart';
 
 typedef _QualityOption = ({String value, String label});
@@ -44,7 +45,7 @@ class DownloadUrlScreen extends HookConsumerWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          constrainedContent(
+          fullWidthContent(
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: _DropZone(
@@ -56,7 +57,7 @@ class DownloadUrlScreen extends HookConsumerWidget {
           Expanded(
             child: parseState.when(
               loading: () => const SizedBox.shrink(),
-              error: (e, _) => constrainedContent(
+              error: (e, _) => fullWidthContent(
                 ListView(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   children: [
@@ -159,21 +160,24 @@ class _ResultList extends StatelessWidget {
       return _PlaylistResult(media);
     }
 
-    return constrainedContent(ListView(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      children: [
-        _ResultItemCard(
-          title: media.title,
-          thumbnailUrl: media.thumbnailUrl,
-          durationSecs: media.durationSecs,
-          resolution: _maxResolution(media),
-          options: _singleQualityOptions(media),
-          videoId: videoIdFromUrl(media.webpageUrl),
-          episodeUrl: media.webpageUrl,
-          coverUrl: media.thumbnailUrl,
-        ),
-      ],
-    ));
+    return fullWidthContent(
+      ListView(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        children: [
+          _ResultItemCard(
+            title: media.title,
+            thumbnailUrl: media.thumbnailUrl,
+            durationSecs: media.durationSecs,
+            resolution: _maxResolution(media),
+            options: _singleQualityOptions(media),
+            videoId: videoIdFromUrl(media.webpageUrl),
+            episodeUrl: media.webpageUrl,
+            coverUrl: media.thumbnailUrl,
+            preview: _previewFormat(media),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -197,8 +201,10 @@ class _PlaylistResult extends HookConsumerWidget {
       busy.value = true;
       final manager = ref.read(downloadManagerProvider);
       final label = options
-          .firstWhere((o) => o.value == selected.value,
-              orElse: () => (value: selected.value, label: selected.value))
+          .firstWhere(
+            (o) => o.value == selected.value,
+            orElse: () => (value: selected.value, label: selected.value),
+          )
           .label;
       for (var i = 0; i < entries.length; i++) {
         final e = entries[i];
@@ -233,13 +239,16 @@ class _PlaylistResult extends HookConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        constrainedContent(
+        fullWidthContent(
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
             child: Row(
               children: [
                 Text(
-                  tr('download.url.playlist_count', args: ['${entries.length}']),
+                  tr(
+                    'download.url.playlist_count',
+                    args: ['${entries.length}'],
+                  ),
                   style: TextStyle(
                     color: theme.colorScheme.onSurfaceVariant,
                     fontSize: 13,
@@ -260,8 +269,12 @@ class _PlaylistResult extends HookConsumerWidget {
                           height: 14,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : Icon(added.value ? Icons.check : Icons.download_for_offline,
-                          size: 18),
+                      : Icon(
+                          added.value
+                              ? Icons.check
+                              : Icons.download_for_offline,
+                          size: 18,
+                        ),
                   label: Text(
                     added.value
                         ? tr('download.url.added_badge')
@@ -269,8 +282,10 @@ class _PlaylistResult extends HookConsumerWidget {
                   ),
                   style: FilledButton.styleFrom(
                     backgroundColor: theme.colorScheme.primary,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 11,
+                    ),
                   ),
                 ),
               ],
@@ -278,7 +293,7 @@ class _PlaylistResult extends HookConsumerWidget {
           ),
         ),
         Expanded(
-          child: constrainedContent(
+          child: fullWidthContent(
             ListView.builder(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               itemCount: entries.length,
@@ -315,6 +330,7 @@ class _ResultItemCard extends HookConsumerWidget {
     required this.videoId,
     required this.episodeUrl,
     required this.coverUrl,
+    this.preview,
   });
 
   final String title;
@@ -325,6 +341,14 @@ class _ResultItemCard extends HookConsumerWidget {
   final int videoId;
   final String? episodeUrl;
   final String? coverUrl;
+
+  /// The best format that is playable AS IS, or null when none is.
+  ///
+  /// Independent of the quality dropdown on purpose: the dropdown's HD entries
+  /// are `<id>+bestaudio` merge selectors, which are two streams that become
+  /// playable only after the muxer runs at download time. A play button wired
+  /// to the dropdown would claim to play 1920p and quietly play something else.
+  final MediaFormat? preview;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -337,28 +361,32 @@ class _ResultItemCard extends HookConsumerWidget {
       if (episodeUrl == null || busy.value) return;
       busy.value = true;
       final label = options
-          .firstWhere((o) => o.value == selected.value,
-              orElse: () => (value: selected.value, label: selected.value))
+          .firstWhere(
+            (o) => o.value == selected.value,
+            orElse: () => (value: selected.value, label: selected.value),
+          )
           .label;
-      await ref.read(downloadManagerProvider).addTask(
-        videoId: videoId,
-        videoTitle: title,
-        coverUrl: coverUrl,
-        episodes: [
-          {
-            'index': 0,
-            'title': label,
-            'url': episodeUrl,
-            'formatId': selected.value,
-          },
-        ],
-      );
+      await ref
+          .read(downloadManagerProvider)
+          .addTask(
+            videoId: videoId,
+            videoTitle: title,
+            coverUrl: coverUrl,
+            episodes: [
+              {
+                'index': 0,
+                'title': label,
+                'url': episodeUrl,
+                'formatId': selected.value,
+              },
+            ],
+          );
       busy.value = false;
       added.value = true;
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tr('download.url.added'))),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(tr('download.url.added'))));
       }
     }
 
@@ -371,7 +399,9 @@ class _ResultItemCard extends HookConsumerWidget {
         children: [
           ThumbWithBadge(
             imageUrl: thumbnailUrl,
-            duration: durationSecs != null ? formatDuration(durationSecs!.round(), clock: true) : null,
+            duration: durationSecs != null
+                ? formatDuration(durationSecs!.round(), clock: true)
+                : null,
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -404,6 +434,15 @@ class _ResultItemCard extends HookConsumerWidget {
                       ),
                   ],
                 ),
+                if (preview?.url != null) ...[
+                  const SizedBox(height: 10),
+                  _PreviewButton(
+                    format: preview!,
+                    title: title,
+                    coverUrl: coverUrl,
+                    videoId: videoId,
+                  ),
+                ],
               ],
             ),
           ),
@@ -418,12 +457,19 @@ class _ResultItemCard extends HookConsumerWidget {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.check_circle,
-                    size: 16, color: theme.colorScheme.primary),
+                Icon(
+                  Icons.check_circle,
+                  size: 16,
+                  color: theme.colorScheme.primary,
+                ),
                 const SizedBox(width: 4),
-                Text(tr('download.url.added_badge'),
-                    style: TextStyle(
-                        fontSize: 12, color: theme.colorScheme.primary)),
+                Text(
+                  tr('download.url.added_badge'),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
               ],
             )
           else
@@ -439,8 +485,10 @@ class _ResultItemCard extends HookConsumerWidget {
               label: Text(tr('download.url.download')),
               style: FilledButton.styleFrom(
                 backgroundColor: theme.colorScheme.primary,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 11,
+                ),
               ),
             ),
         ],
@@ -504,18 +552,26 @@ class _ErrorCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.error_outline,
-                    color: theme.colorScheme.onErrorContainer),
+                Icon(
+                  Icons.error_outline,
+                  color: theme.colorScheme.onErrorContainer,
+                ),
                 const SizedBox(width: 8),
-                Text(tr('download.url.parse_failed'),
-                    style: theme.textTheme.titleSmall?.copyWith(
-                        color: theme.colorScheme.onErrorContainer)),
+                Text(
+                  tr('download.url.parse_failed'),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: theme.colorScheme.onErrorContainer,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 8),
-            Text(message,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onErrorContainer)),
+            Text(
+              message,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onErrorContainer,
+              ),
+            ),
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerRight,
@@ -538,8 +594,9 @@ class _ErrorCard extends StatelessWidget {
 /// drops to a muxed stream when no separate streams exist.
 List<_QualityOption> _singleQualityOptions(MediaInfo media) {
   final byHeight = <int, _QualityOption>{};
-  for (final f
-      in media.formats.where((f) => f.isAvcMp4VideoOnly && f.height != null)) {
+  for (final f in media.formats.where(
+    (f) => f.isAvcMp4VideoOnly && f.height != null,
+  )) {
     byHeight.putIfAbsent(
       f.height!,
       () => (value: '${f.formatId}+bestaudio[ext=m4a]', label: '${f.height}p'),
@@ -582,7 +639,9 @@ String? _maxResolution(MediaInfo media) {
     if (best == null || (f.height ?? 0) > (best.height ?? 0)) best = f;
   }
   if (best?.height == null) return null;
-  return best!.width != null ? '${best.width}x${best.height}' : '${best.height}p';
+  return best!.width != null
+      ? '${best.width}x${best.height}'
+      : '${best.height}p';
 }
 
 /// Dashed rounded-rectangle border for the drop-zone.
@@ -607,10 +666,7 @@ class _DashedRectPainter extends CustomPainter {
     for (final metric in path.computeMetrics()) {
       var dist = 0.0;
       while (dist < metric.length) {
-        canvas.drawPath(
-          metric.extractPath(dist, dist + dash),
-          paint,
-        );
+        canvas.drawPath(metric.extractPath(dist, dist + dash), paint);
         dist += dash + gap;
       }
     }
@@ -619,4 +675,68 @@ class _DashedRectPainter extends CustomPainter {
   @override
   bool shouldRepaint(_DashedRectPainter old) =>
       old.color != color || old.radius != radius;
+}
+
+/// The highest-resolution format that plays without muxing, or null.
+///
+/// Muxed only: everything above it in the dropdown is a video-only stream
+/// paired with `bestaudio`, and two streams are not something a player can
+/// open. On YouTube this usually tops out at 720p — which is why the button
+/// states the resolution it will actually play rather than borrowing the
+/// dropdown's.
+MediaFormat? _previewFormat(MediaInfo media) {
+  MediaFormat? best;
+  for (final f in media.muxedFormats) {
+    if (f.url == null || f.url!.isEmpty) continue;
+    if (best == null || (f.height ?? 0) > (best.height ?? 0)) best = f;
+  }
+  return best;
+}
+
+/// Plays the one format that needs no muxing.
+///
+/// Deliberately quiet: the download button beside it is the primary action and
+/// owns the accent colour. Two red controls side by side read as two equal
+/// choices, and this one is a preview at whatever resolution happens to ship
+/// muxed — usually well below what the dropdown offers.
+class _PreviewButton extends StatelessWidget {
+  const _PreviewButton({
+    required this.format,
+    required this.title,
+    required this.coverUrl,
+    required this.videoId,
+  });
+
+  final MediaFormat format;
+  final String title;
+  final String? coverUrl;
+  final int videoId;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final quality = format.height != null ? '${format.height}p' : format.ext;
+    return Tooltip(
+      message: tr('download.url.preview_hint', args: [quality]),
+      child: OutlinedButton.icon(
+        onPressed: () => PlayerWindowLauncher.open(
+          videoId: videoId,
+          episodeIndex: 0,
+          directUrl: format.url,
+          directTitle: title,
+          directCoverUrl: coverUrl,
+        ),
+        icon: const Icon(Icons.play_arrow_rounded, size: 16),
+        label: Text('${tr('download.url.preview')} $quality'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: theme.colorScheme.onSurfaceVariant,
+          side: BorderSide(color: theme.colorScheme.outline.withAlpha(80)),
+          textStyle: const TextStyle(fontSize: 12.5),
+          visualDensity: VisualDensity.compact,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      ),
+    );
+  }
 }

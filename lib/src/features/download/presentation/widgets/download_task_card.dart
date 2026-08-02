@@ -319,8 +319,12 @@ class _DownloadTaskCardState extends ConsumerState<DownloadTaskCard> {
   ) {
     final muted = theme.colorScheme.onSurfaceVariant;
     final spans = <InlineSpan>[];
-    void add(String t, {Color? c}) =>
-        spans.add(TextSpan(text: t, style: TextStyle(color: c ?? muted)));
+    void add(String t, {Color? c}) => spans.add(
+      TextSpan(
+        text: t,
+        style: TextStyle(color: c ?? muted),
+      ),
+    );
     const dot = '  ·  ';
 
     if (isDownloading) {
@@ -360,61 +364,75 @@ class _DownloadTaskCardState extends ConsumerState<DownloadTaskCard> {
     final items = <Widget>[];
     if (widget.isActive) {
       if (task.status == DownloadStatus.downloading) {
-        items.add(GhostIconButton(
-          icon: Icons.pause,
-          tooltip: tr('download.action.pause'),
-          onPressed: () => manager.pauseTask(task.taskId),
-        ));
+        items.add(
+          GhostIconButton(
+            icon: Icons.pause,
+            tooltip: tr('download.action.pause'),
+            onPressed: () => manager.pauseTask(task.taskId),
+          ),
+        );
       } else if (task.status == DownloadStatus.paused ||
           task.status == DownloadStatus.failed ||
           task.status == DownloadStatus.cancelled) {
         // paused → resume; failed/cancelled → retry (resumeTask re-queues all).
         final paused = task.status == DownloadStatus.paused;
-        items.add(GhostIconButton(
-          icon: paused ? Icons.play_arrow : Icons.refresh,
-          tooltip: paused
-              ? tr('download.action.resume')
-              : tr('download.action.retry'),
-          onPressed: () => manager.resumeTask(task.taskId),
-        ));
+        items.add(
+          GhostIconButton(
+            icon: paused ? Icons.play_arrow : Icons.refresh,
+            tooltip: paused
+                ? tr('download.action.resume')
+                : tr('download.action.retry'),
+            onPressed: () => manager.resumeTask(task.taskId),
+          ),
+        );
       }
-      items.add(GhostIconButton(
-        icon: Icons.close,
-        tooltip: tr('download.action.cancel_all'),
-        onPressed: () => manager.cancelTask(task.taskId),
-      ));
-      items.add(GhostIconButton(
-        icon: Icons.delete_outline,
-        tooltip: tr('download.action.delete_task'),
-        onPressed: () => _showDeleteDialog(
-          context,
-          (deleteFile) =>
-              manager.deleteTask(task.taskId, deleteFile: deleteFile),
+      items.add(
+        GhostIconButton(
+          icon: Icons.close,
+          tooltip: tr('download.action.cancel_all'),
+          onPressed: () => manager.cancelTask(task.taskId),
         ),
-      ));
+      );
+      items.add(
+        GhostIconButton(
+          icon: Icons.delete_outline,
+          tooltip: tr('download.action.delete_task'),
+          onPressed: () => _showDeleteDialog(
+            context,
+            (deleteFile) =>
+                manager.deleteTask(task.taskId, deleteFile: deleteFile),
+          ),
+        ),
+      );
     } else {
       if (_completedFile(task) != null) {
-        items.add(GhostIconButton(
-          icon: Icons.play_arrow,
-          tooltip: tr('download.action.play'),
-          color: theme.colorScheme.primary,
-          onPressed: () => _playInApp(task, task.episodes.first),
-        ));
-        items.add(GhostIconButton(
-          icon: Icons.folder_open_outlined,
-          tooltip: tr('download.action.reveal'),
-          onPressed: () => revealInFileManager(_completedFile(task)!),
-        ));
+        items.add(
+          GhostIconButton(
+            icon: Icons.play_arrow,
+            tooltip: tr('download.action.play'),
+            color: theme.colorScheme.primary,
+            onPressed: () => _playInApp(task, task.episodes.first),
+          ),
+        );
+        items.add(
+          GhostIconButton(
+            icon: Icons.folder_open_outlined,
+            tooltip: tr('download.action.reveal'),
+            onPressed: () => revealInFileManager(_completedFile(task)!),
+          ),
+        );
       }
-      items.add(GhostIconButton(
-        icon: Icons.delete_outline,
-        tooltip: tr('download.action.delete'),
-        onPressed: () => _showDeleteDialog(
-          context,
-          (deleteFile) =>
-              manager.deleteTask(task.taskId, deleteFile: deleteFile),
+      items.add(
+        GhostIconButton(
+          icon: Icons.delete_outline,
+          tooltip: tr('download.action.delete'),
+          onPressed: () => _showDeleteDialog(
+            context,
+            (deleteFile) =>
+                manager.deleteTask(task.taskId, deleteFile: deleteFile),
+          ),
         ),
-      ));
+      );
     }
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -523,7 +541,6 @@ class _DownloadTaskCardState extends ConsumerState<DownloadTaskCard> {
     }
   }
 
-
   Future<void> _showDeleteDialog(
     BuildContext context,
     Function(bool deleteFile) onConfirm, {
@@ -573,5 +590,4 @@ class _DownloadTaskCardState extends ConsumerState<DownloadTaskCard> {
       ),
     );
   }
-
 }

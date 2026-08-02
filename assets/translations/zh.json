@@ -155,7 +155,10 @@
       "added": "已加入下载列表",
       "added_all": "已加入 {} 个到下载列表",
       "added_badge": "已加入",
-      "playlist_count": "共 {} 个视频"
+      "playlist_count": "共 {} 个视频",
+      "preview": "预览播放",
+      "preview_hint": "预览 {}（不含更高画质的合流）",
+      "preview_none": "该链接没有可直接播放的单流画质"
     },
     "tab": {
       "downloading": "下载中",

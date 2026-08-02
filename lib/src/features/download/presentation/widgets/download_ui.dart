@@ -10,6 +10,15 @@ BoxDecoration downloadCardDecoration(ThemeData theme) => BoxDecoration(
 
 /// Left-align content next to the sidebar and cap its width, so it neither
 /// stretches across ultra-wide windows nor floats in the middle with a big gap.
+/// The link-download screen fills its pane instead of capping at [maxWidth].
+///
+/// A parsed result is one wide row — thumbnail, a long title, meta chips, then
+/// the controls — and the 1000px cap squeezed the title into two truncated
+/// lines while leaving a third of the window empty beside it. The download LIST
+/// keeps the cap: it is a column of short rows, and a full-width line of them
+/// on a wide display is harder to read, not easier.
+Widget fullWidthContent(Widget child) => child;
+
 Widget constrainedContent(Widget child, {double maxWidth = 1000}) {
   return Align(
     alignment: Alignment.topLeft,

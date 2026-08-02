@@ -90,6 +90,15 @@ class MediaFormat {
   final String? acodec;
   final int? filesizeBytes;
 
+  /// Direct stream address for this format. The SDK has always returned it
+  /// (docs/json_schema.md); it simply was not mapped, because downloading only
+  /// ever needed the format id. Playing needs the address itself.
+  ///
+  /// Only meaningful for [isMuxed] formats: a video-only stream is half a file,
+  /// and the HD options are `<id>+bestaudio` merge selectors that become
+  /// playable only after the muxer has run.
+  final String? url;
+
   const MediaFormat({
     required this.formatId,
     required this.ext,
@@ -98,6 +107,7 @@ class MediaFormat {
     this.vcodec,
     this.acodec,
     this.filesizeBytes,
+    this.url,
   });
 
   /// Has both a video and an audio stream → downloads as one playable file.
@@ -131,6 +141,7 @@ class MediaFormat {
       vcodec: json['vcodec'] as String?,
       acodec: json['acodec'] as String?,
       filesizeBytes: (json['filesize'] as num?)?.toInt(),
+      url: json['url'] as String?,
     );
   }
 }

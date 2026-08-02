@@ -14,6 +14,13 @@ on:
         description: "MSI ProductVersion to build with (x.y.z)"
         default: "0.0.0"
 
+# One place for the toolchain version. It used to be written twice per job —
+# once for the cache key, once for the install — and the two drifted: every
+# build installed 3.44.4 while keying its cache on 3.38.5, so the cache could
+# never hit on the version it was actually caching.
+env:
+  FLUTTER_VERSION: "3.44.4"
+
 jobs:
   windows:
     name: Windows MSI
@@ -28,13 +35,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: C:\hostedtoolcache\windows\flutter
-          key: flutter-windows-${{ runner.os }}-3.38.5
+          key: flutter-windows-${{ runner.os }}-${{ env.FLUTTER_VERSION }}
           restore-keys: flutter-windows-${{ runner.os }}-
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.44.4
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
 
@@ -227,13 +234,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /Users/runner/hostedtoolcache/flutter
-          key: flutter-macos-${{ runner.os }}-3.38.5
+          key: flutter-macos-${{ runner.os }}-${{ env.FLUTTER_VERSION }}
           restore-keys: flutter-macos-${{ runner.os }}-
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.44.4
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
 

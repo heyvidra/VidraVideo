@@ -155,7 +155,10 @@
       "added": "Added to download list",
       "added_all": "Added {} to download list",
       "added_badge": "Added",
-      "playlist_count": "{} videos"
+      "playlist_count": "{} videos",
+      "preview": "Preview",
+      "preview_hint": "Preview {} (higher qualities need muxing)",
+      "preview_none": "This link has no single-stream quality to play directly"
     },
     "tab": {
       "downloading": "Downloading",
