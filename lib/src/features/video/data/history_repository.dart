@@ -167,6 +167,44 @@ class HistoryRepository {
         .insert(normalized.toCompanion(), mode: InsertMode.insertOrReplace);
   }
 
+  // --- Cross-source watch state ---
+
+  /// What has been watched on OTHER sources, keyed by [crossSourceKey].
+  ///
+  /// The two catalogs share no ids, so the same show can only be recognised by
+  /// what it says about itself. Measured on this database: the four titles
+  /// present in both sources match CHARACTER FOR CHARACTER, years included —
+  /// so this matches exactly rather than fuzzily. Fuzzy matching is where the
+  /// false positives would come from, and a false positive here labels a show
+  /// you have never opened with someone else's progress.
+  ///
+  /// Skip markers are deliberately NOT shared: the two sources are different
+  /// encodes with different intros, and `episode_skip_data` stays per-source.
+  Future<Map<String, CrossSourceWatch>> getCrossSourceWatches(
+    String currentSourceId,
+  ) async {
+    // Read all and filter here rather than in SQL: sourceId is nullable, so a
+    // `<> 'olevod'` predicate would silently drop the null rows too, and the
+    // table is dozens of rows.
+    final rows = await _db.select(_db.videoHistory).get();
+    final out = <String, CrossSourceWatch>{};
+    for (final r in rows) {
+      final sid = r.sourceId;
+      if (sid == null || sid == currentSourceId) continue;
+      final key = crossSourceKey(r.videoTitle, r.year);
+      final existing = out[key];
+      // Same show on two other sources: keep whichever was watched last.
+      if (existing != null && !r.updatedAt.isAfter(existing.updatedAt)) continue;
+      out[key] = CrossSourceWatch(
+        sourceId: sid,
+        lastEpisodeIndex: r.lastEpisodeIndex,
+        lastEpisodeTitle: r.lastEpisodeTitle,
+        updatedAt: r.updatedAt,
+      );
+    }
+    return out;
+  }
+
   // --- Episode skip data (intro/outro markers + the sweep hashes behind them)
 
   Future<List<db.EpisodeSkipDataData>> getEpisodeSkipData(

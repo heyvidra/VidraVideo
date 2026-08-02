@@ -6,6 +6,17 @@ import 'package:shimmer_animation/shimmer_animation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vidra/src/features/video/data/video_repository.dart';
 import 'package:vidra/src/features/video/domain/video_collection.dart';
+import 'package:vidra/src/features/video/presentation/widgets/cross_source_watch_badge.dart';
+
+/// Ties a card's cover to the same image on the detail page it opens.
+///
+/// Both catalogs return a null backdrop, so the detail header falls back to
+/// this exact cover — the flight morphs ONE image rather than cross-fading two
+/// different ones, which is the only case where a Hero reads as motion instead
+/// of a glitch. Source id is in the tag because the same apiId means different
+/// shows on different sources.
+String videoPosterHeroTag(Video video) =>
+    'poster:${video.sourceId ?? ''}:${video.apiId}';
 
 class PopularVideoCard extends ConsumerStatefulWidget {
   final Video video;
@@ -84,7 +95,7 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
     final path = sourceId != null
         ? '/detail/${widget.video.apiId}?sourceId=$sourceId'
         : '/detail/${widget.video.apiId}';
-    context.push(path);
+    context.push(path, extra: widget.video);
   }
 
   @override
@@ -149,6 +160,10 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
   Widget _buildNormalContent() {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    // Resolved here rather than at every call site: cards are built by the
+    // catalog, search and category screens, and threading a lookup through all
+    // of them to say one line would be the same wiring three times.
+    final label = widget.watchLabel ?? crossSourceWatchLabel(ref, widget.video);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -159,28 +174,31 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
             fit: StackFit.expand,
             children: [
               // Cover Image
-              CachedNetworkImage(
-                imageUrl: ref
-                    .read(videoRepositoryProvider)
-                    .resolveUrl(
-                      widget.video.coverUrl,
-                      sourceId: widget.video.sourceId,
+              Hero(
+                tag: videoPosterHeroTag(widget.video),
+                child: CachedNetworkImage(
+                  imageUrl: ref
+                      .read(videoRepositoryProvider)
+                      .resolveUrl(
+                        widget.video.coverUrl,
+                        sourceId: widget.video.sourceId,
+                      ),
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => Shimmer(
+                    duration: const Duration(seconds: 2),
+                    interval: const Duration(milliseconds: 500),
+                    color: isDark
+                        ? Colors.white.withAlpha(80)
+                        : Colors.black.withAlpha(20),
+                    enabled: true,
+                    direction: const ShimmerDirection.fromLTRB(),
+                    child: Container(
+                      color: isDark ? Colors.grey[800] : Colors.grey[200],
                     ),
-                fit: BoxFit.cover,
-                placeholder: (context, url) => Shimmer(
-                  duration: const Duration(seconds: 2),
-                  interval: const Duration(milliseconds: 500),
-                  color: isDark
-                      ? Colors.white.withAlpha(80)
-                      : Colors.black.withAlpha(20),
-                  enabled: true,
-                  direction: const ShimmerDirection.fromLTRB(),
-                  child: Container(
-                    color: isDark ? Colors.grey[800] : Colors.grey[200],
                   ),
-                ),
-                errorWidget: (context, url, err) => Container(
-                  color: isDark ? Colors.grey[900] : Colors.grey[300],
+                  errorWidget: (context, url, err) => Container(
+                    color: isDark ? Colors.grey[900] : Colors.grey[300],
+                  ),
                 ),
               ),
 
@@ -287,13 +305,12 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
                       // "看到第 5 集" wins over "更新至第 05 集": on a card you
                       // are returning to, your own progress is the answer you
                       // came for, and both together won't fit.
-                      if (widget.watchLabel != null ||
-                          widget.video.remarks != null)
+                      if (label != null || widget.video.remarks != null)
                         Expanded(
                           child: Text(
-                            widget.watchLabel ?? widget.video.remarks!,
+                            label ?? widget.video.remarks!,
                             style: TextStyle(
-                              color: widget.watchLabel != null
+                              color: label != null
                                   ? const Color(0xFF00E5FF)
                                   : Colors.white,
                               fontSize: 12,
@@ -351,23 +368,30 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
     return Stack(
       fit: StackFit.expand,
       children: [
-        // Background Image (Darkened)
-        CachedNetworkImage(
-          imageUrl: ref
-              .read(videoRepositoryProvider)
-              .resolveUrl(widget.video.coverUrl),
-          fit: BoxFit.cover,
-          color: Colors.black.withAlpha(100),
-          colorBlendMode: BlendMode.darken,
-          placeholder: (context, url) => Shimmer(
-            duration: const Duration(seconds: 2),
-            interval: const Duration(milliseconds: 500),
-            color: Colors.white.withAlpha(50),
-            enabled: true,
-            direction: const ShimmerDirection.fromLTRB(),
-            child: Container(color: Colors.grey[800]),
+        // Background image, then the darkening SEPARATELY on top.
+        //
+        // The dimming used to be a blend mode on the image itself, which put it
+        // inside the Hero — so the cover flew to the detail page dark and
+        // snapped bright on arrival. As an overlay it stays behind on the card
+        // where it belongs, and the flight carries the picture unchanged.
+        Hero(
+          tag: videoPosterHeroTag(widget.video),
+          child: CachedNetworkImage(
+            imageUrl: ref
+                .read(videoRepositoryProvider)
+                .resolveUrl(widget.video.coverUrl),
+            fit: BoxFit.cover,
+            placeholder: (context, url) => Shimmer(
+              duration: const Duration(seconds: 2),
+              interval: const Duration(milliseconds: 500),
+              color: Colors.white.withAlpha(50),
+              enabled: true,
+              direction: const ShimmerDirection.fromLTRB(),
+              child: Container(color: Colors.grey[800]),
+            ),
           ),
         ),
+        Container(color: Colors.black.withAlpha(100)),
 
         // Badges & Rating (Keep them visible)
         Positioned(

@@ -8,6 +8,7 @@ import 'package:vidra/src/features/download/data/download_provider.dart';
 import 'package:vidra/src/features/video/presentation/widgets/detail/episode_item.dart';
 import 'package:vidra/src/features/video/presentation/play_history_provider.dart';
 import 'package:vidra/src/features/video/data/video_repository.dart';
+import 'package:vidra/src/features/video/presentation/widgets/cross_source_watch_badge.dart';
 
 class EpisodeSection extends HookConsumerWidget {
   final Video video;
@@ -51,9 +52,20 @@ class EpisodeSection extends HookConsumerWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              tr('video.section.episodes'),
-              style: theme.textTheme.titleLarge,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  tr('video.section.episodes'),
+                  style: theme.textTheme.titleLarge,
+                ),
+                const SizedBox(width: 16),
+                // Beside the heading rather than under the hero title: over a
+                // backdrop image it competed with the artwork for contrast and
+                // read as decoration. Here it sits next to the thing it is
+                // about — the episode list.
+                CrossSourceWatchBadge(video: video),
+              ],
             ),
             _buildControls(context, ref, lastRefresh),
           ],
@@ -183,9 +195,7 @@ class EpisodeSection extends HookConsumerWidget {
                             sourceId: video.sourceId,
                           )),
                         );
-                        ref
-                            .read(playHistoryProvider.notifier)
-                            .manualRefresh();
+                        ref.read(playHistoryProvider.notifier).manualRefresh();
                       },
                     );
                   },

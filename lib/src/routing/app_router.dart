@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:vidra/src/features/video/domain/video_collection.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 // Placeholder for screens
@@ -46,8 +47,16 @@ final routerProvider = Provider<GoRouter>((ref) {
                 pageBuilder: (context, state) {
                   final id = state.pathParameters['id']!;
                   final sourceId = state.uri.queryParameters['sourceId'];
+                  // The tapped card hands over what it already knows, so the
+                  // page can paint the cover before the fetch returns. Null on
+                  // a deep link or a restored route, which the screen handles.
+                  final seed = state.extra;
                   return myTransitionPage(
-                    VideoDetailScreen(videoId: id, sourceId: sourceId),
+                    VideoDetailScreen(
+                      videoId: id,
+                      sourceId: sourceId,
+                      seed: seed is Video ? seed : null,
+                    ),
                   );
                 },
               ),

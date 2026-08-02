@@ -124,3 +124,37 @@ class RecentPlayback {
 /// instalments. Echoing one back reads as nonsense ("看到 立即播放"), so a film
 /// is located by its timestamp instead.
 bool isEpisodicType(String? type) => !(type ?? '').contains('电影');
+
+/// Progress on the same title from a DIFFERENT source.
+///
+/// Watch state crosses sources; skip markers do not. The two catalogs are
+/// different encodes of the same show, so their intros and credits sit at
+/// different timestamps — see `EpisodeSkipData`, which stays per-source.
+class CrossSourceWatch {
+  const CrossSourceWatch({
+    required this.sourceId,
+    required this.lastEpisodeIndex,
+    required this.lastEpisodeTitle,
+    required this.updatedAt,
+  });
+
+  final String sourceId;
+  final int lastEpisodeIndex;
+  final String? lastEpisodeTitle;
+  final DateTime updatedAt;
+}
+
+/// Identity for the same show across sources.
+///
+/// The catalogs share no ids, so a title is all there is. Year is folded in
+/// because remakes reuse titles, and the cost of confusing two of them is a
+/// show you have never opened wearing someone else's progress.
+///
+/// Deliberately EXACT after whitespace normalisation, not fuzzy: measured on
+/// the local database, every title present in both sources matched character
+/// for character, year included. Fuzzy matching would buy nothing here and
+/// bring false positives with it.
+String crossSourceKey(String title, String? year) {
+  final normalised = title.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
+  return '$normalised|${(year ?? '').trim()}';
+}

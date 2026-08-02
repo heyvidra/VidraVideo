@@ -99,20 +99,18 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
       final key = entry.key;
       final ve = entry.value;
       final qualities =
-          ve.qualities
-              ?.map((q) {
-                final localPath = localByUrl[q.url];
-                return VideoQuality(
-                  label: q.name ?? "Auto",
-                  // Prefer the downloaded local file — a downloaded episode
-                  // plays from disk (offline, no CDN re-stream) instead of
-                  // hitting the network again.
-                  source: localPath != null
-                      ? VideoSource.file(localPath)
-                      : VideoSource.network(q.url!),
-                );
-              })
-              .toList() ??
+          ve.qualities?.map((q) {
+            final localPath = localByUrl[q.url];
+            return VideoQuality(
+              label: q.name ?? "Auto",
+              // Prefer the downloaded local file — a downloaded episode
+              // plays from disk (offline, no CDN re-stream) instead of
+              // hitting the network again.
+              source: localPath != null
+                  ? VideoSource.file(localPath)
+                  : VideoSource.network(q.url!),
+            );
+          }).toList() ??
           [];
 
       return VideoEpisode(
@@ -191,7 +189,10 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
         _controller = null;
       }
     } catch (e) {
-      logD('VideoPlayerScreen', 'Error disposing player controller during close: $e');
+      logD(
+        'VideoPlayerScreen',
+        'Error disposing player controller during close: $e',
+      );
     }
 
     // Give native texture threads time to spin down before killing the engine
@@ -291,10 +292,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
       children: [
         Positioned.fill(
           child: Center(
-            child: Text(
-              message,
-              style: const TextStyle(color: Colors.white70),
-            ),
+            child: Text(message, style: const TextStyle(color: Colors.white70)),
           ),
         ),
         Positioned(

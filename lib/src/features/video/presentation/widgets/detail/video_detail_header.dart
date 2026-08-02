@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:vidra/src/features/video/domain/video_collection.dart';
 import 'package:vidra/src/features/video/data/video_repository.dart';
+import 'package:vidra/src/features/video/presentation/widgets/cards/popular_video_card.dart';
 import 'package:vidra/src/features/video/domain/play_history.dart';
 import 'package:vidra/src/features/video/domain/resume_target.dart';
 import 'package:vidra/src/features/video/presentation/play_history_provider.dart';
@@ -31,20 +32,26 @@ class VideoDetailHeader extends ConsumerWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          CachedNetworkImage(
-            imageUrl: (video.backdropUrl ?? video.coverUrl).startsWith('http')
-                ? (video.backdropUrl ?? video.coverUrl)
-                : repository.resolveUrl(video.backdropUrl ?? video.coverUrl),
-            fit: BoxFit.cover,
-            placeholder: (context, url) => Container(
-              color: theme.brightness == Brightness.dark
-                  ? Colors.black
-                  : Colors.grey[200],
-            ),
-            errorWidget: (context, url, error) => Container(
-              color: theme.brightness == Brightness.dark
-                  ? Colors.grey[900]
-                  : Colors.grey[300],
+          // Receiving end of the card's flight. Both catalogs return a null
+          // backdrop, so this resolves to the very cover the card showed and
+          // the Hero morphs one image instead of cross-fading two.
+          Hero(
+            tag: videoPosterHeroTag(video),
+            child: CachedNetworkImage(
+              imageUrl: (video.backdropUrl ?? video.coverUrl).startsWith('http')
+                  ? (video.backdropUrl ?? video.coverUrl)
+                  : repository.resolveUrl(video.backdropUrl ?? video.coverUrl),
+              fit: BoxFit.cover,
+              placeholder: (context, url) => Container(
+                color: theme.brightness == Brightness.dark
+                    ? Colors.black
+                    : Colors.grey[200],
+              ),
+              errorWidget: (context, url, error) => Container(
+                color: theme.brightness == Brightness.dark
+                    ? Colors.grey[900]
+                    : Colors.grey[300],
+              ),
             ),
           ),
           // Gradient Overlay
