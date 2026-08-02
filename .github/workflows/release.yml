@@ -95,6 +95,28 @@ jobs:
       - name: Flutter Build (Windows Release)
         run: .\tool\build_windows.bat
 
+      # `flutter build windows` reports "Unable to generate build files" and
+      # swallows the CMake output that says WHY, so a configure failure arrives
+      # as a sentence with no cause attached. These are the files that hold the
+      # actual error; printing them on failure costs nothing and turns a
+      # guessing game into a diagnosis.
+      - name: CMake logs (on failure)
+        if: failure()
+        shell: pwsh
+        run: |
+          $base = "build\windows\x64"
+          foreach ($f in @("CMakeFiles\CMakeError.log",
+                           "CMakeFiles\CMakeOutput.log",
+                           "CMakeCache.txt")) {
+            $p = Join-Path $base $f
+            Write-Host "===== $p ====="
+            if (Test-Path $p) { Get-Content $p -Tail 200 }
+            else { Write-Host "(absent)" }
+          }
+          Write-Host "===== re-running configure verbosely ====="
+          flutter build windows --release --verbose 2>&1 |
+            Select-Object -Last 120
+
       # build_windows.bat appends pubspec_fonts.yaml to pubspec.yaml and strips
       # it again afterwards, so nothing downstream can tell whether the fonts
       # actually made it in. Without them Windows has no bundled CJK face and
