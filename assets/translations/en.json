@@ -158,7 +158,8 @@
       "playlist_count": "{} videos",
       "preview": "Preview",
       "preview_hint": "Preview {} (higher qualities need muxing)",
-      "preview_none": "This link has no single-stream quality to play directly"
+      "preview_none": "This link only offers separate video and audio streams; they play once downloaded and merged",
+      "preview_unavailable": "No direct preview"
     },
     "tab": {
       "downloading": "Downloading",

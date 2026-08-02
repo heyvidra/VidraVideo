@@ -434,15 +434,13 @@ class _ResultItemCard extends HookConsumerWidget {
                       ),
                   ],
                 ),
-                if (preview?.url != null) ...[
-                  const SizedBox(height: 10),
-                  _PreviewButton(
-                    format: preview!,
-                    title: title,
-                    coverUrl: coverUrl,
-                    videoId: videoId,
-                  ),
-                ],
+                const SizedBox(height: 10),
+                _PreviewButton(
+                  format: preview,
+                  title: title,
+                  coverUrl: coverUrl,
+                  videoId: videoId,
+                ),
               ],
             ),
           ),
@@ -707,7 +705,7 @@ class _PreviewButton extends StatelessWidget {
     required this.videoId,
   });
 
-  final MediaFormat format;
+  final MediaFormat? format;
   final String title;
   final String? coverUrl;
   final int videoId;
@@ -715,14 +713,39 @@ class _PreviewButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final quality = format.height != null ? '${format.height}p' : format.ext;
+    final f = format;
+    // Disabled-with-a-reason, never absent. A button that vanishes when the
+    // link has no single-stream format is indistinguishable from one that
+    // broke — which is exactly the question it prompted the first time a
+    // three-hour video (no progressive format on YouTube) came through.
+    if (f == null) {
+      return Tooltip(
+        message: tr('download.url.preview_none'),
+        child: OutlinedButton.icon(
+          onPressed: null,
+          icon: const Icon(Icons.play_disabled_rounded, size: 16),
+          label: Text(tr('download.url.preview_unavailable')),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: theme.colorScheme.onSurfaceVariant.withAlpha(110),
+            side: BorderSide(color: theme.colorScheme.outline.withAlpha(45)),
+            textStyle: const TextStyle(fontSize: 12.5),
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+      );
+    }
+    final quality = f.height != null ? '${f.height}p' : f.ext;
     return Tooltip(
       message: tr('download.url.preview_hint', args: [quality]),
       child: OutlinedButton.icon(
         onPressed: () => PlayerWindowLauncher.open(
           videoId: videoId,
           episodeIndex: 0,
-          directUrl: format.url,
+          directUrl: f.url,
           directTitle: title,
           directCoverUrl: coverUrl,
         ),

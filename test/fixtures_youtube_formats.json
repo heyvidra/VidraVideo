@@ -1,0 +1,43 @@
+{
+  "title": "FULL | 馬瑞澤&斯佳麗💥穿越成落魄",
+  "formats": [
+    {
+      "format_id": "18",
+      "url": "https://example.test/stream_18.mp4",
+      "ext": "mp4",
+      "protocol": "https",
+      "vcodec": "avc1.42001E",
+      "acodec": "mp4a.40.2",
+      "width": 360,
+      "height": 640,
+      "tbr": 429,
+      "itag": 18,
+      "audio_channels": 2,
+      "filesize": 632257751
+    },
+    {
+      "format_id": "271",
+      "url": "https://example.test/stream_271.mp4",
+      "ext": "webm",
+      "protocol": "https",
+      "vcodec": "vp9",
+      "width": 1440,
+      "height": 2560,
+      "tbr": 6725,
+      "itag": 271,
+      "filesize": 5458927961
+    },
+    {
+      "format_id": "137",
+      "url": "https://example.test/stream_137.mp4",
+      "ext": "mp4",
+      "protocol": "https",
+      "vcodec": "avc1.640028",
+      "width": 1080,
+      "height": 1920,
+      "tbr": 4396,
+      "itag": 137,
+      "filesize": 3619211860
+    }
+  ]
+}

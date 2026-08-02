@@ -158,7 +158,8 @@
       "playlist_count": "共 {} 个视频",
       "preview": "预览播放",
       "preview_hint": "预览 {}（不含更高画质的合流）",
-      "preview_none": "该链接没有可直接播放的单流画质"
+      "preview_none": "该链接只提供音视频分离的画质，需下载合流后才能播放",
+      "preview_unavailable": "无法直接预览"
     },
     "tab": {
       "downloading": "下载中",
