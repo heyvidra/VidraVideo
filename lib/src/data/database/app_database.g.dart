@@ -3248,6 +3248,555 @@ class EpisodeHistoryCompanion extends UpdateCompanion<EpisodeHistoryData> {
   }
 }
 
+class $EpisodeSkipDataTable extends EpisodeSkipData
+    with TableInfo<$EpisodeSkipDataTable, EpisodeSkipDataData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $EpisodeSkipDataTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _sourceIdMeta = const VerificationMeta(
+    'sourceId',
+  );
+  @override
+  late final GeneratedColumn<String> sourceId = GeneratedColumn<String>(
+    'source_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _videoIdMeta = const VerificationMeta(
+    'videoId',
+  );
+  @override
+  late final GeneratedColumn<int> videoId = GeneratedColumn<int>(
+    'video_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _episodeIndexMeta = const VerificationMeta(
+    'episodeIndex',
+  );
+  @override
+  late final GeneratedColumn<int> episodeIndex = GeneratedColumn<int>(
+    'episode_index',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _introEndMillisMeta = const VerificationMeta(
+    'introEndMillis',
+  );
+  @override
+  late final GeneratedColumn<int> introEndMillis = GeneratedColumn<int>(
+    'intro_end_millis',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _outroStartMillisMeta = const VerificationMeta(
+    'outroStartMillis',
+  );
+  @override
+  late final GeneratedColumn<int> outroStartMillis = GeneratedColumn<int>(
+    'outro_start_millis',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _markerSourceMeta = const VerificationMeta(
+    'markerSource',
+  );
+  @override
+  late final GeneratedColumn<int> markerSource = GeneratedColumn<int>(
+    'marker_source',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sweepHashesMeta = const VerificationMeta(
+    'sweepHashes',
+  );
+  @override
+  late final GeneratedColumn<Uint8List> sweepHashes =
+      GeneratedColumn<Uint8List>(
+        'sweep_hashes',
+        aliasedName,
+        true,
+        type: DriftSqlType.blob,
+        requiredDuringInsert: false,
+      );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    sourceId,
+    videoId,
+    episodeIndex,
+    introEndMillis,
+    outroStartMillis,
+    markerSource,
+    sweepHashes,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'episode_skip_data';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<EpisodeSkipDataData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('source_id')) {
+      context.handle(
+        _sourceIdMeta,
+        sourceId.isAcceptableOrUnknown(data['source_id']!, _sourceIdMeta),
+      );
+    }
+    if (data.containsKey('video_id')) {
+      context.handle(
+        _videoIdMeta,
+        videoId.isAcceptableOrUnknown(data['video_id']!, _videoIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_videoIdMeta);
+    }
+    if (data.containsKey('episode_index')) {
+      context.handle(
+        _episodeIndexMeta,
+        episodeIndex.isAcceptableOrUnknown(
+          data['episode_index']!,
+          _episodeIndexMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_episodeIndexMeta);
+    }
+    if (data.containsKey('intro_end_millis')) {
+      context.handle(
+        _introEndMillisMeta,
+        introEndMillis.isAcceptableOrUnknown(
+          data['intro_end_millis']!,
+          _introEndMillisMeta,
+        ),
+      );
+    }
+    if (data.containsKey('outro_start_millis')) {
+      context.handle(
+        _outroStartMillisMeta,
+        outroStartMillis.isAcceptableOrUnknown(
+          data['outro_start_millis']!,
+          _outroStartMillisMeta,
+        ),
+      );
+    }
+    if (data.containsKey('marker_source')) {
+      context.handle(
+        _markerSourceMeta,
+        markerSource.isAcceptableOrUnknown(
+          data['marker_source']!,
+          _markerSourceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sweep_hashes')) {
+      context.handle(
+        _sweepHashesMeta,
+        sweepHashes.isAcceptableOrUnknown(
+          data['sweep_hashes']!,
+          _sweepHashesMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  EpisodeSkipDataData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return EpisodeSkipDataData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      sourceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_id'],
+      ),
+      videoId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}video_id'],
+      )!,
+      episodeIndex: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}episode_index'],
+      )!,
+      introEndMillis: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}intro_end_millis'],
+      ),
+      outroStartMillis: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}outro_start_millis'],
+      ),
+      markerSource: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}marker_source'],
+      ),
+      sweepHashes: attachedDatabase.typeMapping.read(
+        DriftSqlType.blob,
+        data['${effectivePrefix}sweep_hashes'],
+      ),
+    );
+  }
+
+  @override
+  $EpisodeSkipDataTable createAlias(String alias) {
+    return $EpisodeSkipDataTable(attachedDatabase, alias);
+  }
+}
+
+class EpisodeSkipDataData extends DataClass
+    implements Insertable<EpisodeSkipDataData> {
+  final int id;
+  final String? sourceId;
+  final int videoId;
+  final int episodeIndex;
+
+  /// Absolute boundaries into the media. Null means "not set for this episode",
+  /// which is not the same as zero.
+  final int? introEndMillis;
+  final int? outroStartMillis;
+
+  /// `MarkerSource.index` from the player SDK. Stored so precedence survives a
+  /// restart: without it a re-detected intro would overwrite one the user
+  /// placed by hand.
+  final int? markerSource;
+
+  /// Perceptual hashes from one sweep, in the SDK's own versioned format.
+  /// Opaque here on purpose — this app stores and returns the bytes unchanged,
+  /// and the SDK discards a blob it does not recognise.
+  final Uint8List? sweepHashes;
+  const EpisodeSkipDataData({
+    required this.id,
+    this.sourceId,
+    required this.videoId,
+    required this.episodeIndex,
+    this.introEndMillis,
+    this.outroStartMillis,
+    this.markerSource,
+    this.sweepHashes,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    if (!nullToAbsent || sourceId != null) {
+      map['source_id'] = Variable<String>(sourceId);
+    }
+    map['video_id'] = Variable<int>(videoId);
+    map['episode_index'] = Variable<int>(episodeIndex);
+    if (!nullToAbsent || introEndMillis != null) {
+      map['intro_end_millis'] = Variable<int>(introEndMillis);
+    }
+    if (!nullToAbsent || outroStartMillis != null) {
+      map['outro_start_millis'] = Variable<int>(outroStartMillis);
+    }
+    if (!nullToAbsent || markerSource != null) {
+      map['marker_source'] = Variable<int>(markerSource);
+    }
+    if (!nullToAbsent || sweepHashes != null) {
+      map['sweep_hashes'] = Variable<Uint8List>(sweepHashes);
+    }
+    return map;
+  }
+
+  EpisodeSkipDataCompanion toCompanion(bool nullToAbsent) {
+    return EpisodeSkipDataCompanion(
+      id: Value(id),
+      sourceId: sourceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceId),
+      videoId: Value(videoId),
+      episodeIndex: Value(episodeIndex),
+      introEndMillis: introEndMillis == null && nullToAbsent
+          ? const Value.absent()
+          : Value(introEndMillis),
+      outroStartMillis: outroStartMillis == null && nullToAbsent
+          ? const Value.absent()
+          : Value(outroStartMillis),
+      markerSource: markerSource == null && nullToAbsent
+          ? const Value.absent()
+          : Value(markerSource),
+      sweepHashes: sweepHashes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sweepHashes),
+    );
+  }
+
+  factory EpisodeSkipDataData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return EpisodeSkipDataData(
+      id: serializer.fromJson<int>(json['id']),
+      sourceId: serializer.fromJson<String?>(json['sourceId']),
+      videoId: serializer.fromJson<int>(json['videoId']),
+      episodeIndex: serializer.fromJson<int>(json['episodeIndex']),
+      introEndMillis: serializer.fromJson<int?>(json['introEndMillis']),
+      outroStartMillis: serializer.fromJson<int?>(json['outroStartMillis']),
+      markerSource: serializer.fromJson<int?>(json['markerSource']),
+      sweepHashes: serializer.fromJson<Uint8List?>(json['sweepHashes']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'sourceId': serializer.toJson<String?>(sourceId),
+      'videoId': serializer.toJson<int>(videoId),
+      'episodeIndex': serializer.toJson<int>(episodeIndex),
+      'introEndMillis': serializer.toJson<int?>(introEndMillis),
+      'outroStartMillis': serializer.toJson<int?>(outroStartMillis),
+      'markerSource': serializer.toJson<int?>(markerSource),
+      'sweepHashes': serializer.toJson<Uint8List?>(sweepHashes),
+    };
+  }
+
+  EpisodeSkipDataData copyWith({
+    int? id,
+    Value<String?> sourceId = const Value.absent(),
+    int? videoId,
+    int? episodeIndex,
+    Value<int?> introEndMillis = const Value.absent(),
+    Value<int?> outroStartMillis = const Value.absent(),
+    Value<int?> markerSource = const Value.absent(),
+    Value<Uint8List?> sweepHashes = const Value.absent(),
+  }) => EpisodeSkipDataData(
+    id: id ?? this.id,
+    sourceId: sourceId.present ? sourceId.value : this.sourceId,
+    videoId: videoId ?? this.videoId,
+    episodeIndex: episodeIndex ?? this.episodeIndex,
+    introEndMillis: introEndMillis.present
+        ? introEndMillis.value
+        : this.introEndMillis,
+    outroStartMillis: outroStartMillis.present
+        ? outroStartMillis.value
+        : this.outroStartMillis,
+    markerSource: markerSource.present ? markerSource.value : this.markerSource,
+    sweepHashes: sweepHashes.present ? sweepHashes.value : this.sweepHashes,
+  );
+  EpisodeSkipDataData copyWithCompanion(EpisodeSkipDataCompanion data) {
+    return EpisodeSkipDataData(
+      id: data.id.present ? data.id.value : this.id,
+      sourceId: data.sourceId.present ? data.sourceId.value : this.sourceId,
+      videoId: data.videoId.present ? data.videoId.value : this.videoId,
+      episodeIndex: data.episodeIndex.present
+          ? data.episodeIndex.value
+          : this.episodeIndex,
+      introEndMillis: data.introEndMillis.present
+          ? data.introEndMillis.value
+          : this.introEndMillis,
+      outroStartMillis: data.outroStartMillis.present
+          ? data.outroStartMillis.value
+          : this.outroStartMillis,
+      markerSource: data.markerSource.present
+          ? data.markerSource.value
+          : this.markerSource,
+      sweepHashes: data.sweepHashes.present
+          ? data.sweepHashes.value
+          : this.sweepHashes,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('EpisodeSkipDataData(')
+          ..write('id: $id, ')
+          ..write('sourceId: $sourceId, ')
+          ..write('videoId: $videoId, ')
+          ..write('episodeIndex: $episodeIndex, ')
+          ..write('introEndMillis: $introEndMillis, ')
+          ..write('outroStartMillis: $outroStartMillis, ')
+          ..write('markerSource: $markerSource, ')
+          ..write('sweepHashes: $sweepHashes')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    sourceId,
+    videoId,
+    episodeIndex,
+    introEndMillis,
+    outroStartMillis,
+    markerSource,
+    $driftBlobEquality.hash(sweepHashes),
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is EpisodeSkipDataData &&
+          other.id == this.id &&
+          other.sourceId == this.sourceId &&
+          other.videoId == this.videoId &&
+          other.episodeIndex == this.episodeIndex &&
+          other.introEndMillis == this.introEndMillis &&
+          other.outroStartMillis == this.outroStartMillis &&
+          other.markerSource == this.markerSource &&
+          $driftBlobEquality.equals(other.sweepHashes, this.sweepHashes));
+}
+
+class EpisodeSkipDataCompanion extends UpdateCompanion<EpisodeSkipDataData> {
+  final Value<int> id;
+  final Value<String?> sourceId;
+  final Value<int> videoId;
+  final Value<int> episodeIndex;
+  final Value<int?> introEndMillis;
+  final Value<int?> outroStartMillis;
+  final Value<int?> markerSource;
+  final Value<Uint8List?> sweepHashes;
+  const EpisodeSkipDataCompanion({
+    this.id = const Value.absent(),
+    this.sourceId = const Value.absent(),
+    this.videoId = const Value.absent(),
+    this.episodeIndex = const Value.absent(),
+    this.introEndMillis = const Value.absent(),
+    this.outroStartMillis = const Value.absent(),
+    this.markerSource = const Value.absent(),
+    this.sweepHashes = const Value.absent(),
+  });
+  EpisodeSkipDataCompanion.insert({
+    this.id = const Value.absent(),
+    this.sourceId = const Value.absent(),
+    required int videoId,
+    required int episodeIndex,
+    this.introEndMillis = const Value.absent(),
+    this.outroStartMillis = const Value.absent(),
+    this.markerSource = const Value.absent(),
+    this.sweepHashes = const Value.absent(),
+  }) : videoId = Value(videoId),
+       episodeIndex = Value(episodeIndex);
+  static Insertable<EpisodeSkipDataData> custom({
+    Expression<int>? id,
+    Expression<String>? sourceId,
+    Expression<int>? videoId,
+    Expression<int>? episodeIndex,
+    Expression<int>? introEndMillis,
+    Expression<int>? outroStartMillis,
+    Expression<int>? markerSource,
+    Expression<Uint8List>? sweepHashes,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (sourceId != null) 'source_id': sourceId,
+      if (videoId != null) 'video_id': videoId,
+      if (episodeIndex != null) 'episode_index': episodeIndex,
+      if (introEndMillis != null) 'intro_end_millis': introEndMillis,
+      if (outroStartMillis != null) 'outro_start_millis': outroStartMillis,
+      if (markerSource != null) 'marker_source': markerSource,
+      if (sweepHashes != null) 'sweep_hashes': sweepHashes,
+    });
+  }
+
+  EpisodeSkipDataCompanion copyWith({
+    Value<int>? id,
+    Value<String?>? sourceId,
+    Value<int>? videoId,
+    Value<int>? episodeIndex,
+    Value<int?>? introEndMillis,
+    Value<int?>? outroStartMillis,
+    Value<int?>? markerSource,
+    Value<Uint8List?>? sweepHashes,
+  }) {
+    return EpisodeSkipDataCompanion(
+      id: id ?? this.id,
+      sourceId: sourceId ?? this.sourceId,
+      videoId: videoId ?? this.videoId,
+      episodeIndex: episodeIndex ?? this.episodeIndex,
+      introEndMillis: introEndMillis ?? this.introEndMillis,
+      outroStartMillis: outroStartMillis ?? this.outroStartMillis,
+      markerSource: markerSource ?? this.markerSource,
+      sweepHashes: sweepHashes ?? this.sweepHashes,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (sourceId.present) {
+      map['source_id'] = Variable<String>(sourceId.value);
+    }
+    if (videoId.present) {
+      map['video_id'] = Variable<int>(videoId.value);
+    }
+    if (episodeIndex.present) {
+      map['episode_index'] = Variable<int>(episodeIndex.value);
+    }
+    if (introEndMillis.present) {
+      map['intro_end_millis'] = Variable<int>(introEndMillis.value);
+    }
+    if (outroStartMillis.present) {
+      map['outro_start_millis'] = Variable<int>(outroStartMillis.value);
+    }
+    if (markerSource.present) {
+      map['marker_source'] = Variable<int>(markerSource.value);
+    }
+    if (sweepHashes.present) {
+      map['sweep_hashes'] = Variable<Uint8List>(sweepHashes.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('EpisodeSkipDataCompanion(')
+          ..write('id: $id, ')
+          ..write('sourceId: $sourceId, ')
+          ..write('videoId: $videoId, ')
+          ..write('episodeIndex: $episodeIndex, ')
+          ..write('introEndMillis: $introEndMillis, ')
+          ..write('outroStartMillis: $outroStartMillis, ')
+          ..write('markerSource: $markerSource, ')
+          ..write('sweepHashes: $sweepHashes')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $DownloadTasksTable extends DownloadTasks
     with TableInfo<$DownloadTasksTable, DownloadTask> {
   @override
@@ -4590,6 +5139,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $VideoSettingsTable videoSettings = $VideoSettingsTable(this);
   late final $VideoHistoryTable videoHistory = $VideoHistoryTable(this);
   late final $EpisodeHistoryTable episodeHistory = $EpisodeHistoryTable(this);
+  late final $EpisodeSkipDataTable episodeSkipData = $EpisodeSkipDataTable(
+    this,
+  );
   late final $DownloadTasksTable downloadTasks = $DownloadTasksTable(this);
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
   late final Index videosIdx = Index(
@@ -4608,6 +5160,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'episode_history_idx',
     'CREATE UNIQUE INDEX episode_history_idx ON episode_history (video_id, episode_index, source_id)',
   );
+  late final Index episodeSkipDataIdx = Index(
+    'episode_skip_data_idx',
+    'CREATE UNIQUE INDEX episode_skip_data_idx ON episode_skip_data (video_id, episode_index, source_id)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -4617,12 +5173,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     videoSettings,
     videoHistory,
     episodeHistory,
+    episodeSkipData,
     downloadTasks,
     appSettings,
     videosIdx,
     videoSettingsIdx,
     videoHistoryIdx,
     episodeHistoryIdx,
+    episodeSkipDataIdx,
   ];
 }
 
@@ -6131,6 +6689,277 @@ typedef $$EpisodeHistoryTableProcessedTableManager =
       EpisodeHistoryData,
       PrefetchHooks Function()
     >;
+typedef $$EpisodeSkipDataTableCreateCompanionBuilder =
+    EpisodeSkipDataCompanion Function({
+      Value<int> id,
+      Value<String?> sourceId,
+      required int videoId,
+      required int episodeIndex,
+      Value<int?> introEndMillis,
+      Value<int?> outroStartMillis,
+      Value<int?> markerSource,
+      Value<Uint8List?> sweepHashes,
+    });
+typedef $$EpisodeSkipDataTableUpdateCompanionBuilder =
+    EpisodeSkipDataCompanion Function({
+      Value<int> id,
+      Value<String?> sourceId,
+      Value<int> videoId,
+      Value<int> episodeIndex,
+      Value<int?> introEndMillis,
+      Value<int?> outroStartMillis,
+      Value<int?> markerSource,
+      Value<Uint8List?> sweepHashes,
+    });
+
+class $$EpisodeSkipDataTableFilterComposer
+    extends Composer<_$AppDatabase, $EpisodeSkipDataTable> {
+  $$EpisodeSkipDataTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get videoId => $composableBuilder(
+    column: $table.videoId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get episodeIndex => $composableBuilder(
+    column: $table.episodeIndex,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get introEndMillis => $composableBuilder(
+    column: $table.introEndMillis,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get outroStartMillis => $composableBuilder(
+    column: $table.outroStartMillis,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get markerSource => $composableBuilder(
+    column: $table.markerSource,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<Uint8List> get sweepHashes => $composableBuilder(
+    column: $table.sweepHashes,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$EpisodeSkipDataTableOrderingComposer
+    extends Composer<_$AppDatabase, $EpisodeSkipDataTable> {
+  $$EpisodeSkipDataTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get videoId => $composableBuilder(
+    column: $table.videoId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get episodeIndex => $composableBuilder(
+    column: $table.episodeIndex,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get introEndMillis => $composableBuilder(
+    column: $table.introEndMillis,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get outroStartMillis => $composableBuilder(
+    column: $table.outroStartMillis,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get markerSource => $composableBuilder(
+    column: $table.markerSource,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<Uint8List> get sweepHashes => $composableBuilder(
+    column: $table.sweepHashes,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$EpisodeSkipDataTableAnnotationComposer
+    extends Composer<_$AppDatabase, $EpisodeSkipDataTable> {
+  $$EpisodeSkipDataTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceId =>
+      $composableBuilder(column: $table.sourceId, builder: (column) => column);
+
+  GeneratedColumn<int> get videoId =>
+      $composableBuilder(column: $table.videoId, builder: (column) => column);
+
+  GeneratedColumn<int> get episodeIndex => $composableBuilder(
+    column: $table.episodeIndex,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get introEndMillis => $composableBuilder(
+    column: $table.introEndMillis,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get outroStartMillis => $composableBuilder(
+    column: $table.outroStartMillis,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get markerSource => $composableBuilder(
+    column: $table.markerSource,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<Uint8List> get sweepHashes => $composableBuilder(
+    column: $table.sweepHashes,
+    builder: (column) => column,
+  );
+}
+
+class $$EpisodeSkipDataTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $EpisodeSkipDataTable,
+          EpisodeSkipDataData,
+          $$EpisodeSkipDataTableFilterComposer,
+          $$EpisodeSkipDataTableOrderingComposer,
+          $$EpisodeSkipDataTableAnnotationComposer,
+          $$EpisodeSkipDataTableCreateCompanionBuilder,
+          $$EpisodeSkipDataTableUpdateCompanionBuilder,
+          (
+            EpisodeSkipDataData,
+            BaseReferences<
+              _$AppDatabase,
+              $EpisodeSkipDataTable,
+              EpisodeSkipDataData
+            >,
+          ),
+          EpisodeSkipDataData,
+          PrefetchHooks Function()
+        > {
+  $$EpisodeSkipDataTableTableManager(
+    _$AppDatabase db,
+    $EpisodeSkipDataTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$EpisodeSkipDataTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$EpisodeSkipDataTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$EpisodeSkipDataTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String?> sourceId = const Value.absent(),
+                Value<int> videoId = const Value.absent(),
+                Value<int> episodeIndex = const Value.absent(),
+                Value<int?> introEndMillis = const Value.absent(),
+                Value<int?> outroStartMillis = const Value.absent(),
+                Value<int?> markerSource = const Value.absent(),
+                Value<Uint8List?> sweepHashes = const Value.absent(),
+              }) => EpisodeSkipDataCompanion(
+                id: id,
+                sourceId: sourceId,
+                videoId: videoId,
+                episodeIndex: episodeIndex,
+                introEndMillis: introEndMillis,
+                outroStartMillis: outroStartMillis,
+                markerSource: markerSource,
+                sweepHashes: sweepHashes,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String?> sourceId = const Value.absent(),
+                required int videoId,
+                required int episodeIndex,
+                Value<int?> introEndMillis = const Value.absent(),
+                Value<int?> outroStartMillis = const Value.absent(),
+                Value<int?> markerSource = const Value.absent(),
+                Value<Uint8List?> sweepHashes = const Value.absent(),
+              }) => EpisodeSkipDataCompanion.insert(
+                id: id,
+                sourceId: sourceId,
+                videoId: videoId,
+                episodeIndex: episodeIndex,
+                introEndMillis: introEndMillis,
+                outroStartMillis: outroStartMillis,
+                markerSource: markerSource,
+                sweepHashes: sweepHashes,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$EpisodeSkipDataTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $EpisodeSkipDataTable,
+      EpisodeSkipDataData,
+      $$EpisodeSkipDataTableFilterComposer,
+      $$EpisodeSkipDataTableOrderingComposer,
+      $$EpisodeSkipDataTableAnnotationComposer,
+      $$EpisodeSkipDataTableCreateCompanionBuilder,
+      $$EpisodeSkipDataTableUpdateCompanionBuilder,
+      (
+        EpisodeSkipDataData,
+        BaseReferences<
+          _$AppDatabase,
+          $EpisodeSkipDataTable,
+          EpisodeSkipDataData
+        >,
+      ),
+      EpisodeSkipDataData,
+      PrefetchHooks Function()
+    >;
 typedef $$DownloadTasksTableCreateCompanionBuilder =
     DownloadTasksCompanion Function({
       Value<int> id,
@@ -6771,6 +7600,8 @@ class $AppDatabaseManager {
       $$VideoHistoryTableTableManager(_db, _db.videoHistory);
   $$EpisodeHistoryTableTableManager get episodeHistory =>
       $$EpisodeHistoryTableTableManager(_db, _db.episodeHistory);
+  $$EpisodeSkipDataTableTableManager get episodeSkipData =>
+      $$EpisodeSkipDataTableTableManager(_db, _db.episodeSkipData);
   $$DownloadTasksTableTableManager get downloadTasks =>
       $$DownloadTasksTableTableManager(_db, _db.downloadTasks);
   $$AppSettingsTableTableManager get appSettings =>

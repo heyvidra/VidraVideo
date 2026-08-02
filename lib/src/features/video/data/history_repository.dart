@@ -167,6 +167,50 @@ class HistoryRepository {
         .insert(normalized.toCompanion(), mode: InsertMode.insertOrReplace);
   }
 
+  // --- Episode skip data (intro/outro markers + the sweep hashes behind them)
+
+  Future<List<db.EpisodeSkipDataData>> getEpisodeSkipData(
+    int videoId,
+    String? sourceId,
+  ) async {
+    final sid = sourceId ?? _defaultSourceId;
+    return (_db.select(
+      _db.episodeSkipData,
+    )..where((t) => t.sourceId.equals(sid) & t.videoId.equals(videoId))).get();
+  }
+
+  /// Upsert ONLY the columns present in [values].
+  ///
+  /// Markers and hashes are written by different callers at different times —
+  /// a whole-row replace would blank whichever one this write isn't carrying,
+  /// so a completed sweep would erase the marker it had just produced.
+  Future<void> saveEpisodeSkipData(
+    int videoId,
+    int episodeIndex,
+    String? sourceId,
+    db.EpisodeSkipDataCompanion values,
+  ) async {
+    final sid = sourceId ?? _defaultSourceId;
+    final row = values.copyWith(
+      videoId: Value(videoId),
+      episodeIndex: Value(episodeIndex),
+      sourceId: Value(sid),
+    );
+    await _db
+        .into(_db.episodeSkipData)
+        .insert(
+          row,
+          onConflict: DoUpdate(
+            (_) => values, // set fields only; the rest stay as they are
+            target: [
+              _db.episodeSkipData.videoId,
+              _db.episodeSkipData.episodeIndex,
+              _db.episodeSkipData.sourceId,
+            ],
+          ),
+        );
+  }
+
   /// Clears all history and cached video data.
   Future<void> clearAllHistory() async {
     await _db.transaction(() async {
@@ -174,6 +218,7 @@ class HistoryRepository {
       await _db.delete(_db.episodeHistory).go();
       await _db.delete(_db.videos).go();
       await _db.delete(_db.videoSettings).go();
+      await _db.delete(_db.episodeSkipData).go();
     });
   }
 }

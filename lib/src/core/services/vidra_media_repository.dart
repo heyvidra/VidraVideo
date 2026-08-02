@@ -1,6 +1,9 @@
 import 'dart:async'; // Add async import
+import 'dart:typed_data';
+import 'package:drift/drift.dart' show Value;
 import 'package:vidra_player/core/interfaces/media_repository.dart';
 import 'package:vidra_player/core/model/model.dart' as vidra_model;
+import '../../data/database/app_database.dart' as db;
 import '../../features/video/data/history_repository.dart';
 import '../../features/video/data/video_repository.dart';
 import '../../features/video/domain/video_collection.dart' show Video;
@@ -35,7 +38,8 @@ class _HistoryThrottler {
   }
 }
 
-class VidraMediaRepository implements MediaRepository {
+class VidraMediaRepository
+    implements MediaRepository, EpisodeMarkerStore, EpisodeHashStore {
   final VideoRepository _videoRepository;
   final HistoryRepository _historyRepository;
 
@@ -194,4 +198,92 @@ class VidraMediaRepository implements MediaRepository {
     );
     await _videoRepository.saveVideoSettings(domainSettings);
   }
+
+  // --- Per-episode skip markers ---
+
+  @override
+  Future<List<vidra_model.EpisodeMarkers>> getEpisodeMarkers({
+    required String videoId,
+  }) async {
+    final parsed = _parseVideoId(videoId);
+    final rows = await _historyRepository.getEpisodeSkipData(
+      parsed.apiId,
+      parsed.sourceId,
+    );
+    return [
+      for (final r in rows)
+        if (r.introEndMillis != null || r.outroStartMillis != null)
+          vidra_model.EpisodeMarkers(
+            episodeIndex: r.episodeIndex,
+            introEnd: _millis(r.introEndMillis),
+            outroStart: _millis(r.outroStartMillis),
+            // Precedence has to survive the round trip, or a detected intro
+            // read back as `manual` would block the user from ever correcting
+            // it. Out-of-range values fall back to the weakest source.
+            source:
+                vidra_model.MarkerSource.values.elementAtOrNull(
+                  r.markerSource ?? -1,
+                ) ??
+                vidra_model.MarkerSource.chapter,
+          ),
+    ];
+  }
+
+  @override
+  Future<void> saveEpisodeMarkers(
+    String videoId,
+    vidra_model.EpisodeMarkers markers,
+  ) async {
+    final parsed = _parseVideoId(videoId);
+    await _historyRepository.saveEpisodeSkipData(
+      parsed.apiId,
+      markers.episodeIndex,
+      parsed.sourceId,
+      db.EpisodeSkipDataCompanion(
+        // Written unconditionally, including as null: `clear` markers exist
+        // precisely so a wrong boundary can be taken away, and an absent value
+        // would leave the old one in the row.
+        introEndMillis: Value(markers.introEnd?.inMilliseconds),
+        outroStartMillis: Value(markers.outroStart?.inMilliseconds),
+        markerSource: Value(markers.source.index),
+      ),
+    );
+  }
+
+  // --- Sweep hashes (what cross-episode detection compares) ---
+
+  @override
+  Future<Map<int, List<int>>> getEpisodeHashes({
+    required String videoId,
+  }) async {
+    final parsed = _parseVideoId(videoId);
+    final rows = await _historyRepository.getEpisodeSkipData(
+      parsed.apiId,
+      parsed.sourceId,
+    );
+    return {
+      for (final r in rows)
+        if (r.sweepHashes != null) r.episodeIndex: r.sweepHashes!,
+    };
+  }
+
+  @override
+  Future<void> saveEpisodeHashes(
+    String videoId,
+    int episodeIndex,
+    List<int> hashes,
+  ) async {
+    final parsed = _parseVideoId(videoId);
+    await _historyRepository.saveEpisodeSkipData(
+      parsed.apiId,
+      episodeIndex,
+      parsed.sourceId,
+      db.EpisodeSkipDataCompanion(
+        sweepHashes: Value(Uint8List.fromList(hashes)),
+      ),
+    );
+  }
+
+  static Duration? _millis(int? value) =>
+      value == null ? null : Duration(milliseconds: value);
 }

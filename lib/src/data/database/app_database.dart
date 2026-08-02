@@ -186,6 +186,40 @@ class EpisodeHistory extends Table {
   DateTimeColumn get updatedAt => dateTime()();
 }
 
+/// Per-episode skip boundaries and the sweep hashes they were derived from.
+///
+/// One table for both because they share a key and a lifetime: the hashes are
+/// what the player's cross-episode detector compares to PRODUCE the markers.
+/// Keyed with sourceId for the same reason as [EpisodeHistory] — videoId
+/// collides across data sources.
+@TableIndex(
+  name: 'episode_skip_data_idx',
+  columns: {#videoId, #episodeIndex, #sourceId},
+  unique: true,
+)
+class EpisodeSkipData extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get sourceId => text().nullable()();
+
+  IntColumn get videoId => integer()();
+  IntColumn get episodeIndex => integer()();
+
+  /// Absolute boundaries into the media. Null means "not set for this episode",
+  /// which is not the same as zero.
+  IntColumn get introEndMillis => integer().nullable()();
+  IntColumn get outroStartMillis => integer().nullable()();
+
+  /// `MarkerSource.index` from the player SDK. Stored so precedence survives a
+  /// restart: without it a re-detected intro would overwrite one the user
+  /// placed by hand.
+  IntColumn get markerSource => integer().nullable()();
+
+  /// Perceptual hashes from one sweep, in the SDK's own versioned format.
+  /// Opaque here on purpose — this app stores and returns the bytes unchanged,
+  /// and the SDK discards a blob it does not recognise.
+  BlobColumn get sweepHashes => blob().nullable()();
+}
+
 class DownloadTasks extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get taskId => text().unique()();
@@ -236,6 +270,7 @@ class AppSettings extends Table {
     VideoSettings,
     VideoHistory,
     EpisodeHistory,
+    EpisodeSkipData,
     DownloadTasks,
     AppSettings,
   ],
@@ -247,7 +282,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -264,6 +299,23 @@ class AppDatabase extends _$AppDatabase {
       // hardcoded value, so existing rows keep behaving as they do today).
       if (from < 4) {
         await m.addColumn(videoSettings, videoSettings.autoSkip);
+      }
+      // v5: per-episode skip boundaries + the sweep hashes they came from.
+      // A new table, so nothing existing is touched: an upgraded install
+      // simply has no rows until the player sweeps something.
+      // `to` as well as `from`: this step CREATES rather than alters, so
+      // running it when the caller only asked to reach v4 fails outright on a
+      // database that already has the table. Real upgrades always pass the
+      // current version, but the migration tests exercise one step at a time.
+      if (from < 5 && to >= 5) {
+        await m.createTable(episodeSkipData);
+        // createTable does NOT create the table's @TableIndex entries, and
+        // this one is not an optimisation: the upsert that keeps markers and
+        // hashes from blanking each other targets it via ON CONFLICT, which
+        // SQLite rejects outright without a matching unique index. Caught on
+        // device only — a test database built by onCreate gets its indexes for
+        // free and never sees this.
+        await m.create(episodeSkipDataIdx);
       }
     },
   );
