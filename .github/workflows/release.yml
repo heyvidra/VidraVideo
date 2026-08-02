@@ -75,7 +75,18 @@ jobs:
           GH_TOKEN: ${{ secrets.VIDRADLP_TOKEN }}
         run: |
           set -e
-          gh release download v0.0.1 -R heyvidra/VidraDlp \
+          # Resolve the newest release rather than pinning. This was stuck on
+          # v0.0.1 while the library shipped v0.4.3, so every build carried the
+          # very first artifact ever cut — including, latterly, an FFI that
+          # could not return rc=5 and took the app down on a parse panic.
+          #
+          # Unpinning trades reproducibility for freshness, so the resolved tag
+          # is echoed and written to the step summary: an unpinned build must at
+          # least be able to answer which library it contains.
+          TAG="$(gh release view -R heyvidra/VidraDlp --json tagName -q .tagName)"
+          echo "vidraDlp release: $TAG"
+          echo "vidraDlp: \`$TAG\`" >> "$GITHUB_STEP_SUMMARY"
+          gh release download "$TAG" -R heyvidra/VidraDlp \
             -p 'vidradlp-full-*_nt-*x86_64.tar.gz' -O vidradlp.tar.gz
           mkdir -p _vidradlp && tar -xzf vidradlp.tar.gz -C _vidradlp
           cp "$(find _vidradlp -name media_ffi.dll | head -1)" windows/media_ffi.dll
@@ -238,7 +249,12 @@ jobs:
           GH_TOKEN: ${{ secrets.VIDRADLP_TOKEN }}
         run: |
           set -e
-          gh release download v0.0.1 -R heyvidra/VidraDlp \
+          # Newest release, not a pin — see the Windows job for why, and for
+          # what the echoed tag is protecting against.
+          TAG="$(gh release view -R heyvidra/VidraDlp --json tagName -q .tagName)"
+          echo "vidraDlp release: $TAG"
+          echo "vidraDlp: \`$TAG\`" >> "$GITHUB_STEP_SUMMARY"
+          gh release download "$TAG" -R heyvidra/VidraDlp \
             -p 'vidradlp-full-darwin-*.tar.gz' -O vidradlp.tar.gz
           mkdir -p _vidradlp && tar -xzf vidradlp.tar.gz -C _vidradlp
           cp "$(find _vidradlp -name libmedia_ffi.dylib | head -1)" macos/libmedia_ffi.dylib
