@@ -182,4 +182,44 @@ void main() {
       reason: 'existing data must survive the climb',
     );
   });
+
+  test(
+    'a HALF-migrated database recovers, and the whole ladder is idempotent',
+    () async {
+      // The field state that killed v1.6.1: drift runs onUpgrade outside a
+      // transaction, so v1.6.0's mid-climb crash left every earlier step
+      // applied with user_version still at the old value. The retry then
+      // collided with its own half-applied work. Reproduced here by running
+      // the ladder, then running it AGAIN from the old version — which is
+      // exactly what a relaunch does to a half-migrated file.
+      final probe = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(probe.close);
+      await probe.customStatement('DROP TABLE IF EXISTS episode_skip_data');
+      await probe.customStatement('DROP TABLE IF EXISTS subscriptions');
+      await probe.customStatement(
+        'ALTER TABLE app_settings DROP COLUMN subscription_checked_at',
+      );
+
+      final migrator = probe.createMigrator();
+      await probe.migration.onUpgrade(migrator, 4, probe.schemaVersion);
+      // The relaunch: same climb, same starting version, work already applied.
+      await probe.migration.onUpgrade(migrator, 4, probe.schemaVersion);
+      // And the dev machine's actual state: stranded mid-ladder with later
+      // columns already present.
+      await probe.migration.onUpgrade(migrator, 5, probe.schemaVersion);
+
+      await probe
+          .into(probe.subscriptions)
+          .insert(
+            SubscriptionsCompanion.insert(
+              sourceId: 'olevod',
+              videoId: 2,
+              title: 'T2',
+              crossSeenRemarks: const Value('x'),
+              createdAt: DateTime(2026),
+            ),
+          );
+      expect(await probe.select(probe.subscriptions).get(), hasLength(1));
+    },
+  );
 }

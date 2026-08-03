@@ -346,64 +346,102 @@ class AppDatabase extends _$AppDatabase {
   @override
   int get schemaVersion => 8;
 
+  /// True when [table] already has a column named [name].
+  ///
+  /// Every ALTER here goes through this because upgrades are NOT atomic in
+  /// the field: drift runs onUpgrade outside a transaction by default, so a
+  /// failed step leaves every earlier step applied with user_version still at
+  /// the old value. That exact state shipped — v1.6.0 crashed mid-climb, and
+  /// the retry then collided with its own half-applied work ("duplicate
+  /// column name"). An idempotent step is the only kind that can walk INTO a
+  /// half-migrated database and out the other side.
+  Future<bool> _hasColumn(TableInfo table, String name) async {
+    final rows = await customSelect(
+      'PRAGMA table_info(${table.actualTableName})',
+    ).get();
+    return rows.any((r) => r.data['name'] == name);
+  }
+
+  Future<void> _addColumnIfAbsent(
+    Migrator m,
+    TableInfo table,
+    GeneratedColumn column,
+  ) async {
+    if (await _hasColumn(table, column.name)) return;
+    await m.addColumn(table, column);
+  }
+
+  Future<bool> _hasTable(String name) async {
+    final rows = await customSelect(
+      "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+      variables: [Variable.withString(name)],
+    ).get();
+    return rows.isNotEmpty;
+  }
+
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onUpgrade: (m, from, to) async {
-      // v2: add AppSettings.segmentConcurrency (default 6).
-      if (from < 2) {
-        await m.addColumn(appSettings, appSettings.segmentConcurrency);
-      }
-      // v3: add AppSettings.cookieFile (nullable) for gated-site cookies.
-      if (from < 3) {
-        await m.addColumn(appSettings, appSettings.cookieFile);
-      }
-      // v4: add VideoSettings.autoSkip (default true, matching the old
-      // hardcoded value, so existing rows keep behaving as they do today).
-      if (from < 4) {
-        await m.addColumn(videoSettings, videoSettings.autoSkip);
-      }
-      // v5: per-episode skip boundaries + the sweep hashes they came from.
-      // A new table, so nothing existing is touched: an upgraded install
-      // simply has no rows until the player sweeps something.
-      // `to` as well as `from`: this step CREATES rather than alters, so
-      // running it when the caller only asked to reach v4 fails outright on a
-      // database that already has the table. Real upgrades always pass the
-      // current version, but the migration tests exercise one step at a time.
-      // v8: a followed show's progress as seen on the OTHER source, so an
-      // early release there still reaches the subscriber here.
-      //
-      // `from >= 6` matters as much as `from < 8`: createTable in the v6 step
-      // builds `subscriptions` from the CURRENT schema, cross-seen columns
-      // included, so a database climbing from below v6 already has them and
-      // adding them again is "duplicate column name" — the v1.6.0
-      // launch-crash on every install that skipped the intermediate
-      // releases. Only a database that was ON v6/v7 owns the old table shape.
-      if (from >= 6 && from < 8 && to >= 8) {
-        await m.addColumn(subscriptions, subscriptions.crossSeenSourceId);
-        await m.addColumn(subscriptions, subscriptions.crossSeenRemarks);
-      }
-      // v7: remember when the subscription sweep last ran, across restarts.
-      if (from < 7 && to >= 7) {
-        await m.addColumn(appSettings, appSettings.subscriptionCheckedAt);
-      }
-      // v6: shows the user follows. New table, nothing existing is touched.
-      // The index is created explicitly for the same reason as v5's:
-      // createTable does not carry @TableIndex across, and this one is what
-      // "already subscribed?" is answered by.
-      if (from < 6 && to >= 6) {
-        await m.createTable(subscriptions);
-        await m.create(subscriptionsIdx);
-      }
-      if (from < 5 && to >= 5) {
-        await m.createTable(episodeSkipData);
-        // createTable does NOT create the table's @TableIndex entries, and
-        // this one is not an optimisation: the upsert that keeps markers and
-        // hashes from blanking each other targets it via ON CONFLICT, which
-        // SQLite rejects outright without a matching unique index. Caught on
-        // device only — a test database built by onCreate gets its indexes for
-        // free and never sees this.
-        await m.create(episodeSkipDataIdx);
-      }
+      // One transaction for the whole climb. Without it a mid-climb failure
+      // strands the database half-migrated with the old version number —
+      // which is not hypothetical; it is how v1.6.0 died on launch.
+      await transaction(() async {
+        // v2: AppSettings.segmentConcurrency (default 6).
+        if (from < 2) {
+          await _addColumnIfAbsent(
+            m,
+            appSettings,
+            appSettings.segmentConcurrency,
+          );
+        }
+        // v3: AppSettings.cookieFile (nullable) for gated-site cookies.
+        if (from < 3) {
+          await _addColumnIfAbsent(m, appSettings, appSettings.cookieFile);
+        }
+        // v4: VideoSettings.autoSkip (default true, matching the old
+        // hardcoded value, so existing rows keep behaving as they do today).
+        if (from < 4) {
+          await _addColumnIfAbsent(m, videoSettings, videoSettings.autoSkip);
+        }
+        // v5: per-episode skip boundaries + the sweep hashes they came from.
+        // The index is created explicitly: createTable does not carry
+        // @TableIndex across, and the marker/hash upsert targets it via
+        // ON CONFLICT, which SQLite rejects without a matching unique index.
+        if (from < 5 && to >= 5 && !await _hasTable('episode_skip_data')) {
+          await m.createTable(episodeSkipData);
+          await m.create(episodeSkipDataIdx);
+        }
+        // v6: shows the user follows. createTable builds the table from the
+        // CURRENT schema — later columns included — which is why the v7/v8
+        // steps below must be conditional on the column actually missing
+        // rather than on version arithmetic. Version arithmetic already got
+        // this wrong once.
+        if (from < 6 && to >= 6 && !await _hasTable('subscriptions')) {
+          await m.createTable(subscriptions);
+          await m.create(subscriptionsIdx);
+        }
+        // v7: when the subscription sweep last ran, across restarts.
+        if (from < 7 && to >= 7) {
+          await _addColumnIfAbsent(
+            m,
+            appSettings,
+            appSettings.subscriptionCheckedAt,
+          );
+        }
+        // v8: a followed show's progress as seen on the OTHER source.
+        if (from < 8 && to >= 8) {
+          await _addColumnIfAbsent(
+            m,
+            subscriptions,
+            subscriptions.crossSeenSourceId,
+          );
+          await _addColumnIfAbsent(
+            m,
+            subscriptions,
+            subscriptions.crossSeenRemarks,
+          );
+        }
+      });
     },
   );
 }
