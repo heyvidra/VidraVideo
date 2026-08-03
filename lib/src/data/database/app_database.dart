@@ -371,7 +371,14 @@ class AppDatabase extends _$AppDatabase {
       // current version, but the migration tests exercise one step at a time.
       // v8: a followed show's progress as seen on the OTHER source, so an
       // early release there still reaches the subscriber here.
-      if (from < 8 && to >= 8) {
+      //
+      // `from >= 6` matters as much as `from < 8`: createTable in the v6 step
+      // builds `subscriptions` from the CURRENT schema, cross-seen columns
+      // included, so a database climbing from below v6 already has them and
+      // adding them again is "duplicate column name" — the v1.6.0
+      // launch-crash on every install that skipped the intermediate
+      // releases. Only a database that was ON v6/v7 owns the old table shape.
+      if (from >= 6 && from < 8 && to >= 8) {
         await m.addColumn(subscriptions, subscriptions.crossSeenSourceId);
         await m.addColumn(subscriptions, subscriptions.crossSeenRemarks);
       }

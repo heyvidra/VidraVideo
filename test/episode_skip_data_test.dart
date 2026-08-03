@@ -52,7 +52,9 @@ void main() {
 
     // And the reverse order, which is the one that actually happens: a sweep
     // stores hashes, then detection writes the marker it derived from them.
-    await save(const EpisodeSkipDataCompanion(outroStartMillis: Value(2600000)));
+    await save(
+      const EpisodeSkipDataCompanion(outroStartMillis: Value(2600000)),
+    );
     final r2 = await row(db);
     expect(r2.sweepHashes, [1, 2, 3, 4], reason: 'hashes must survive too');
     expect(r2.outroStartMillis, 2600000);
@@ -132,5 +134,52 @@ void main() {
     final saved = await repo.getEpisodeSkipData(99, 'olevod');
     expect(saved.single.introEndMillis, 19000);
     expect(saved.single.sweepHashes, [7]);
+  });
+
+  test('a v4 database survives the FULL climb to the current version', () async {
+    // The single-step tests above each pass while the climb as a whole was
+    // broken: v6 createTable builds `subscriptions` from the CURRENT schema —
+    // cross_seen columns included — and v8 then adds those same columns again.
+    // Only a database below v6 walks both steps in one upgrade, which is
+    // exactly what every real installed copy was. Shipped in v1.6.0; the app
+    // crashed on launch with "duplicate column name".
+    final probe = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(probe.close);
+    await probe.customStatement('DROP TABLE IF EXISTS episode_skip_data');
+    await probe.customStatement('DROP TABLE IF EXISTS subscriptions');
+    // onCreate built app_settings in its CURRENT shape; a real v4 install has
+    // it without the v7 column. Take that column away so the climb's v7 step
+    // runs against what it will actually meet in the field.
+    await probe.customStatement(
+      'ALTER TABLE app_settings DROP COLUMN subscription_checked_at',
+    );
+    await probe
+        .into(probe.videoSettings)
+        .insert(
+          VideoSettingsCompanion.insert(videoId: 7, sourceId: const Value('o')),
+        );
+
+    final migrator = probe.createMigrator();
+    await probe.migration.onUpgrade(migrator, 4, probe.schemaVersion);
+
+    // The climb succeeded and the late-added columns are writable.
+    await probe
+        .into(probe.subscriptions)
+        .insert(
+          SubscriptionsCompanion.insert(
+            sourceId: 'olevod',
+            videoId: 1,
+            title: 'T',
+            crossSeenRemarks: const Value('更新至9集'),
+            createdAt: DateTime(2026),
+          ),
+        );
+    final row = await probe.select(probe.subscriptions).getSingle();
+    expect(row.crossSeenRemarks, '更新至9集');
+    expect(
+      (await probe.select(probe.videoSettings).get()).single.videoId,
+      7,
+      reason: 'existing data must survive the climb',
+    );
   });
 }
