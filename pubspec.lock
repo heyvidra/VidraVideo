@@ -1316,17 +1316,17 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: "648097ee21ea8807a458c832f61152814df36e68"
-      resolved-ref: "648097ee21ea8807a458c832f61152814df36e68"
+      ref: "38bed7ba69b188f922417258041bca79bae48965"
+      resolved-ref: "38bed7ba69b188f922417258041bca79bae48965"
       url: "https://github.com/heyvidra/VidraPlayer.git"
     source: git
-    version: "1.4.0"
+    version: "1.4.1"
   vidra_player_kit:
     dependency: "direct main"
     description:
       path: "packages/vidra_player_fvp"
-      ref: "v1.4.0"
-      resolved-ref: "648097ee21ea8807a458c832f61152814df36e68"
+      ref: "v1.4.1"
+      resolved-ref: "38bed7ba69b188f922417258041bca79bae48965"
       url: "https://github.com/heyvidra/VidraPlayer.git"
     source: git
     version: "0.0.1"
