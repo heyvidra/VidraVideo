@@ -199,6 +199,7 @@ class HistoryRepository {
           .add(
             CrossSourceWatch(
               sourceId: sid,
+              videoId: r.videoId,
               lastEpisodeIndex: r.lastEpisodeIndex,
               lastEpisodeTitle: r.lastEpisodeTitle,
               updatedAt: r.updatedAt,

@@ -191,30 +191,35 @@ class _Card extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 6),
+          // A fixed three-line text block, empty slots included. Cards with a
+          // cross-source line used to grow taller, which shrank their poster
+          // (the Expanded above absorbs whatever the text leaves) — two cards
+          // side by side had visibly different artwork heights.
           Text(
             sub.title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
           ),
-          if (sub.crossSeenRemarks != null) ...[
-            const SizedBox(height: 2),
-            // The other catalog's progress, named. Often ahead of the
-            // followed one — which is exactly the news worth showing.
-            Text(
-              '${sourceDisplayName(ref, sub.crossSeenSourceId!)}: '
-              '${sub.crossSeenRemarks}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 11,
-                color: theme.colorScheme.primary.withValues(alpha: 0.85),
-              ),
-            ),
-          ],
           const SizedBox(height: 2),
           Text(
-            _schedule(context, sub),
+            sub.crossSeenRemarks != null
+                ? '${sourceDisplayName(ref, sub.crossSeenSourceId!)}: '
+                      '${sub.crossSeenRemarks}'
+                : _schedule(context, sub),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 11,
+              color: sub.crossSeenRemarks != null
+                  ? theme.colorScheme.primary.withValues(alpha: 0.85)
+                  : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.75),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            // Empty rather than absent: the slot must hold its height.
+            sub.crossSeenRemarks != null ? _schedule(context, sub) : '',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(

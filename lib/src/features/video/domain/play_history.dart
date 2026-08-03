@@ -133,12 +133,17 @@ bool isEpisodicType(String? type) => !(type ?? '').contains('电影');
 class CrossSourceWatch {
   const CrossSourceWatch({
     required this.sourceId,
+    required this.videoId,
     required this.lastEpisodeIndex,
     required this.lastEpisodeTitle,
     required this.updatedAt,
   });
 
   final String sourceId;
+
+  /// The show's id ON THAT source. Ids are per-catalog, so this is what a
+  /// "switch to the other source" action needs to open anything at all.
+  final int videoId;
   final int lastEpisodeIndex;
   final String? lastEpisodeTitle;
   final DateTime updatedAt;

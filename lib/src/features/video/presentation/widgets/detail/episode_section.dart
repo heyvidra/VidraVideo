@@ -1,9 +1,12 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:shimmer_animation/shimmer_animation.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:vidra/src/features/video/domain/video_collection.dart';
+import 'package:vidra/src/features/video/domain/play_history.dart'
+    show EpisodeHistory;
 import 'package:vidra/src/features/download/data/download_provider.dart';
 import 'package:vidra/src/features/video/presentation/widgets/detail/episode_item.dart';
 import 'package:vidra/src/features/video/presentation/play_history_provider.dart';
@@ -26,6 +29,11 @@ class EpisodeSection extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final lastRefresh = useState<DateTime?>(null);
+    // Which catalog the EPISODE LIST comes from. Everything else on the page
+    // (title, blurb, subscription) stays the detail page's own show; only the
+    // grid switches, because that is the part that differs between sources —
+    // one is often episodes ahead of the other.
+    final altSelected = useState(false);
     if (video.urls == null || video.urls!.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 24.0),
@@ -73,41 +81,52 @@ class EpisodeSection extends HookConsumerWidget {
             _buildControls(context, ref, lastRefresh),
           ],
         ),
+        _SourcePicker(video: video, altSelected: altSelected),
         const SizedBox(height: 16),
-        historiesAsync.when(
-          data: (histories) {
-            return ValueListenableBuilder2<bool, bool>(
-              first: isAscending,
-              second: isDownloadMode,
-              builder: (context, ascending, downloadMode, _) {
-                final episodes = ascending
-                    ? video.urls!
-                    : video.urls!.reversed.toList();
-                return Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: episodes.asMap().entries.map((entry) {
-                    final originalIndex = ascending
-                        ? entry.key
-                        : video.urls!.length - 1 - entry.key;
-                    return EpisodeItem(
-                      videoId: video.apiId,
-                      video: video,
-                      originalIndex: originalIndex,
-                      episode: entry.value,
-                      isDownloadMode: downloadMode,
-                      history: histories[originalIndex],
-                    );
-                  }).toList(),
-                );
-              },
-            );
-          },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stack) => Text('Error: $error'),
-        ),
+        if (!altSelected.value)
+          historiesAsync.when(
+            data: (histories) =>
+                _episodeGrid(gridVideo: video, histories: histories),
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, stack) => Text('Error: $error'),
+          )
+        else
+          _AltEpisodes(video: video, buildGrid: _episodeGrid),
         const SizedBox(height: 48),
       ],
+    );
+  }
+
+  /// One grid for either source. [gridVideo] decides whose ids, whose
+  /// sourceId and therefore whose playback and progress the tiles carry.
+  Widget _episodeGrid({
+    required Video gridVideo,
+    required Map<int, EpisodeHistory> histories,
+  }) {
+    return ValueListenableBuilder2<bool, bool>(
+      first: isAscending,
+      second: isDownloadMode,
+      builder: (context, ascending, downloadMode, _) {
+        final urls = gridVideo.urls ?? const <VideoEpisode>[];
+        final episodes = ascending ? urls : urls.reversed.toList();
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: episodes.asMap().entries.map((entry) {
+            final originalIndex = ascending
+                ? entry.key
+                : urls.length - 1 - entry.key;
+            return EpisodeItem(
+              videoId: gridVideo.apiId,
+              video: gridVideo,
+              originalIndex: originalIndex,
+              episode: entry.value,
+              isDownloadMode: downloadMode,
+              history: histories[originalIndex],
+            );
+          }).toList(),
+        );
+      },
     );
   }
 
@@ -340,6 +359,145 @@ class _SubscribeButton extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
+    );
+  }
+}
+
+/// Chooses which catalog feeds the episode grid.
+///
+/// Rendered only when the cross-source index has actually matched this show on
+/// another catalog (title + year, from watch history) — an unmatched show gets
+/// no picker rather than a control that cannot do anything.
+class _SourcePicker extends ConsumerWidget {
+  const _SourcePicker({required this.video, required this.altSelected});
+
+  final Video video;
+  final ValueNotifier<bool> altSelected;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final match = crossSourceWatchFor(ref, video);
+    if (match == null) return const SizedBox.shrink();
+
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: DefaultTabController(
+          length: 2,
+          initialIndex: altSelected.value ? 1 : 0,
+          child: TabBar(
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            dividerColor: Colors.transparent,
+            labelColor: theme.colorScheme.primary,
+            unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
+            indicatorColor: theme.colorScheme.primary,
+            indicatorSize: TabBarIndicatorSize.label,
+            labelStyle: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+            onTap: (i) => altSelected.value = i == 1,
+            tabs: [
+              Tab(
+                height: 36,
+                text: sourceDisplayName(ref, video.sourceId ?? ''),
+              ),
+              Tab(height: 36, text: sourceDisplayName(ref, match.sourceId)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Placeholder grid while the other catalog's detail loads.
+///
+/// Shaped like the real tiles (100x50 rounded rects in a wrap) so the switch
+/// reads as "the same list, arriving" rather than a page change. Count is a
+/// plausible middle — the real episode count is precisely what is still
+/// loading.
+class _EpisodeGridSkeleton extends StatelessWidget {
+  const _EpisodeGridSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    return Shimmer(
+      duration: const Duration(seconds: 2),
+      interval: const Duration(milliseconds: 500),
+      color: isDark ? Colors.white.withAlpha(70) : Colors.black.withAlpha(20),
+      enabled: true,
+      direction: const ShimmerDirection.fromLTRB(),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 12,
+        children: List.generate(
+          12,
+          (_) => Container(
+            width: 100,
+            height: 50,
+            decoration: BoxDecoration(
+              color: isDark ? Colors.grey[850] : Colors.grey[300],
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The other catalog's episode list, loaded on demand.
+///
+/// Only the GRID switches: playback, per-episode progress and downloads all
+/// key on the grid video's own (sourceId, videoId), so watching episode 9 over
+/// there records progress over there — the two catalogs stay two histories,
+/// exactly like the subscription side of this feature.
+class _AltEpisodes extends ConsumerWidget {
+  const _AltEpisodes({required this.video, required this.buildGrid});
+
+  final Video video;
+  final Widget Function({
+    required Video gridVideo,
+    required Map<int, EpisodeHistory> histories,
+  })
+  buildGrid;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final match = crossSourceWatchFor(ref, video);
+    if (match == null) return const SizedBox.shrink();
+
+    final altAsync = ref.watch(
+      videoByIdProvider((id: match.videoId, sourceId: match.sourceId)),
+    );
+    return altAsync.when(
+      loading: () => const _EpisodeGridSkeleton(),
+      error: (e, _) => Text('$e'),
+      data: (alt) {
+        if (alt == null || alt.urls == null || alt.urls!.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: Text(tr('video.player.no_episodes')),
+          );
+        }
+        final historiesAsync = ref.watch(
+          episodeHistoriesProvider((
+            videoId: alt.apiId,
+            sourceId: alt.sourceId,
+          )),
+        );
+        return historiesAsync.when(
+          data: (histories) => buildGrid(gridVideo: alt, histories: histories),
+          loading: () => const _EpisodeGridSkeleton(),
+          error: (e, _) => Text('$e'),
+        );
+      },
     );
   }
 }

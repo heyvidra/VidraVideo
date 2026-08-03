@@ -69,6 +69,9 @@ void main() {
     final found = await repo.getCrossSourceWatches();
     expect(found[crossSourceKey('兵自风中来', '2026')]!.single.sourceId, 'olevod');
     expect(found[crossSourceKey('兵自风中来', '2026')]!.single.lastEpisodeIndex, 4);
+    // The id ON THAT source: it is what "switch the episode list to the other
+    // catalog" opens, and ids are per-catalog.
+    expect(found[crossSourceKey('兵自风中来', '2026')]!.single.videoId, 1);
     // Every source is returned; excluding the video's OWN source is the
     // lookup's job, because which source is "current" belongs to the video
     // being annotated and not to the screen showing it.
