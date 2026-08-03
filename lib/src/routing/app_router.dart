@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vidra/src/features/video/domain/video_collection.dart';
+import 'package:vidra/src/features/subscription/presentation/subscription_screen.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 // Placeholder for screens
@@ -76,6 +77,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/recent',
             pageBuilder: (context, state) =>
                 myTransitionPage(RecentListScreen()),
+          ),
+          GoRoute(
+            path: '/subscriptions',
+            pageBuilder: (context, state) =>
+                myTransitionPage(const SubscriptionScreen()),
           ),
           GoRoute(
             path: '/settings',

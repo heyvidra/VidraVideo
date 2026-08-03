@@ -7,6 +7,7 @@ import 'package:bitsdojo_window/bitsdojo_window.dart';
 
 import 'data_source_switcher.dart';
 import 'language_switcher.dart';
+import '../../subscription/presentation/widgets/subscription_bell.dart';
 
 class DashboardTitleBar extends ConsumerStatefulWidget {
   final void Function(String) onSearchSubmitted;
@@ -94,6 +95,7 @@ class _DashboardTitleBarState extends ConsumerState<DashboardTitleBar> {
           children: [
             DataSourceSwitcher(onDataSourceChanged: widget.onHomeRequested),
             const SizedBox(width: 8),
+            const SubscriptionBell(),
             IconButton(
               icon: Icon(
                 isAlwaysOnTop ? Icons.push_pin : Icons.push_pin_outlined,

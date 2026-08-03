@@ -1,7 +1,11 @@
 import 'dart:io';
 
 import 'package:bitsdojo_window/bitsdojo_window.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import '../subscription/data/subscription_checker.dart';
+import '../subscription/presentation/subscription_provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../video/presentation/play_history_provider.dart';
@@ -21,14 +25,33 @@ class DashboardScreen extends ConsumerStatefulWidget {
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen>
     with WidgetsBindingObserver {
+  Timer? _subscriptionTimer;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Followed shows: one sweep now, then occasionally while the window is
+    // open. No background service — a desktop app that is not running has
+    // nobody to tell, and the checker's own floor keeps repeated triggers from
+    // becoming a poll.
+    _checkSubscriptions();
+    _subscriptionTimer = Timer.periodic(
+      const Duration(minutes: 30),
+      (_) => _checkSubscriptions(),
+    );
+  }
+
+  Future<void> _checkSubscriptions() async {
+    final updated = await ref.read(subscriptionCheckerProvider).run();
+    if (updated.isEmpty || !mounted) return;
+    ref.invalidate(subscriptionsProvider);
+    await ref.read(subscriptionsProvider.notifier).announceUnread(updated);
   }
 
   @override
   void dispose() {
+    _subscriptionTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -38,6 +61,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     // When the main window gains focus again (e.g. after closing the player window)
     if (state == AppLifecycleState.resumed) {
       ref.read(playHistoryProvider.notifier).manualRefresh();
+      _checkSubscriptions();
     }
   }
 

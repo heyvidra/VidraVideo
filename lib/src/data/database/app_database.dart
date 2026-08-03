@@ -220,6 +220,62 @@ class EpisodeSkipData extends Table {
   BlobColumn get sweepHashes => blob().nullable()();
 }
 
+/// Shows the user is following, and what it takes to notice a new episode
+/// without asking the source over and over.
+///
+/// Keyed with sourceId like everything else here: videoId collides across data
+/// sources, and the same show followed on both is two subscriptions with two
+/// release schedules.
+@TableIndex(
+  name: 'subscriptions_idx',
+  columns: {#videoId, #sourceId},
+  unique: true,
+)
+class Subscriptions extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get sourceId => text()();
+  IntColumn get videoId => integer()();
+
+  TextColumn get title => text()();
+  TextColumn get year => text().nullable()();
+  TextColumn get coverUrl => text().nullable()();
+
+  /// The catalog's own progress line, as last seen. Any change to it is the
+  /// update signal — and it arrives free with every listing the user scrolls
+  /// past, which is why this feature costs no requests most of the time.
+  TextColumn get lastSeenRemarks => text().nullable()();
+
+  DateTimeColumn get lastUpdateAt => dateTime().nullable()();
+
+  /// Observed update times, JSON, oldest first and capped. The release
+  /// schedule is inferred from these — see `UpdateCadence`.
+  TextColumn get updateHistory => text().nullable()();
+
+  /// Earliest moment a request for this show is worth making. Before it, the
+  /// show is skipped entirely.
+  DateTimeColumn get nextCheckAt => dateTime().nullable()();
+
+  BoolColumn get unread => boolean().withDefault(const Constant(false))();
+
+  /// Finished airing. Never checked again — the cheapest request is the one
+  /// never made.
+  BoolColumn get finished => boolean().withDefault(const Constant(false))();
+
+  /// The same show's progress as last seen on ANOTHER source (matched by
+  /// title + year, like the cross-source watch badge). A drama often lands on
+  /// one catalog hours before the other, and a viewer following the slow one
+  /// still wants the news when the fast one has it first.
+  ///
+  /// Kept apart from [lastSeenRemarks] on purpose: sources word their progress
+  /// differently ("更新至第 05 集" vs "更新至5集"), so cross-source text must
+  /// never enter the same-source comparison — every sweep would read the
+  /// wording difference as an update.
+  TextColumn get crossSeenSourceId => text().nullable()();
+  TextColumn get crossSeenRemarks => text().nullable()();
+
+  DateTimeColumn get createdAt => dateTime()();
+}
+
 class DownloadTasks extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get taskId => text().unique()();
@@ -256,6 +312,11 @@ class AppSettings extends Table {
 
   IntColumn get themeMode => integer().withDefault(const Constant(0))();
 
+  /// When the subscription checker last ran. Persisted because the 20-minute
+  /// floor lived only in memory, so the one habit desktop users actually have
+  /// — closing and reopening the app — reset it and swept every launch.
+  DateTimeColumn get subscriptionCheckedAt => dateTime().nullable()();
+
   RealColumn get playerNormalWidth => real().nullable()();
   RealColumn get playerNormalHeight => real().nullable()();
   RealColumn get playerPipWidth => real().nullable()();
@@ -271,6 +332,7 @@ class AppSettings extends Table {
     VideoHistory,
     EpisodeHistory,
     EpisodeSkipData,
+    Subscriptions,
     DownloadTasks,
     AppSettings,
   ],
@@ -282,7 +344,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -307,6 +369,24 @@ class AppDatabase extends _$AppDatabase {
       // running it when the caller only asked to reach v4 fails outright on a
       // database that already has the table. Real upgrades always pass the
       // current version, but the migration tests exercise one step at a time.
+      // v8: a followed show's progress as seen on the OTHER source, so an
+      // early release there still reaches the subscriber here.
+      if (from < 8 && to >= 8) {
+        await m.addColumn(subscriptions, subscriptions.crossSeenSourceId);
+        await m.addColumn(subscriptions, subscriptions.crossSeenRemarks);
+      }
+      // v7: remember when the subscription sweep last ran, across restarts.
+      if (from < 7 && to >= 7) {
+        await m.addColumn(appSettings, appSettings.subscriptionCheckedAt);
+      }
+      // v6: shows the user follows. New table, nothing existing is touched.
+      // The index is created explicitly for the same reason as v5's:
+      // createTable does not carry @TableIndex across, and this one is what
+      // "already subscribed?" is answered by.
+      if (from < 6 && to >= 6) {
+        await m.createTable(subscriptions);
+        await m.create(subscriptionsIdx);
+      }
       if (from < 5 && to >= 5) {
         await m.createTable(episodeSkipData);
         // createTable does NOT create the table's @TableIndex entries, and

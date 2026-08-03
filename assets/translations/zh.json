@@ -219,5 +219,23 @@
     "waiting_for_video": "正在准备视频...",
     "close": "关闭",
     "retry": "重试"
+  },
+  "subscription": {
+    "title": "订阅",
+    "empty": "还没有订阅任何剧集",
+    "empty_hint": "在剧集详情页点「订阅」，更新时这里会提醒你",
+    "new": "更新",
+    "unfollow": "取消订阅",
+    "subscribe": "订阅",
+    "subscribed": "已订阅",
+    "updates_waiting": "{} 部剧集有更新",
+    "finished": "已完结",
+    "learning": "正在了解更新规律",
+    "daily": "约每天更新",
+    "weekly": "约每周更新",
+    "every_days": "约每 {} 天更新",
+    "every_hours": "约每 {} 小时更新",
+    "notify_title": "追剧更新",
+    "notify_body_more": "{} 等 {} 部剧集有更新"
   }
 }

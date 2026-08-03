@@ -5,6 +5,7 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   bitsdojo_window_windows
   fvp
+  local_notifier
   url_launcher_windows
   vidra_player
 )

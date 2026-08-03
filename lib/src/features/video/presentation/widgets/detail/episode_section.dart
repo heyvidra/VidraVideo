@@ -9,6 +9,7 @@ import 'package:vidra/src/features/video/presentation/widgets/detail/episode_ite
 import 'package:vidra/src/features/video/presentation/play_history_provider.dart';
 import 'package:vidra/src/features/video/data/video_repository.dart';
 import 'package:vidra/src/features/video/presentation/widgets/cross_source_watch_badge.dart';
+import 'package:vidra/src/features/subscription/presentation/subscription_provider.dart';
 
 class EpisodeSection extends HookConsumerWidget {
   final Video video;
@@ -65,6 +66,8 @@ class EpisodeSection extends HookConsumerWidget {
                 // read as decoration. Here it sits next to the thing it is
                 // about — the episode list.
                 CrossSourceWatchBadge(video: video),
+                const SizedBox(width: 12),
+                _SubscribeButton(video: video),
               ],
             ),
             _buildControls(context, ref, lastRefresh),
@@ -293,6 +296,50 @@ class ValueListenableBuilder2<A, B> extends StatelessWidget {
           },
         );
       },
+    );
+  }
+}
+
+/// Follow this show. Sits by the episode heading because that is where the
+/// question arises — you subscribe to a thing that gains episodes, and the
+/// episode list is that thing.
+class _SubscribeButton extends ConsumerWidget {
+  const _SubscribeButton({required this.video});
+
+  final Video video;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final following = ref.watch(
+      isSubscribedProvider((sourceId: video.sourceId, videoId: video.apiId)),
+    );
+
+    return OutlinedButton.icon(
+      onPressed: () => ref.read(subscriptionsProvider.notifier).toggle(video),
+      icon: Icon(
+        following ? Icons.notifications_active : Icons.notifications_none,
+        size: 16,
+      ),
+      label: Text(
+        following
+            ? tr('subscription.subscribed')
+            : tr('subscription.subscribe'),
+      ),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: following
+            ? theme.colorScheme.primary
+            : theme.colorScheme.onSurfaceVariant,
+        side: BorderSide(
+          color: following
+              ? theme.colorScheme.primary.withValues(alpha: 0.6)
+              : theme.colorScheme.outline.withValues(alpha: 80 / 255),
+        ),
+        textStyle: const TextStyle(fontSize: 12.5),
+        visualDensity: VisualDensity.compact,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
     );
   }
 }

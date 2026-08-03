@@ -219,5 +219,23 @@
     "waiting_for_video": "Waiting for video...",
     "close": "Close",
     "retry": "Retry"
+  },
+  "subscription": {
+    "title": "Subscriptions",
+    "empty": "Not following anything yet",
+    "empty_hint": "Tap Follow on a show; new episodes show up here",
+    "new": "NEW",
+    "unfollow": "Unfollow",
+    "subscribe": "Follow",
+    "subscribed": "Following",
+    "updates_waiting": "{} shows updated",
+    "finished": "Finished",
+    "learning": "Learning its schedule",
+    "daily": "About daily",
+    "weekly": "About weekly",
+    "every_days": "About every {} days",
+    "every_hours": "About every {} hours",
+    "notify_title": "New episodes",
+    "notify_body_more": "{} and {} more updated"
   }
 }

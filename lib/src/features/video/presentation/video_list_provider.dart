@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../subscription/presentation/subscription_provider.dart';
 import 'package:vidra/src/features/video/domain/video_collection.dart';
 import 'package:vidra/src/features/video/data/video_repository.dart';
 import 'package:vidra/src/features/video/domain/category.dart';
@@ -105,6 +108,16 @@ class VideoListNotifier extends Notifier<VideoListState> {
       // Or check total vs current length?
       final hasMore = newVideos.isNotEmpty;
       // && (state.videos.length + newVideos.length < total); (API total might include all pages)
+
+      // Tier 1 of subscription update detection, and the reason the feature
+      // costs almost nothing: this page was fetched for the user's own
+      // browsing, and every card on it carries its show's progress line. A
+      // followed show announces its own update here, with no request of ours.
+      // Fire and forget — a subscription bookkeeping failure must not take
+      // down the catalog the user is actually looking at.
+      unawaited(
+        ref.read(subscriptionsProvider.notifier).noticeFromListing(newVideos),
+      );
 
       state = state.copyWith(
         videos: [...state.videos, ...newVideos],

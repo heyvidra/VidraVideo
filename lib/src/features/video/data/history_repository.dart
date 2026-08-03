@@ -194,14 +194,16 @@ class HistoryRepository {
     for (final r in rows) {
       final sid = r.sourceId;
       if (sid == null) continue;
-      out.putIfAbsent(crossSourceKey(r.videoTitle, r.year), () => []).add(
-        CrossSourceWatch(
-          sourceId: sid,
-          lastEpisodeIndex: r.lastEpisodeIndex,
-          lastEpisodeTitle: r.lastEpisodeTitle,
-          updatedAt: r.updatedAt,
-        ),
-      );
+      out
+          .putIfAbsent(crossSourceKey(r.videoTitle, r.year), () => [])
+          .add(
+            CrossSourceWatch(
+              sourceId: sid,
+              lastEpisodeIndex: r.lastEpisodeIndex,
+              lastEpisodeTitle: r.lastEpisodeTitle,
+              updatedAt: r.updatedAt,
+            ),
+          );
     }
     return out;
   }

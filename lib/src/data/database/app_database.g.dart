@@ -3797,6 +3797,910 @@ class EpisodeSkipDataCompanion extends UpdateCompanion<EpisodeSkipDataData> {
   }
 }
 
+class $SubscriptionsTable extends Subscriptions
+    with TableInfo<$SubscriptionsTable, Subscription> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SubscriptionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _sourceIdMeta = const VerificationMeta(
+    'sourceId',
+  );
+  @override
+  late final GeneratedColumn<String> sourceId = GeneratedColumn<String>(
+    'source_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _videoIdMeta = const VerificationMeta(
+    'videoId',
+  );
+  @override
+  late final GeneratedColumn<int> videoId = GeneratedColumn<int>(
+    'video_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _yearMeta = const VerificationMeta('year');
+  @override
+  late final GeneratedColumn<String> year = GeneratedColumn<String>(
+    'year',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _coverUrlMeta = const VerificationMeta(
+    'coverUrl',
+  );
+  @override
+  late final GeneratedColumn<String> coverUrl = GeneratedColumn<String>(
+    'cover_url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastSeenRemarksMeta = const VerificationMeta(
+    'lastSeenRemarks',
+  );
+  @override
+  late final GeneratedColumn<String> lastSeenRemarks = GeneratedColumn<String>(
+    'last_seen_remarks',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastUpdateAtMeta = const VerificationMeta(
+    'lastUpdateAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastUpdateAt = GeneratedColumn<DateTime>(
+    'last_update_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updateHistoryMeta = const VerificationMeta(
+    'updateHistory',
+  );
+  @override
+  late final GeneratedColumn<String> updateHistory = GeneratedColumn<String>(
+    'update_history',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nextCheckAtMeta = const VerificationMeta(
+    'nextCheckAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> nextCheckAt = GeneratedColumn<DateTime>(
+    'next_check_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _unreadMeta = const VerificationMeta('unread');
+  @override
+  late final GeneratedColumn<bool> unread = GeneratedColumn<bool>(
+    'unread',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("unread" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _finishedMeta = const VerificationMeta(
+    'finished',
+  );
+  @override
+  late final GeneratedColumn<bool> finished = GeneratedColumn<bool>(
+    'finished',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("finished" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _crossSeenSourceIdMeta = const VerificationMeta(
+    'crossSeenSourceId',
+  );
+  @override
+  late final GeneratedColumn<String> crossSeenSourceId =
+      GeneratedColumn<String>(
+        'cross_seen_source_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _crossSeenRemarksMeta = const VerificationMeta(
+    'crossSeenRemarks',
+  );
+  @override
+  late final GeneratedColumn<String> crossSeenRemarks = GeneratedColumn<String>(
+    'cross_seen_remarks',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    sourceId,
+    videoId,
+    title,
+    year,
+    coverUrl,
+    lastSeenRemarks,
+    lastUpdateAt,
+    updateHistory,
+    nextCheckAt,
+    unread,
+    finished,
+    crossSeenSourceId,
+    crossSeenRemarks,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'subscriptions';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Subscription> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('source_id')) {
+      context.handle(
+        _sourceIdMeta,
+        sourceId.isAcceptableOrUnknown(data['source_id']!, _sourceIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceIdMeta);
+    }
+    if (data.containsKey('video_id')) {
+      context.handle(
+        _videoIdMeta,
+        videoId.isAcceptableOrUnknown(data['video_id']!, _videoIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_videoIdMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('year')) {
+      context.handle(
+        _yearMeta,
+        year.isAcceptableOrUnknown(data['year']!, _yearMeta),
+      );
+    }
+    if (data.containsKey('cover_url')) {
+      context.handle(
+        _coverUrlMeta,
+        coverUrl.isAcceptableOrUnknown(data['cover_url']!, _coverUrlMeta),
+      );
+    }
+    if (data.containsKey('last_seen_remarks')) {
+      context.handle(
+        _lastSeenRemarksMeta,
+        lastSeenRemarks.isAcceptableOrUnknown(
+          data['last_seen_remarks']!,
+          _lastSeenRemarksMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_update_at')) {
+      context.handle(
+        _lastUpdateAtMeta,
+        lastUpdateAt.isAcceptableOrUnknown(
+          data['last_update_at']!,
+          _lastUpdateAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('update_history')) {
+      context.handle(
+        _updateHistoryMeta,
+        updateHistory.isAcceptableOrUnknown(
+          data['update_history']!,
+          _updateHistoryMeta,
+        ),
+      );
+    }
+    if (data.containsKey('next_check_at')) {
+      context.handle(
+        _nextCheckAtMeta,
+        nextCheckAt.isAcceptableOrUnknown(
+          data['next_check_at']!,
+          _nextCheckAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('unread')) {
+      context.handle(
+        _unreadMeta,
+        unread.isAcceptableOrUnknown(data['unread']!, _unreadMeta),
+      );
+    }
+    if (data.containsKey('finished')) {
+      context.handle(
+        _finishedMeta,
+        finished.isAcceptableOrUnknown(data['finished']!, _finishedMeta),
+      );
+    }
+    if (data.containsKey('cross_seen_source_id')) {
+      context.handle(
+        _crossSeenSourceIdMeta,
+        crossSeenSourceId.isAcceptableOrUnknown(
+          data['cross_seen_source_id']!,
+          _crossSeenSourceIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('cross_seen_remarks')) {
+      context.handle(
+        _crossSeenRemarksMeta,
+        crossSeenRemarks.isAcceptableOrUnknown(
+          data['cross_seen_remarks']!,
+          _crossSeenRemarksMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Subscription map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Subscription(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      sourceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_id'],
+      )!,
+      videoId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}video_id'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      year: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}year'],
+      ),
+      coverUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cover_url'],
+      ),
+      lastSeenRemarks: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_seen_remarks'],
+      ),
+      lastUpdateAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_update_at'],
+      ),
+      updateHistory: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}update_history'],
+      ),
+      nextCheckAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}next_check_at'],
+      ),
+      unread: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}unread'],
+      )!,
+      finished: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}finished'],
+      )!,
+      crossSeenSourceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cross_seen_source_id'],
+      ),
+      crossSeenRemarks: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cross_seen_remarks'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SubscriptionsTable createAlias(String alias) {
+    return $SubscriptionsTable(attachedDatabase, alias);
+  }
+}
+
+class Subscription extends DataClass implements Insertable<Subscription> {
+  final int id;
+  final String sourceId;
+  final int videoId;
+  final String title;
+  final String? year;
+  final String? coverUrl;
+
+  /// The catalog's own progress line, as last seen. Any change to it is the
+  /// update signal — and it arrives free with every listing the user scrolls
+  /// past, which is why this feature costs no requests most of the time.
+  final String? lastSeenRemarks;
+  final DateTime? lastUpdateAt;
+
+  /// Observed update times, JSON, oldest first and capped. The release
+  /// schedule is inferred from these — see `UpdateCadence`.
+  final String? updateHistory;
+
+  /// Earliest moment a request for this show is worth making. Before it, the
+  /// show is skipped entirely.
+  final DateTime? nextCheckAt;
+  final bool unread;
+
+  /// Finished airing. Never checked again — the cheapest request is the one
+  /// never made.
+  final bool finished;
+
+  /// The same show's progress as last seen on ANOTHER source (matched by
+  /// title + year, like the cross-source watch badge). A drama often lands on
+  /// one catalog hours before the other, and a viewer following the slow one
+  /// still wants the news when the fast one has it first.
+  ///
+  /// Kept apart from [lastSeenRemarks] on purpose: sources word their progress
+  /// differently ("更新至第 05 集" vs "更新至5集"), so cross-source text must
+  /// never enter the same-source comparison — every sweep would read the
+  /// wording difference as an update.
+  final String? crossSeenSourceId;
+  final String? crossSeenRemarks;
+  final DateTime createdAt;
+  const Subscription({
+    required this.id,
+    required this.sourceId,
+    required this.videoId,
+    required this.title,
+    this.year,
+    this.coverUrl,
+    this.lastSeenRemarks,
+    this.lastUpdateAt,
+    this.updateHistory,
+    this.nextCheckAt,
+    required this.unread,
+    required this.finished,
+    this.crossSeenSourceId,
+    this.crossSeenRemarks,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['source_id'] = Variable<String>(sourceId);
+    map['video_id'] = Variable<int>(videoId);
+    map['title'] = Variable<String>(title);
+    if (!nullToAbsent || year != null) {
+      map['year'] = Variable<String>(year);
+    }
+    if (!nullToAbsent || coverUrl != null) {
+      map['cover_url'] = Variable<String>(coverUrl);
+    }
+    if (!nullToAbsent || lastSeenRemarks != null) {
+      map['last_seen_remarks'] = Variable<String>(lastSeenRemarks);
+    }
+    if (!nullToAbsent || lastUpdateAt != null) {
+      map['last_update_at'] = Variable<DateTime>(lastUpdateAt);
+    }
+    if (!nullToAbsent || updateHistory != null) {
+      map['update_history'] = Variable<String>(updateHistory);
+    }
+    if (!nullToAbsent || nextCheckAt != null) {
+      map['next_check_at'] = Variable<DateTime>(nextCheckAt);
+    }
+    map['unread'] = Variable<bool>(unread);
+    map['finished'] = Variable<bool>(finished);
+    if (!nullToAbsent || crossSeenSourceId != null) {
+      map['cross_seen_source_id'] = Variable<String>(crossSeenSourceId);
+    }
+    if (!nullToAbsent || crossSeenRemarks != null) {
+      map['cross_seen_remarks'] = Variable<String>(crossSeenRemarks);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  SubscriptionsCompanion toCompanion(bool nullToAbsent) {
+    return SubscriptionsCompanion(
+      id: Value(id),
+      sourceId: Value(sourceId),
+      videoId: Value(videoId),
+      title: Value(title),
+      year: year == null && nullToAbsent ? const Value.absent() : Value(year),
+      coverUrl: coverUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(coverUrl),
+      lastSeenRemarks: lastSeenRemarks == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastSeenRemarks),
+      lastUpdateAt: lastUpdateAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastUpdateAt),
+      updateHistory: updateHistory == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updateHistory),
+      nextCheckAt: nextCheckAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nextCheckAt),
+      unread: Value(unread),
+      finished: Value(finished),
+      crossSeenSourceId: crossSeenSourceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(crossSeenSourceId),
+      crossSeenRemarks: crossSeenRemarks == null && nullToAbsent
+          ? const Value.absent()
+          : Value(crossSeenRemarks),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory Subscription.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Subscription(
+      id: serializer.fromJson<int>(json['id']),
+      sourceId: serializer.fromJson<String>(json['sourceId']),
+      videoId: serializer.fromJson<int>(json['videoId']),
+      title: serializer.fromJson<String>(json['title']),
+      year: serializer.fromJson<String?>(json['year']),
+      coverUrl: serializer.fromJson<String?>(json['coverUrl']),
+      lastSeenRemarks: serializer.fromJson<String?>(json['lastSeenRemarks']),
+      lastUpdateAt: serializer.fromJson<DateTime?>(json['lastUpdateAt']),
+      updateHistory: serializer.fromJson<String?>(json['updateHistory']),
+      nextCheckAt: serializer.fromJson<DateTime?>(json['nextCheckAt']),
+      unread: serializer.fromJson<bool>(json['unread']),
+      finished: serializer.fromJson<bool>(json['finished']),
+      crossSeenSourceId: serializer.fromJson<String?>(
+        json['crossSeenSourceId'],
+      ),
+      crossSeenRemarks: serializer.fromJson<String?>(json['crossSeenRemarks']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'sourceId': serializer.toJson<String>(sourceId),
+      'videoId': serializer.toJson<int>(videoId),
+      'title': serializer.toJson<String>(title),
+      'year': serializer.toJson<String?>(year),
+      'coverUrl': serializer.toJson<String?>(coverUrl),
+      'lastSeenRemarks': serializer.toJson<String?>(lastSeenRemarks),
+      'lastUpdateAt': serializer.toJson<DateTime?>(lastUpdateAt),
+      'updateHistory': serializer.toJson<String?>(updateHistory),
+      'nextCheckAt': serializer.toJson<DateTime?>(nextCheckAt),
+      'unread': serializer.toJson<bool>(unread),
+      'finished': serializer.toJson<bool>(finished),
+      'crossSeenSourceId': serializer.toJson<String?>(crossSeenSourceId),
+      'crossSeenRemarks': serializer.toJson<String?>(crossSeenRemarks),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  Subscription copyWith({
+    int? id,
+    String? sourceId,
+    int? videoId,
+    String? title,
+    Value<String?> year = const Value.absent(),
+    Value<String?> coverUrl = const Value.absent(),
+    Value<String?> lastSeenRemarks = const Value.absent(),
+    Value<DateTime?> lastUpdateAt = const Value.absent(),
+    Value<String?> updateHistory = const Value.absent(),
+    Value<DateTime?> nextCheckAt = const Value.absent(),
+    bool? unread,
+    bool? finished,
+    Value<String?> crossSeenSourceId = const Value.absent(),
+    Value<String?> crossSeenRemarks = const Value.absent(),
+    DateTime? createdAt,
+  }) => Subscription(
+    id: id ?? this.id,
+    sourceId: sourceId ?? this.sourceId,
+    videoId: videoId ?? this.videoId,
+    title: title ?? this.title,
+    year: year.present ? year.value : this.year,
+    coverUrl: coverUrl.present ? coverUrl.value : this.coverUrl,
+    lastSeenRemarks: lastSeenRemarks.present
+        ? lastSeenRemarks.value
+        : this.lastSeenRemarks,
+    lastUpdateAt: lastUpdateAt.present ? lastUpdateAt.value : this.lastUpdateAt,
+    updateHistory: updateHistory.present
+        ? updateHistory.value
+        : this.updateHistory,
+    nextCheckAt: nextCheckAt.present ? nextCheckAt.value : this.nextCheckAt,
+    unread: unread ?? this.unread,
+    finished: finished ?? this.finished,
+    crossSeenSourceId: crossSeenSourceId.present
+        ? crossSeenSourceId.value
+        : this.crossSeenSourceId,
+    crossSeenRemarks: crossSeenRemarks.present
+        ? crossSeenRemarks.value
+        : this.crossSeenRemarks,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  Subscription copyWithCompanion(SubscriptionsCompanion data) {
+    return Subscription(
+      id: data.id.present ? data.id.value : this.id,
+      sourceId: data.sourceId.present ? data.sourceId.value : this.sourceId,
+      videoId: data.videoId.present ? data.videoId.value : this.videoId,
+      title: data.title.present ? data.title.value : this.title,
+      year: data.year.present ? data.year.value : this.year,
+      coverUrl: data.coverUrl.present ? data.coverUrl.value : this.coverUrl,
+      lastSeenRemarks: data.lastSeenRemarks.present
+          ? data.lastSeenRemarks.value
+          : this.lastSeenRemarks,
+      lastUpdateAt: data.lastUpdateAt.present
+          ? data.lastUpdateAt.value
+          : this.lastUpdateAt,
+      updateHistory: data.updateHistory.present
+          ? data.updateHistory.value
+          : this.updateHistory,
+      nextCheckAt: data.nextCheckAt.present
+          ? data.nextCheckAt.value
+          : this.nextCheckAt,
+      unread: data.unread.present ? data.unread.value : this.unread,
+      finished: data.finished.present ? data.finished.value : this.finished,
+      crossSeenSourceId: data.crossSeenSourceId.present
+          ? data.crossSeenSourceId.value
+          : this.crossSeenSourceId,
+      crossSeenRemarks: data.crossSeenRemarks.present
+          ? data.crossSeenRemarks.value
+          : this.crossSeenRemarks,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Subscription(')
+          ..write('id: $id, ')
+          ..write('sourceId: $sourceId, ')
+          ..write('videoId: $videoId, ')
+          ..write('title: $title, ')
+          ..write('year: $year, ')
+          ..write('coverUrl: $coverUrl, ')
+          ..write('lastSeenRemarks: $lastSeenRemarks, ')
+          ..write('lastUpdateAt: $lastUpdateAt, ')
+          ..write('updateHistory: $updateHistory, ')
+          ..write('nextCheckAt: $nextCheckAt, ')
+          ..write('unread: $unread, ')
+          ..write('finished: $finished, ')
+          ..write('crossSeenSourceId: $crossSeenSourceId, ')
+          ..write('crossSeenRemarks: $crossSeenRemarks, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    sourceId,
+    videoId,
+    title,
+    year,
+    coverUrl,
+    lastSeenRemarks,
+    lastUpdateAt,
+    updateHistory,
+    nextCheckAt,
+    unread,
+    finished,
+    crossSeenSourceId,
+    crossSeenRemarks,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Subscription &&
+          other.id == this.id &&
+          other.sourceId == this.sourceId &&
+          other.videoId == this.videoId &&
+          other.title == this.title &&
+          other.year == this.year &&
+          other.coverUrl == this.coverUrl &&
+          other.lastSeenRemarks == this.lastSeenRemarks &&
+          other.lastUpdateAt == this.lastUpdateAt &&
+          other.updateHistory == this.updateHistory &&
+          other.nextCheckAt == this.nextCheckAt &&
+          other.unread == this.unread &&
+          other.finished == this.finished &&
+          other.crossSeenSourceId == this.crossSeenSourceId &&
+          other.crossSeenRemarks == this.crossSeenRemarks &&
+          other.createdAt == this.createdAt);
+}
+
+class SubscriptionsCompanion extends UpdateCompanion<Subscription> {
+  final Value<int> id;
+  final Value<String> sourceId;
+  final Value<int> videoId;
+  final Value<String> title;
+  final Value<String?> year;
+  final Value<String?> coverUrl;
+  final Value<String?> lastSeenRemarks;
+  final Value<DateTime?> lastUpdateAt;
+  final Value<String?> updateHistory;
+  final Value<DateTime?> nextCheckAt;
+  final Value<bool> unread;
+  final Value<bool> finished;
+  final Value<String?> crossSeenSourceId;
+  final Value<String?> crossSeenRemarks;
+  final Value<DateTime> createdAt;
+  const SubscriptionsCompanion({
+    this.id = const Value.absent(),
+    this.sourceId = const Value.absent(),
+    this.videoId = const Value.absent(),
+    this.title = const Value.absent(),
+    this.year = const Value.absent(),
+    this.coverUrl = const Value.absent(),
+    this.lastSeenRemarks = const Value.absent(),
+    this.lastUpdateAt = const Value.absent(),
+    this.updateHistory = const Value.absent(),
+    this.nextCheckAt = const Value.absent(),
+    this.unread = const Value.absent(),
+    this.finished = const Value.absent(),
+    this.crossSeenSourceId = const Value.absent(),
+    this.crossSeenRemarks = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  SubscriptionsCompanion.insert({
+    this.id = const Value.absent(),
+    required String sourceId,
+    required int videoId,
+    required String title,
+    this.year = const Value.absent(),
+    this.coverUrl = const Value.absent(),
+    this.lastSeenRemarks = const Value.absent(),
+    this.lastUpdateAt = const Value.absent(),
+    this.updateHistory = const Value.absent(),
+    this.nextCheckAt = const Value.absent(),
+    this.unread = const Value.absent(),
+    this.finished = const Value.absent(),
+    this.crossSeenSourceId = const Value.absent(),
+    this.crossSeenRemarks = const Value.absent(),
+    required DateTime createdAt,
+  }) : sourceId = Value(sourceId),
+       videoId = Value(videoId),
+       title = Value(title),
+       createdAt = Value(createdAt);
+  static Insertable<Subscription> custom({
+    Expression<int>? id,
+    Expression<String>? sourceId,
+    Expression<int>? videoId,
+    Expression<String>? title,
+    Expression<String>? year,
+    Expression<String>? coverUrl,
+    Expression<String>? lastSeenRemarks,
+    Expression<DateTime>? lastUpdateAt,
+    Expression<String>? updateHistory,
+    Expression<DateTime>? nextCheckAt,
+    Expression<bool>? unread,
+    Expression<bool>? finished,
+    Expression<String>? crossSeenSourceId,
+    Expression<String>? crossSeenRemarks,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (sourceId != null) 'source_id': sourceId,
+      if (videoId != null) 'video_id': videoId,
+      if (title != null) 'title': title,
+      if (year != null) 'year': year,
+      if (coverUrl != null) 'cover_url': coverUrl,
+      if (lastSeenRemarks != null) 'last_seen_remarks': lastSeenRemarks,
+      if (lastUpdateAt != null) 'last_update_at': lastUpdateAt,
+      if (updateHistory != null) 'update_history': updateHistory,
+      if (nextCheckAt != null) 'next_check_at': nextCheckAt,
+      if (unread != null) 'unread': unread,
+      if (finished != null) 'finished': finished,
+      if (crossSeenSourceId != null) 'cross_seen_source_id': crossSeenSourceId,
+      if (crossSeenRemarks != null) 'cross_seen_remarks': crossSeenRemarks,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  SubscriptionsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? sourceId,
+    Value<int>? videoId,
+    Value<String>? title,
+    Value<String?>? year,
+    Value<String?>? coverUrl,
+    Value<String?>? lastSeenRemarks,
+    Value<DateTime?>? lastUpdateAt,
+    Value<String?>? updateHistory,
+    Value<DateTime?>? nextCheckAt,
+    Value<bool>? unread,
+    Value<bool>? finished,
+    Value<String?>? crossSeenSourceId,
+    Value<String?>? crossSeenRemarks,
+    Value<DateTime>? createdAt,
+  }) {
+    return SubscriptionsCompanion(
+      id: id ?? this.id,
+      sourceId: sourceId ?? this.sourceId,
+      videoId: videoId ?? this.videoId,
+      title: title ?? this.title,
+      year: year ?? this.year,
+      coverUrl: coverUrl ?? this.coverUrl,
+      lastSeenRemarks: lastSeenRemarks ?? this.lastSeenRemarks,
+      lastUpdateAt: lastUpdateAt ?? this.lastUpdateAt,
+      updateHistory: updateHistory ?? this.updateHistory,
+      nextCheckAt: nextCheckAt ?? this.nextCheckAt,
+      unread: unread ?? this.unread,
+      finished: finished ?? this.finished,
+      crossSeenSourceId: crossSeenSourceId ?? this.crossSeenSourceId,
+      crossSeenRemarks: crossSeenRemarks ?? this.crossSeenRemarks,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (sourceId.present) {
+      map['source_id'] = Variable<String>(sourceId.value);
+    }
+    if (videoId.present) {
+      map['video_id'] = Variable<int>(videoId.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (year.present) {
+      map['year'] = Variable<String>(year.value);
+    }
+    if (coverUrl.present) {
+      map['cover_url'] = Variable<String>(coverUrl.value);
+    }
+    if (lastSeenRemarks.present) {
+      map['last_seen_remarks'] = Variable<String>(lastSeenRemarks.value);
+    }
+    if (lastUpdateAt.present) {
+      map['last_update_at'] = Variable<DateTime>(lastUpdateAt.value);
+    }
+    if (updateHistory.present) {
+      map['update_history'] = Variable<String>(updateHistory.value);
+    }
+    if (nextCheckAt.present) {
+      map['next_check_at'] = Variable<DateTime>(nextCheckAt.value);
+    }
+    if (unread.present) {
+      map['unread'] = Variable<bool>(unread.value);
+    }
+    if (finished.present) {
+      map['finished'] = Variable<bool>(finished.value);
+    }
+    if (crossSeenSourceId.present) {
+      map['cross_seen_source_id'] = Variable<String>(crossSeenSourceId.value);
+    }
+    if (crossSeenRemarks.present) {
+      map['cross_seen_remarks'] = Variable<String>(crossSeenRemarks.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SubscriptionsCompanion(')
+          ..write('id: $id, ')
+          ..write('sourceId: $sourceId, ')
+          ..write('videoId: $videoId, ')
+          ..write('title: $title, ')
+          ..write('year: $year, ')
+          ..write('coverUrl: $coverUrl, ')
+          ..write('lastSeenRemarks: $lastSeenRemarks, ')
+          ..write('lastUpdateAt: $lastUpdateAt, ')
+          ..write('updateHistory: $updateHistory, ')
+          ..write('nextCheckAt: $nextCheckAt, ')
+          ..write('unread: $unread, ')
+          ..write('finished: $finished, ')
+          ..write('crossSeenSourceId: $crossSeenSourceId, ')
+          ..write('crossSeenRemarks: $crossSeenRemarks, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $DownloadTasksTable extends DownloadTasks
     with TableInfo<$DownloadTasksTable, DownloadTask> {
   @override
@@ -4414,6 +5318,17 @@ class $AppSettingsTable extends AppSettings
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _subscriptionCheckedAtMeta =
+      const VerificationMeta('subscriptionCheckedAt');
+  @override
+  late final GeneratedColumn<DateTime> subscriptionCheckedAt =
+      GeneratedColumn<DateTime>(
+        'subscription_checked_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _playerNormalWidthMeta = const VerificationMeta(
     'playerNormalWidth',
   );
@@ -4478,6 +5393,7 @@ class $AppSettingsTable extends AppSettings
     lastDataSourceId,
     cookieFile,
     themeMode,
+    subscriptionCheckedAt,
     playerNormalWidth,
     playerNormalHeight,
     playerPipWidth,
@@ -4554,6 +5470,15 @@ class $AppSettingsTable extends AppSettings
       context.handle(
         _themeModeMeta,
         themeMode.isAcceptableOrUnknown(data['theme_mode']!, _themeModeMeta),
+      );
+    }
+    if (data.containsKey('subscription_checked_at')) {
+      context.handle(
+        _subscriptionCheckedAtMeta,
+        subscriptionCheckedAt.isAcceptableOrUnknown(
+          data['subscription_checked_at']!,
+          _subscriptionCheckedAtMeta,
+        ),
       );
     }
     if (data.containsKey('player_normal_width')) {
@@ -4639,6 +5564,10 @@ class $AppSettingsTable extends AppSettings
         DriftSqlType.int,
         data['${effectivePrefix}theme_mode'],
       )!,
+      subscriptionCheckedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}subscription_checked_at'],
+      ),
       playerNormalWidth: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}player_normal_width'],
@@ -4677,6 +5606,11 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   final String? lastDataSourceId;
   final String? cookieFile;
   final int themeMode;
+
+  /// When the subscription checker last ran. Persisted because the 20-minute
+  /// floor lived only in memory, so the one habit desktop users actually have
+  /// — closing and reopening the app — reset it and swept every launch.
+  final DateTime? subscriptionCheckedAt;
   final double? playerNormalWidth;
   final double? playerNormalHeight;
   final double? playerPipWidth;
@@ -4691,6 +5625,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     this.lastDataSourceId,
     this.cookieFile,
     required this.themeMode,
+    this.subscriptionCheckedAt,
     this.playerNormalWidth,
     this.playerNormalHeight,
     this.playerPipWidth,
@@ -4714,6 +5649,11 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       map['cookie_file'] = Variable<String>(cookieFile);
     }
     map['theme_mode'] = Variable<int>(themeMode);
+    if (!nullToAbsent || subscriptionCheckedAt != null) {
+      map['subscription_checked_at'] = Variable<DateTime>(
+        subscriptionCheckedAt,
+      );
+    }
     if (!nullToAbsent || playerNormalWidth != null) {
       map['player_normal_width'] = Variable<double>(playerNormalWidth);
     }
@@ -4748,6 +5688,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           ? const Value.absent()
           : Value(cookieFile),
       themeMode: Value(themeMode),
+      subscriptionCheckedAt: subscriptionCheckedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(subscriptionCheckedAt),
       playerNormalWidth: playerNormalWidth == null && nullToAbsent
           ? const Value.absent()
           : Value(playerNormalWidth),
@@ -4784,6 +5727,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       lastDataSourceId: serializer.fromJson<String?>(json['lastDataSourceId']),
       cookieFile: serializer.fromJson<String?>(json['cookieFile']),
       themeMode: serializer.fromJson<int>(json['themeMode']),
+      subscriptionCheckedAt: serializer.fromJson<DateTime?>(
+        json['subscriptionCheckedAt'],
+      ),
       playerNormalWidth: serializer.fromJson<double?>(
         json['playerNormalWidth'],
       ),
@@ -4807,6 +5753,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       'lastDataSourceId': serializer.toJson<String?>(lastDataSourceId),
       'cookieFile': serializer.toJson<String?>(cookieFile),
       'themeMode': serializer.toJson<int>(themeMode),
+      'subscriptionCheckedAt': serializer.toJson<DateTime?>(
+        subscriptionCheckedAt,
+      ),
       'playerNormalWidth': serializer.toJson<double?>(playerNormalWidth),
       'playerNormalHeight': serializer.toJson<double?>(playerNormalHeight),
       'playerPipWidth': serializer.toJson<double?>(playerPipWidth),
@@ -4824,6 +5773,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     Value<String?> lastDataSourceId = const Value.absent(),
     Value<String?> cookieFile = const Value.absent(),
     int? themeMode,
+    Value<DateTime?> subscriptionCheckedAt = const Value.absent(),
     Value<double?> playerNormalWidth = const Value.absent(),
     Value<double?> playerNormalHeight = const Value.absent(),
     Value<double?> playerPipWidth = const Value.absent(),
@@ -4842,6 +5792,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
         : this.lastDataSourceId,
     cookieFile: cookieFile.present ? cookieFile.value : this.cookieFile,
     themeMode: themeMode ?? this.themeMode,
+    subscriptionCheckedAt: subscriptionCheckedAt.present
+        ? subscriptionCheckedAt.value
+        : this.subscriptionCheckedAt,
     playerNormalWidth: playerNormalWidth.present
         ? playerNormalWidth.value
         : this.playerNormalWidth,
@@ -4878,6 +5831,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           ? data.cookieFile.value
           : this.cookieFile,
       themeMode: data.themeMode.present ? data.themeMode.value : this.themeMode,
+      subscriptionCheckedAt: data.subscriptionCheckedAt.present
+          ? data.subscriptionCheckedAt.value
+          : this.subscriptionCheckedAt,
       playerNormalWidth: data.playerNormalWidth.present
           ? data.playerNormalWidth.value
           : this.playerNormalWidth,
@@ -4905,6 +5861,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           ..write('lastDataSourceId: $lastDataSourceId, ')
           ..write('cookieFile: $cookieFile, ')
           ..write('themeMode: $themeMode, ')
+          ..write('subscriptionCheckedAt: $subscriptionCheckedAt, ')
           ..write('playerNormalWidth: $playerNormalWidth, ')
           ..write('playerNormalHeight: $playerNormalHeight, ')
           ..write('playerPipWidth: $playerPipWidth, ')
@@ -4924,6 +5881,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     lastDataSourceId,
     cookieFile,
     themeMode,
+    subscriptionCheckedAt,
     playerNormalWidth,
     playerNormalHeight,
     playerPipWidth,
@@ -4942,6 +5900,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           other.lastDataSourceId == this.lastDataSourceId &&
           other.cookieFile == this.cookieFile &&
           other.themeMode == this.themeMode &&
+          other.subscriptionCheckedAt == this.subscriptionCheckedAt &&
           other.playerNormalWidth == this.playerNormalWidth &&
           other.playerNormalHeight == this.playerNormalHeight &&
           other.playerPipWidth == this.playerPipWidth &&
@@ -4958,6 +5917,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<String?> lastDataSourceId;
   final Value<String?> cookieFile;
   final Value<int> themeMode;
+  final Value<DateTime?> subscriptionCheckedAt;
   final Value<double?> playerNormalWidth;
   final Value<double?> playerNormalHeight;
   final Value<double?> playerPipWidth;
@@ -4972,6 +5932,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.lastDataSourceId = const Value.absent(),
     this.cookieFile = const Value.absent(),
     this.themeMode = const Value.absent(),
+    this.subscriptionCheckedAt = const Value.absent(),
     this.playerNormalWidth = const Value.absent(),
     this.playerNormalHeight = const Value.absent(),
     this.playerPipWidth = const Value.absent(),
@@ -4987,6 +5948,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.lastDataSourceId = const Value.absent(),
     this.cookieFile = const Value.absent(),
     this.themeMode = const Value.absent(),
+    this.subscriptionCheckedAt = const Value.absent(),
     this.playerNormalWidth = const Value.absent(),
     this.playerNormalHeight = const Value.absent(),
     this.playerPipWidth = const Value.absent(),
@@ -5002,6 +5964,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Expression<String>? lastDataSourceId,
     Expression<String>? cookieFile,
     Expression<int>? themeMode,
+    Expression<DateTime>? subscriptionCheckedAt,
     Expression<double>? playerNormalWidth,
     Expression<double>? playerNormalHeight,
     Expression<double>? playerPipWidth,
@@ -5019,6 +5982,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       if (lastDataSourceId != null) 'last_data_source_id': lastDataSourceId,
       if (cookieFile != null) 'cookie_file': cookieFile,
       if (themeMode != null) 'theme_mode': themeMode,
+      if (subscriptionCheckedAt != null)
+        'subscription_checked_at': subscriptionCheckedAt,
       if (playerNormalWidth != null) 'player_normal_width': playerNormalWidth,
       if (playerNormalHeight != null)
         'player_normal_height': playerNormalHeight,
@@ -5037,6 +6002,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Value<String?>? lastDataSourceId,
     Value<String?>? cookieFile,
     Value<int>? themeMode,
+    Value<DateTime?>? subscriptionCheckedAt,
     Value<double?>? playerNormalWidth,
     Value<double?>? playerNormalHeight,
     Value<double?>? playerPipWidth,
@@ -5054,6 +6020,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       lastDataSourceId: lastDataSourceId ?? this.lastDataSourceId,
       cookieFile: cookieFile ?? this.cookieFile,
       themeMode: themeMode ?? this.themeMode,
+      subscriptionCheckedAt:
+          subscriptionCheckedAt ?? this.subscriptionCheckedAt,
       playerNormalWidth: playerNormalWidth ?? this.playerNormalWidth,
       playerNormalHeight: playerNormalHeight ?? this.playerNormalHeight,
       playerPipWidth: playerPipWidth ?? this.playerPipWidth,
@@ -5093,6 +6061,11 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     if (themeMode.present) {
       map['theme_mode'] = Variable<int>(themeMode.value);
     }
+    if (subscriptionCheckedAt.present) {
+      map['subscription_checked_at'] = Variable<DateTime>(
+        subscriptionCheckedAt.value,
+      );
+    }
     if (playerNormalWidth.present) {
       map['player_normal_width'] = Variable<double>(playerNormalWidth.value);
     }
@@ -5122,6 +6095,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
           ..write('lastDataSourceId: $lastDataSourceId, ')
           ..write('cookieFile: $cookieFile, ')
           ..write('themeMode: $themeMode, ')
+          ..write('subscriptionCheckedAt: $subscriptionCheckedAt, ')
           ..write('playerNormalWidth: $playerNormalWidth, ')
           ..write('playerNormalHeight: $playerNormalHeight, ')
           ..write('playerPipWidth: $playerPipWidth, ')
@@ -5142,6 +6116,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $EpisodeSkipDataTable episodeSkipData = $EpisodeSkipDataTable(
     this,
   );
+  late final $SubscriptionsTable subscriptions = $SubscriptionsTable(this);
   late final $DownloadTasksTable downloadTasks = $DownloadTasksTable(this);
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
   late final Index videosIdx = Index(
@@ -5164,6 +6139,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'episode_skip_data_idx',
     'CREATE UNIQUE INDEX episode_skip_data_idx ON episode_skip_data (video_id, episode_index, source_id)',
   );
+  late final Index subscriptionsIdx = Index(
+    'subscriptions_idx',
+    'CREATE UNIQUE INDEX subscriptions_idx ON subscriptions (video_id, source_id)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -5174,6 +6153,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     videoHistory,
     episodeHistory,
     episodeSkipData,
+    subscriptions,
     downloadTasks,
     appSettings,
     videosIdx,
@@ -5181,6 +6161,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     videoHistoryIdx,
     episodeHistoryIdx,
     episodeSkipDataIdx,
+    subscriptionsIdx,
   ];
 }
 
@@ -6960,6 +7941,402 @@ typedef $$EpisodeSkipDataTableProcessedTableManager =
       EpisodeSkipDataData,
       PrefetchHooks Function()
     >;
+typedef $$SubscriptionsTableCreateCompanionBuilder =
+    SubscriptionsCompanion Function({
+      Value<int> id,
+      required String sourceId,
+      required int videoId,
+      required String title,
+      Value<String?> year,
+      Value<String?> coverUrl,
+      Value<String?> lastSeenRemarks,
+      Value<DateTime?> lastUpdateAt,
+      Value<String?> updateHistory,
+      Value<DateTime?> nextCheckAt,
+      Value<bool> unread,
+      Value<bool> finished,
+      Value<String?> crossSeenSourceId,
+      Value<String?> crossSeenRemarks,
+      required DateTime createdAt,
+    });
+typedef $$SubscriptionsTableUpdateCompanionBuilder =
+    SubscriptionsCompanion Function({
+      Value<int> id,
+      Value<String> sourceId,
+      Value<int> videoId,
+      Value<String> title,
+      Value<String?> year,
+      Value<String?> coverUrl,
+      Value<String?> lastSeenRemarks,
+      Value<DateTime?> lastUpdateAt,
+      Value<String?> updateHistory,
+      Value<DateTime?> nextCheckAt,
+      Value<bool> unread,
+      Value<bool> finished,
+      Value<String?> crossSeenSourceId,
+      Value<String?> crossSeenRemarks,
+      Value<DateTime> createdAt,
+    });
+
+class $$SubscriptionsTableFilterComposer
+    extends Composer<_$AppDatabase, $SubscriptionsTable> {
+  $$SubscriptionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get videoId => $composableBuilder(
+    column: $table.videoId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get year => $composableBuilder(
+    column: $table.year,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get coverUrl => $composableBuilder(
+    column: $table.coverUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastSeenRemarks => $composableBuilder(
+    column: $table.lastSeenRemarks,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastUpdateAt => $composableBuilder(
+    column: $table.lastUpdateAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get updateHistory => $composableBuilder(
+    column: $table.updateHistory,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get nextCheckAt => $composableBuilder(
+    column: $table.nextCheckAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get unread => $composableBuilder(
+    column: $table.unread,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get finished => $composableBuilder(
+    column: $table.finished,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get crossSeenSourceId => $composableBuilder(
+    column: $table.crossSeenSourceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get crossSeenRemarks => $composableBuilder(
+    column: $table.crossSeenRemarks,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SubscriptionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SubscriptionsTable> {
+  $$SubscriptionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get videoId => $composableBuilder(
+    column: $table.videoId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get year => $composableBuilder(
+    column: $table.year,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get coverUrl => $composableBuilder(
+    column: $table.coverUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastSeenRemarks => $composableBuilder(
+    column: $table.lastSeenRemarks,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastUpdateAt => $composableBuilder(
+    column: $table.lastUpdateAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get updateHistory => $composableBuilder(
+    column: $table.updateHistory,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get nextCheckAt => $composableBuilder(
+    column: $table.nextCheckAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get unread => $composableBuilder(
+    column: $table.unread,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get finished => $composableBuilder(
+    column: $table.finished,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get crossSeenSourceId => $composableBuilder(
+    column: $table.crossSeenSourceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get crossSeenRemarks => $composableBuilder(
+    column: $table.crossSeenRemarks,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SubscriptionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SubscriptionsTable> {
+  $$SubscriptionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceId =>
+      $composableBuilder(column: $table.sourceId, builder: (column) => column);
+
+  GeneratedColumn<int> get videoId =>
+      $composableBuilder(column: $table.videoId, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get year =>
+      $composableBuilder(column: $table.year, builder: (column) => column);
+
+  GeneratedColumn<String> get coverUrl =>
+      $composableBuilder(column: $table.coverUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get lastSeenRemarks => $composableBuilder(
+    column: $table.lastSeenRemarks,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get lastUpdateAt => $composableBuilder(
+    column: $table.lastUpdateAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get updateHistory => $composableBuilder(
+    column: $table.updateHistory,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get nextCheckAt => $composableBuilder(
+    column: $table.nextCheckAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get unread =>
+      $composableBuilder(column: $table.unread, builder: (column) => column);
+
+  GeneratedColumn<bool> get finished =>
+      $composableBuilder(column: $table.finished, builder: (column) => column);
+
+  GeneratedColumn<String> get crossSeenSourceId => $composableBuilder(
+    column: $table.crossSeenSourceId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get crossSeenRemarks => $composableBuilder(
+    column: $table.crossSeenRemarks,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$SubscriptionsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SubscriptionsTable,
+          Subscription,
+          $$SubscriptionsTableFilterComposer,
+          $$SubscriptionsTableOrderingComposer,
+          $$SubscriptionsTableAnnotationComposer,
+          $$SubscriptionsTableCreateCompanionBuilder,
+          $$SubscriptionsTableUpdateCompanionBuilder,
+          (
+            Subscription,
+            BaseReferences<_$AppDatabase, $SubscriptionsTable, Subscription>,
+          ),
+          Subscription,
+          PrefetchHooks Function()
+        > {
+  $$SubscriptionsTableTableManager(_$AppDatabase db, $SubscriptionsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SubscriptionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SubscriptionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SubscriptionsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> sourceId = const Value.absent(),
+                Value<int> videoId = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String?> year = const Value.absent(),
+                Value<String?> coverUrl = const Value.absent(),
+                Value<String?> lastSeenRemarks = const Value.absent(),
+                Value<DateTime?> lastUpdateAt = const Value.absent(),
+                Value<String?> updateHistory = const Value.absent(),
+                Value<DateTime?> nextCheckAt = const Value.absent(),
+                Value<bool> unread = const Value.absent(),
+                Value<bool> finished = const Value.absent(),
+                Value<String?> crossSeenSourceId = const Value.absent(),
+                Value<String?> crossSeenRemarks = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => SubscriptionsCompanion(
+                id: id,
+                sourceId: sourceId,
+                videoId: videoId,
+                title: title,
+                year: year,
+                coverUrl: coverUrl,
+                lastSeenRemarks: lastSeenRemarks,
+                lastUpdateAt: lastUpdateAt,
+                updateHistory: updateHistory,
+                nextCheckAt: nextCheckAt,
+                unread: unread,
+                finished: finished,
+                crossSeenSourceId: crossSeenSourceId,
+                crossSeenRemarks: crossSeenRemarks,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String sourceId,
+                required int videoId,
+                required String title,
+                Value<String?> year = const Value.absent(),
+                Value<String?> coverUrl = const Value.absent(),
+                Value<String?> lastSeenRemarks = const Value.absent(),
+                Value<DateTime?> lastUpdateAt = const Value.absent(),
+                Value<String?> updateHistory = const Value.absent(),
+                Value<DateTime?> nextCheckAt = const Value.absent(),
+                Value<bool> unread = const Value.absent(),
+                Value<bool> finished = const Value.absent(),
+                Value<String?> crossSeenSourceId = const Value.absent(),
+                Value<String?> crossSeenRemarks = const Value.absent(),
+                required DateTime createdAt,
+              }) => SubscriptionsCompanion.insert(
+                id: id,
+                sourceId: sourceId,
+                videoId: videoId,
+                title: title,
+                year: year,
+                coverUrl: coverUrl,
+                lastSeenRemarks: lastSeenRemarks,
+                lastUpdateAt: lastUpdateAt,
+                updateHistory: updateHistory,
+                nextCheckAt: nextCheckAt,
+                unread: unread,
+                finished: finished,
+                crossSeenSourceId: crossSeenSourceId,
+                crossSeenRemarks: crossSeenRemarks,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SubscriptionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SubscriptionsTable,
+      Subscription,
+      $$SubscriptionsTableFilterComposer,
+      $$SubscriptionsTableOrderingComposer,
+      $$SubscriptionsTableAnnotationComposer,
+      $$SubscriptionsTableCreateCompanionBuilder,
+      $$SubscriptionsTableUpdateCompanionBuilder,
+      (
+        Subscription,
+        BaseReferences<_$AppDatabase, $SubscriptionsTable, Subscription>,
+      ),
+      Subscription,
+      PrefetchHooks Function()
+    >;
 typedef $$DownloadTasksTableCreateCompanionBuilder =
     DownloadTasksCompanion Function({
       Value<int> id,
@@ -7232,6 +8609,7 @@ typedef $$AppSettingsTableCreateCompanionBuilder =
       Value<String?> lastDataSourceId,
       Value<String?> cookieFile,
       Value<int> themeMode,
+      Value<DateTime?> subscriptionCheckedAt,
       Value<double?> playerNormalWidth,
       Value<double?> playerNormalHeight,
       Value<double?> playerPipWidth,
@@ -7248,6 +8626,7 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
       Value<String?> lastDataSourceId,
       Value<String?> cookieFile,
       Value<int> themeMode,
+      Value<DateTime?> subscriptionCheckedAt,
       Value<double?> playerNormalWidth,
       Value<double?> playerNormalHeight,
       Value<double?> playerPipWidth,
@@ -7301,6 +8680,11 @@ class $$AppSettingsTableFilterComposer
 
   ColumnFilters<int> get themeMode => $composableBuilder(
     column: $table.themeMode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get subscriptionCheckedAt => $composableBuilder(
+    column: $table.subscriptionCheckedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7379,6 +8763,11 @@ class $$AppSettingsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get subscriptionCheckedAt => $composableBuilder(
+    column: $table.subscriptionCheckedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<double> get playerNormalWidth => $composableBuilder(
     column: $table.playerNormalWidth,
     builder: (column) => ColumnOrderings(column),
@@ -7450,6 +8839,11 @@ class $$AppSettingsTableAnnotationComposer
   GeneratedColumn<int> get themeMode =>
       $composableBuilder(column: $table.themeMode, builder: (column) => column);
 
+  GeneratedColumn<DateTime> get subscriptionCheckedAt => $composableBuilder(
+    column: $table.subscriptionCheckedAt,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<double> get playerNormalWidth => $composableBuilder(
     column: $table.playerNormalWidth,
     builder: (column) => column,
@@ -7513,6 +8907,7 @@ class $$AppSettingsTableTableManager
                 Value<String?> lastDataSourceId = const Value.absent(),
                 Value<String?> cookieFile = const Value.absent(),
                 Value<int> themeMode = const Value.absent(),
+                Value<DateTime?> subscriptionCheckedAt = const Value.absent(),
                 Value<double?> playerNormalWidth = const Value.absent(),
                 Value<double?> playerNormalHeight = const Value.absent(),
                 Value<double?> playerPipWidth = const Value.absent(),
@@ -7527,6 +8922,7 @@ class $$AppSettingsTableTableManager
                 lastDataSourceId: lastDataSourceId,
                 cookieFile: cookieFile,
                 themeMode: themeMode,
+                subscriptionCheckedAt: subscriptionCheckedAt,
                 playerNormalWidth: playerNormalWidth,
                 playerNormalHeight: playerNormalHeight,
                 playerPipWidth: playerPipWidth,
@@ -7543,6 +8939,7 @@ class $$AppSettingsTableTableManager
                 Value<String?> lastDataSourceId = const Value.absent(),
                 Value<String?> cookieFile = const Value.absent(),
                 Value<int> themeMode = const Value.absent(),
+                Value<DateTime?> subscriptionCheckedAt = const Value.absent(),
                 Value<double?> playerNormalWidth = const Value.absent(),
                 Value<double?> playerNormalHeight = const Value.absent(),
                 Value<double?> playerPipWidth = const Value.absent(),
@@ -7557,6 +8954,7 @@ class $$AppSettingsTableTableManager
                 lastDataSourceId: lastDataSourceId,
                 cookieFile: cookieFile,
                 themeMode: themeMode,
+                subscriptionCheckedAt: subscriptionCheckedAt,
                 playerNormalWidth: playerNormalWidth,
                 playerNormalHeight: playerNormalHeight,
                 playerPipWidth: playerPipWidth,
@@ -7602,6 +9000,8 @@ class $AppDatabaseManager {
       $$EpisodeHistoryTableTableManager(_db, _db.episodeHistory);
   $$EpisodeSkipDataTableTableManager get episodeSkipData =>
       $$EpisodeSkipDataTableTableManager(_db, _db.episodeSkipData);
+  $$SubscriptionsTableTableManager get subscriptions =>
+      $$SubscriptionsTableTableManager(_db, _db.subscriptions);
   $$DownloadTasksTableTableManager get downloadTasks =>
       $$DownloadTasksTableTableManager(_db, _db.downloadTasks);
   $$AppSettingsTableTableManager get appSettings =>

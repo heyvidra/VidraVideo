@@ -47,6 +47,7 @@ dependencies:
   easy_localization: ^3.0.8
   drift: ^2.31.0
   sqlite3_flutter_libs: ^0.6.0+eol
+  local_notifier: ^0.1.6
 
 # fvp 0.36+ regression (upstream commit 6a2d588): event plumbing moved from
 # native callbacks to Dart streams, but MdkVideoPlayer.dispose() closes

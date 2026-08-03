@@ -4,6 +4,7 @@ import 'dart:io' show Platform;
 import 'package:easy_localization/easy_localization.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter/material.dart';
+import 'package:local_notifier/local_notifier.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vidra_player_kit/vidra_player_kit.dart';
@@ -27,6 +28,20 @@ import 'src/window/window_title_bar_buttons.dart';
 import 'src/data/database/app_database.dart';
 import 'src/data/database/app_database_provider.dart';
 
+/// Desktop notification channel. Named explicitly so the OS attributes the
+/// toast to Vidra rather than to the Flutter runner.
+///
+/// Best-effort: a platform without a notification centre, or a user who has
+/// refused permission, must not stop the app from starting. The subscription
+/// badge carries the same news either way.
+Future<void> _setupNotifications() async {
+  try {
+    await localNotifier.setup(appName: 'Vidra');
+  } catch (e) {
+    logR('Notifications', 'setup failed: $e');
+  }
+}
+
 Future<void> main() async {
   await _runApp();
 }
@@ -35,6 +50,7 @@ Future<void> _runApp() async {
   WidgetsFlutterBinding.ensureInitialized();
   await EasyLocalization.ensureInitialized();
   await installBundledRoots();
+  await _setupNotifications();
 
   try {
     VidraPlayerKit.ensureInitialized();
