@@ -677,14 +677,16 @@ class _DashedRectPainter extends CustomPainter {
 
 /// The highest-resolution format that plays without muxing, or null.
 ///
-/// Muxed only: everything above it in the dropdown is a video-only stream
-/// paired with `bestaudio`, and two streams are not something a player can
-/// open. On YouTube this usually tops out at 720p — which is why the button
-/// states the resolution it will actually play rather than borrowing the
-/// dropdown's.
+/// Single-file only: everything above it in the dropdown is a video-only
+/// stream paired with `bestaudio`, and two streams are not something a player
+/// can open. Selected by [MediaFormat.isPlayableAlone] rather than isMuxed —
+/// a progressive file described without codec info is still one file, and
+/// requiring both codecs to be *stated* silently excluded every Bilibili
+/// link. The button names the resolution it will actually play rather than
+/// borrowing the dropdown's.
 MediaFormat? _previewFormat(MediaInfo media) {
   MediaFormat? best;
-  for (final f in media.muxedFormats) {
+  for (final f in media.formats.where((f) => f.isPlayableAlone)) {
     if (f.url == null || f.url!.isEmpty) continue;
     if (best == null || (f.height ?? 0) > (best.height ?? 0)) best = f;
   }

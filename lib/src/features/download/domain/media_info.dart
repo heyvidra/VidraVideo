@@ -115,6 +115,19 @@ class MediaFormat {
   bool get isAudioOnly => _present(acodec) && !_present(vcodec);
   bool get isVideoOnly => _present(vcodec) && !_present(acodec);
 
+  /// Playable on its own — one address the player can open.
+  ///
+  /// NOT the same question as [isMuxed]. That one asks "are both codecs known
+  /// to be present", which reads absent codec information as absence of the
+  /// stream itself. Bilibili's progressive `durl` entries are exactly that: a
+  /// single file carrying both, described with no codecs at all, and the
+  /// muxed test rejected them.
+  ///
+  /// The answer that matters is the negative one — is this KNOWN to be half a
+  /// file? An adaptive stream always says so, because that is the one thing an
+  /// extractor is certain about when it splits them.
+  bool get isPlayableAlone => !isVideoOnly && !isAudioOnly;
+
   /// H.264-in-MP4 video-only stream — muxable with AAC into a single mp4 by the
   /// SDK's in-Rust muxer (used for HD, where YouTube has no muxed format).
   bool get isAvcMp4VideoOnly =>
@@ -128,7 +141,9 @@ class MediaFormat {
     final quality = height != null
         ? '${height}p'
         : (isAudioOnly ? 'audio' : formatId);
-    final size = filesizeBytes != null ? ' · ${formatBytes(filesizeBytes!)}' : '';
+    final size = filesizeBytes != null
+        ? ' · ${formatBytes(filesizeBytes!)}'
+        : '';
     return '$quality · $ext$size';
   }
 
@@ -171,4 +186,3 @@ class PlaylistItem {
     );
   }
 }
-

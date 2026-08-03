@@ -253,5 +253,4 @@ class DownloadTask {
       completedAt: completedAt ?? this.completedAt,
     )..id = id; // preserve the DB row id (not a constructor arg)
   }
-
 }

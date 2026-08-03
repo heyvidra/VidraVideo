@@ -81,7 +81,10 @@ class DownloadManager {
     logD('DownloadManager', 'Starting to listen for DB changes');
     _dbSub = _db.select(_db.downloadTasks).watch().listen((rows) {
       if (!_isProcessing) {
-        logD('DownloadManager', 'DB update received, sync ${rows.length} tasks');
+        logD(
+          'DownloadManager',
+          'DB update received, sync ${rows.length} tasks',
+        );
         _tasks.clear();
         for (final r in rows) {
           final domainTask = r.toDomain();
@@ -535,15 +538,20 @@ class DownloadManager {
         // the cap. (No more "don't restart a near-complete download" gate: there
         // is no restart, the SDK continues from where it stopped.)
         if (attempt < _maxAttempts) {
-          logD('DownloadManager',
-              'episode failed (attempt $attempt/$_maxAttempts), '
-              'retrying (resumes from checkpoint): $e');
+          logD(
+            'DownloadManager',
+            'episode failed (attempt $attempt/$_maxAttempts), '
+                'retrying (resumes from checkpoint): $e',
+          );
           await Future.delayed(_retryDelay * attempt); // linear backoff
           if (_isEpisodeAborted(taskId, url)) return; // aborted during backoff
           continue;
         }
 
-        logD('DownloadManager', 'episode failed after $_maxAttempts attempts: $e');
+        logD(
+          'DownloadManager',
+          'episode failed after $_maxAttempts attempts: $e',
+        );
         final i = _indexOfUrl(taskId, url);
         final ep = _episodeAt(taskId, i);
         if (ep != null && ep.status == DownloadStatus.downloading) {
