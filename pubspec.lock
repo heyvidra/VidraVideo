@@ -471,7 +471,7 @@ packages:
     description:
       path: "."
       ref: HEAD
-      resolved-ref: "7328bcf9eb6f9ace41d1e2b3cf1f77df729a4a0e"
+      resolved-ref: e8ad39c207b2d83521c4c2d2128266da366b7514
       url: "https://github.com/heyvidra/fvp.git"
     source: git
     version: "0.37.3"
@@ -1316,17 +1316,17 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: "6504d6f8c14279d4598fcd2b33e9943a6e700574"
-      resolved-ref: "6504d6f8c14279d4598fcd2b33e9943a6e700574"
+      ref: "2a920f602053a82091c3ba5a41aa96a8cf246f09"
+      resolved-ref: "2a920f602053a82091c3ba5a41aa96a8cf246f09"
       url: "https://github.com/heyvidra/VidraPlayer.git"
     source: git
-    version: "1.4.4"
+    version: "1.4.5"
   vidra_player_kit:
     dependency: "direct main"
     description:
       path: "packages/vidra_player_fvp"
-      ref: "v1.4.4"
-      resolved-ref: "6504d6f8c14279d4598fcd2b33e9943a6e700574"
+      ref: "v1.4.5"
+      resolved-ref: "2a920f602053a82091c3ba5a41aa96a8cf246f09"
       url: "https://github.com/heyvidra/VidraPlayer.git"
     source: git
     version: "0.0.1"
