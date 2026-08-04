@@ -1,7 +1,7 @@
 name: vidra
 description: "Vidra - Video Streaming App"
 publish_to: "none"
-version: 1.6.7+15
+version: 1.6.8+16
 
 environment:
   sdk: ^3.10.1
@@ -20,15 +20,15 @@ dependencies:
   vidra_player:
     git:
       url: https://github.com/heyvidra/VidraPlayer.git
-      # v1.4.1; pinned to the commit so it unifies with vidra_player_kit's
+      # v1.4.3; pinned to the commit so it unifies with vidra_player_kit's
       # internal `vidra_player: path: ../../` dep (pub won't match a tag to a commit).
-      ref: 9950b06ac87a31220a0c274a851add3da76046a1
+      ref: c71e878066bdb26149c56cf6e18474a088dc025a
 
   vidra_player_kit:
     git:
       url: https://github.com/heyvidra/VidraPlayer.git
       path: packages/vidra_player_fvp
-      ref: v1.4.2
+      ref: v1.4.3
 
   dio: ^5.9.2
   ffi: ^2.1.0
@@ -41,7 +41,7 @@ dependencies:
     git:
       url: https://github.com/heyvidra/bitsdojo_window_plus.git
       path: bitsdojo_window
-      ref: v1.2.0
+      ref: v1.2.1
 
   path: ^1.9.1
   easy_localization: ^3.0.8
