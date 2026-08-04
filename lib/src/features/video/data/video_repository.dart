@@ -2,6 +2,7 @@ import 'package:drift/drift.dart'; // For Value, OrderingTerm, etc.
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/log.dart';
+import '../../../core/utils/ttl_cache.dart';
 import '../../../data/database/app_database.dart' as db;
 import '../../../data/database/app_database_provider.dart';
 import '../../../data/database/mappers.dart';
@@ -86,6 +87,31 @@ class VideoRepository {
 
   VideoRepository(this._defaultDataSource, this._allDataSources, this._db);
 
+  // --- request caches ------------------------------------------------------
+  // Both demo sources ban IPs under request storms, and plain navigation
+  // (tab flips, re-entering a detail, repeating a search) used to map
+  // one-to-one onto network fetches. Session-scoped and source-keyed; the
+  // repository itself is rebuilt on source switch, which resets them.
+
+  /// Whole list responses, keyed by the full query tuple.
+  final _listCache = TtlCache<String, Map<String, dynamic>>(
+    ttl: const Duration(minutes: 10),
+  );
+
+  final _searchCache = TtlCache<String, List<Video>>(
+    ttl: const Duration(minutes: 10),
+    maxEntries: 32,
+  );
+
+  /// When a detail was last fetched from the NETWORK. Guards the
+  /// forceRefresh path: the detail screen always asks for fresh data, but
+  /// "fresh" within this window is served from the drift cache instead —
+  /// on dbku one detail fetch fans out into a play-page request PER
+  /// EPISODE, so an unguarded refresh on a 90-episode show was a
+  /// 90-request burst every single visit.
+  final _detailFreshAt = <String, DateTime>{};
+  static const _detailTtl = Duration(minutes: 15);
+
   VideoDataSource _getDataSource(String? sourceId) {
     if (sourceId == null) return _defaultDataSource;
     return _allDataSources.firstWhere(
@@ -102,7 +128,14 @@ class VideoRepository {
     String? area,
     String? year,
     int page = 1,
+    bool forceRefresh = false,
   }) async {
+    final key =
+        '${_defaultDataSource.id}|$categoryId|$subTypeId|$area|$year|$page';
+    if (!forceRefresh) {
+      final cached = _listCache.get(key);
+      if (cached != null) return cached;
+    }
     final response = await _defaultDataSource.fetchVideos(
       categoryId: categoryId,
       subTypeId: subTypeId,
@@ -110,11 +143,13 @@ class VideoRepository {
       year: year,
       page: page,
     );
-    return {
+    final result = {
       'list': response.list,
       'total': response.total,
       'page': response.page,
     };
+    _listCache.set(key, result);
+    return result;
   }
 
   Future<Video?> getVideo(
@@ -123,6 +158,15 @@ class VideoRepository {
     String? sourceId,
   }) async {
     final sid = sourceId ?? _defaultDataSource.id;
+    // A forced refresh inside the freshness window downgrades to a cache
+    // read: the caller wants CURRENT data, and data fetched minutes ago is
+    // current. See [_detailFreshAt] for why this matters so much on dbku.
+    final freshAt = _detailFreshAt['$sid|$apiId'];
+    if (forceRefresh &&
+        freshAt != null &&
+        DateTime.now().difference(freshAt) < _detailTtl) {
+      forceRefresh = false;
+    }
     // 1. Check local cache if not forcing refresh
     if (!forceRefresh) {
       try {
@@ -148,6 +192,7 @@ class VideoRepository {
     final ds = _getDataSource(sid);
     var video = await ds.getVideoDetail(apiId);
     if (video != null) {
+      _detailFreshAt['$sid|$apiId'] = DateTime.now();
       // Ensure sourceId is set for the local DB
       video = video.copyWith(sourceId: sid);
       // 2. Save to DB
@@ -194,8 +239,14 @@ class VideoRepository {
 
   // Play history lives in HistoryRepository (history_repository.dart).
 
-  Future<List<Video>> searchVideos(String keyword) =>
-      _defaultDataSource.searchVideos(keyword);
+  Future<List<Video>> searchVideos(String keyword) async {
+    final key = '${_defaultDataSource.id}|$keyword';
+    final cached = _searchCache.get(key);
+    if (cached != null) return cached;
+    final result = await _defaultDataSource.searchVideos(keyword);
+    _searchCache.set(key, result);
+    return result;
+  }
 
   String resolveUrl(String url, {String? sourceId}) {
     final ds = _getDataSource(sourceId);

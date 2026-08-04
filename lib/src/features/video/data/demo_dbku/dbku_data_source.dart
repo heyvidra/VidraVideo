@@ -92,7 +92,9 @@ class DbkuDataSource implements VideoDataSource {
         '/vodsearch/-------------.html',
         query: {'wd': keyword},
       );
-      return DbkuParser.parseVideoList(html);
+      // Search items are a media list with director/cast/region/year/blurb
+      // per row — the grid parser would drop all of that.
+      return DbkuParser.parseSearchList(html);
     } on DioException catch (e) {
       logD('Dbku', 'Error searching videos: $e');
       throw ApiException.fromDioException(e);
@@ -184,11 +186,25 @@ class DbkuDataSource implements VideoDataSource {
     return resolved.where((e) => e.url != null).toList();
   }
 
+  /// Play-page path -> stream URL, remembered for this session. A repeat
+  /// detail fetch (the repository's freshness window expired, or another
+  /// screen asked) re-parses the episode LIST but only pays a network
+  /// request for episodes it has never resolved — for an ongoing show
+  /// that's the one new episode instead of the whole run. Session-scoped
+  /// on purpose: stream URLs rot on the CDN's schedule, and a restart is
+  /// the rot boundary we can afford without persisting timestamps.
+  final _resolvedThisSession = <String, String>{};
+
   Future<VideoEpisode> _resolveEpisode(VideoEpisode episode) async {
     final playPath = episode.url;
     if (playPath == null) return episode;
+    final known = _resolvedThisSession[playPath];
+    if (known != null) {
+      return episode.copyWith(qualities: [VideoQuality(name: '标清', url: known)]);
+    }
     final url = await resolveEpisodeUrl(playPath);
     if (url == null) return episode.copyWith(qualities: const []);
+    _resolvedThisSession[playPath] = url;
     return episode.copyWith(qualities: [VideoQuality(name: '标清', url: url)]);
   }
 }
