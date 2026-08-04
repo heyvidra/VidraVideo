@@ -183,6 +183,42 @@ void main() {
     );
   });
 
+  test('a v8 database gains the player window position columns', () async {
+    // What every installed v1.6.x copy looks like: app_settings exists but
+    // predates the v9 position columns. onCreate builds the CURRENT shape,
+    // so strip them first to match the field.
+    final probe = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(probe.close);
+    for (final col in [
+      'player_window_x',
+      'player_window_y',
+      'player_pip_x',
+      'player_pip_y',
+    ]) {
+      await probe.customStatement(
+        'ALTER TABLE app_settings DROP COLUMN $col',
+      );
+    }
+
+    final migrator = probe.createMigrator();
+    await probe.migration.onUpgrade(migrator, 8, probe.schemaVersion);
+    // Same climb again — the half-migrated-relaunch shape must stay safe.
+    await probe.migration.onUpgrade(migrator, 8, probe.schemaVersion);
+
+    final cols = await probe
+        .customSelect("SELECT name FROM pragma_table_info('app_settings')")
+        .get();
+    expect(
+      cols.map((r) => r.data['name']),
+      containsAll([
+        'player_window_x',
+        'player_window_y',
+        'player_pip_x',
+        'player_pip_y',
+      ]),
+    );
+  });
+
   test(
     'a HALF-migrated database recovers, and the whole ladder is idempotent',
     () async {

@@ -5374,6 +5374,50 @@ class $AppSettingsTable extends AppSettings
     type: DriftSqlType.double,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _playerWindowXMeta = const VerificationMeta(
+    'playerWindowX',
+  );
+  @override
+  late final GeneratedColumn<double> playerWindowX = GeneratedColumn<double>(
+    'player_window_x',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _playerWindowYMeta = const VerificationMeta(
+    'playerWindowY',
+  );
+  @override
+  late final GeneratedColumn<double> playerWindowY = GeneratedColumn<double>(
+    'player_window_y',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _playerPipXMeta = const VerificationMeta(
+    'playerPipX',
+  );
+  @override
+  late final GeneratedColumn<double> playerPipX = GeneratedColumn<double>(
+    'player_pip_x',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _playerPipYMeta = const VerificationMeta(
+    'playerPipY',
+  );
+  @override
+  late final GeneratedColumn<double> playerPipY = GeneratedColumn<double>(
+    'player_pip_y',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _localeMeta = const VerificationMeta('locale');
   @override
   late final GeneratedColumn<String> locale = GeneratedColumn<String>(
@@ -5398,6 +5442,10 @@ class $AppSettingsTable extends AppSettings
     playerNormalHeight,
     playerPipWidth,
     playerPipHeight,
+    playerWindowX,
+    playerWindowY,
+    playerPipX,
+    playerPipY,
     locale,
   ];
   @override
@@ -5517,6 +5565,42 @@ class $AppSettingsTable extends AppSettings
         ),
       );
     }
+    if (data.containsKey('player_window_x')) {
+      context.handle(
+        _playerWindowXMeta,
+        playerWindowX.isAcceptableOrUnknown(
+          data['player_window_x']!,
+          _playerWindowXMeta,
+        ),
+      );
+    }
+    if (data.containsKey('player_window_y')) {
+      context.handle(
+        _playerWindowYMeta,
+        playerWindowY.isAcceptableOrUnknown(
+          data['player_window_y']!,
+          _playerWindowYMeta,
+        ),
+      );
+    }
+    if (data.containsKey('player_pip_x')) {
+      context.handle(
+        _playerPipXMeta,
+        playerPipX.isAcceptableOrUnknown(
+          data['player_pip_x']!,
+          _playerPipXMeta,
+        ),
+      );
+    }
+    if (data.containsKey('player_pip_y')) {
+      context.handle(
+        _playerPipYMeta,
+        playerPipY.isAcceptableOrUnknown(
+          data['player_pip_y']!,
+          _playerPipYMeta,
+        ),
+      );
+    }
     if (data.containsKey('locale')) {
       context.handle(
         _localeMeta,
@@ -5584,6 +5668,22 @@ class $AppSettingsTable extends AppSettings
         DriftSqlType.double,
         data['${effectivePrefix}player_pip_height'],
       ),
+      playerWindowX: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}player_window_x'],
+      ),
+      playerWindowY: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}player_window_y'],
+      ),
+      playerPipX: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}player_pip_x'],
+      ),
+      playerPipY: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}player_pip_y'],
+      ),
       locale: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}locale'],
@@ -5615,6 +5715,18 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   final double? playerNormalHeight;
   final double? playerPipWidth;
   final double? playerPipHeight;
+
+  /// Last top-left of the player window in NORMAL mode. Size alone cannot
+  /// restore "where I left it" — and window MOVES emit no metric events,
+  /// so these are captured at close/pip-enter snapshots, not on resize.
+  final double? playerWindowX;
+  final double? playerWindowY;
+
+  /// Same for PIP mode: where the user parked the mini window. Without it
+  /// every pip entry flies to the bottom-right default, discarding the
+  /// user's chosen corner.
+  final double? playerPipX;
+  final double? playerPipY;
   final String? locale;
   const AppSetting({
     required this.id,
@@ -5630,6 +5742,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     this.playerNormalHeight,
     this.playerPipWidth,
     this.playerPipHeight,
+    this.playerWindowX,
+    this.playerWindowY,
+    this.playerPipX,
+    this.playerPipY,
     this.locale,
   });
   @override
@@ -5665,6 +5781,18 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     }
     if (!nullToAbsent || playerPipHeight != null) {
       map['player_pip_height'] = Variable<double>(playerPipHeight);
+    }
+    if (!nullToAbsent || playerWindowX != null) {
+      map['player_window_x'] = Variable<double>(playerWindowX);
+    }
+    if (!nullToAbsent || playerWindowY != null) {
+      map['player_window_y'] = Variable<double>(playerWindowY);
+    }
+    if (!nullToAbsent || playerPipX != null) {
+      map['player_pip_x'] = Variable<double>(playerPipX);
+    }
+    if (!nullToAbsent || playerPipY != null) {
+      map['player_pip_y'] = Variable<double>(playerPipY);
     }
     if (!nullToAbsent || locale != null) {
       map['locale'] = Variable<String>(locale);
@@ -5703,6 +5831,18 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       playerPipHeight: playerPipHeight == null && nullToAbsent
           ? const Value.absent()
           : Value(playerPipHeight),
+      playerWindowX: playerWindowX == null && nullToAbsent
+          ? const Value.absent()
+          : Value(playerWindowX),
+      playerWindowY: playerWindowY == null && nullToAbsent
+          ? const Value.absent()
+          : Value(playerWindowY),
+      playerPipX: playerPipX == null && nullToAbsent
+          ? const Value.absent()
+          : Value(playerPipX),
+      playerPipY: playerPipY == null && nullToAbsent
+          ? const Value.absent()
+          : Value(playerPipY),
       locale: locale == null && nullToAbsent
           ? const Value.absent()
           : Value(locale),
@@ -5738,6 +5878,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       ),
       playerPipWidth: serializer.fromJson<double?>(json['playerPipWidth']),
       playerPipHeight: serializer.fromJson<double?>(json['playerPipHeight']),
+      playerWindowX: serializer.fromJson<double?>(json['playerWindowX']),
+      playerWindowY: serializer.fromJson<double?>(json['playerWindowY']),
+      playerPipX: serializer.fromJson<double?>(json['playerPipX']),
+      playerPipY: serializer.fromJson<double?>(json['playerPipY']),
       locale: serializer.fromJson<String?>(json['locale']),
     );
   }
@@ -5760,6 +5904,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       'playerNormalHeight': serializer.toJson<double?>(playerNormalHeight),
       'playerPipWidth': serializer.toJson<double?>(playerPipWidth),
       'playerPipHeight': serializer.toJson<double?>(playerPipHeight),
+      'playerWindowX': serializer.toJson<double?>(playerWindowX),
+      'playerWindowY': serializer.toJson<double?>(playerWindowY),
+      'playerPipX': serializer.toJson<double?>(playerPipX),
+      'playerPipY': serializer.toJson<double?>(playerPipY),
       'locale': serializer.toJson<String?>(locale),
     };
   }
@@ -5778,6 +5926,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     Value<double?> playerNormalHeight = const Value.absent(),
     Value<double?> playerPipWidth = const Value.absent(),
     Value<double?> playerPipHeight = const Value.absent(),
+    Value<double?> playerWindowX = const Value.absent(),
+    Value<double?> playerWindowY = const Value.absent(),
+    Value<double?> playerPipX = const Value.absent(),
+    Value<double?> playerPipY = const Value.absent(),
     Value<String?> locale = const Value.absent(),
   }) => AppSetting(
     id: id ?? this.id,
@@ -5807,6 +5959,14 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     playerPipHeight: playerPipHeight.present
         ? playerPipHeight.value
         : this.playerPipHeight,
+    playerWindowX: playerWindowX.present
+        ? playerWindowX.value
+        : this.playerWindowX,
+    playerWindowY: playerWindowY.present
+        ? playerWindowY.value
+        : this.playerWindowY,
+    playerPipX: playerPipX.present ? playerPipX.value : this.playerPipX,
+    playerPipY: playerPipY.present ? playerPipY.value : this.playerPipY,
     locale: locale.present ? locale.value : this.locale,
   );
   AppSetting copyWithCompanion(AppSettingsCompanion data) {
@@ -5846,6 +6006,18 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       playerPipHeight: data.playerPipHeight.present
           ? data.playerPipHeight.value
           : this.playerPipHeight,
+      playerWindowX: data.playerWindowX.present
+          ? data.playerWindowX.value
+          : this.playerWindowX,
+      playerWindowY: data.playerWindowY.present
+          ? data.playerWindowY.value
+          : this.playerWindowY,
+      playerPipX: data.playerPipX.present
+          ? data.playerPipX.value
+          : this.playerPipX,
+      playerPipY: data.playerPipY.present
+          ? data.playerPipY.value
+          : this.playerPipY,
       locale: data.locale.present ? data.locale.value : this.locale,
     );
   }
@@ -5866,6 +6038,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           ..write('playerNormalHeight: $playerNormalHeight, ')
           ..write('playerPipWidth: $playerPipWidth, ')
           ..write('playerPipHeight: $playerPipHeight, ')
+          ..write('playerWindowX: $playerWindowX, ')
+          ..write('playerWindowY: $playerWindowY, ')
+          ..write('playerPipX: $playerPipX, ')
+          ..write('playerPipY: $playerPipY, ')
           ..write('locale: $locale')
           ..write(')'))
         .toString();
@@ -5886,6 +6062,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     playerNormalHeight,
     playerPipWidth,
     playerPipHeight,
+    playerWindowX,
+    playerWindowY,
+    playerPipX,
+    playerPipY,
     locale,
   );
   @override
@@ -5905,6 +6085,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           other.playerNormalHeight == this.playerNormalHeight &&
           other.playerPipWidth == this.playerPipWidth &&
           other.playerPipHeight == this.playerPipHeight &&
+          other.playerWindowX == this.playerWindowX &&
+          other.playerWindowY == this.playerWindowY &&
+          other.playerPipX == this.playerPipX &&
+          other.playerPipY == this.playerPipY &&
           other.locale == this.locale);
 }
 
@@ -5922,6 +6106,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<double?> playerNormalHeight;
   final Value<double?> playerPipWidth;
   final Value<double?> playerPipHeight;
+  final Value<double?> playerWindowX;
+  final Value<double?> playerWindowY;
+  final Value<double?> playerPipX;
+  final Value<double?> playerPipY;
   final Value<String?> locale;
   const AppSettingsCompanion({
     this.id = const Value.absent(),
@@ -5937,6 +6125,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.playerNormalHeight = const Value.absent(),
     this.playerPipWidth = const Value.absent(),
     this.playerPipHeight = const Value.absent(),
+    this.playerWindowX = const Value.absent(),
+    this.playerWindowY = const Value.absent(),
+    this.playerPipX = const Value.absent(),
+    this.playerPipY = const Value.absent(),
     this.locale = const Value.absent(),
   });
   AppSettingsCompanion.insert({
@@ -5953,6 +6145,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.playerNormalHeight = const Value.absent(),
     this.playerPipWidth = const Value.absent(),
     this.playerPipHeight = const Value.absent(),
+    this.playerWindowX = const Value.absent(),
+    this.playerWindowY = const Value.absent(),
+    this.playerPipX = const Value.absent(),
+    this.playerPipY = const Value.absent(),
     this.locale = const Value.absent(),
   });
   static Insertable<AppSetting> custom({
@@ -5969,6 +6165,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Expression<double>? playerNormalHeight,
     Expression<double>? playerPipWidth,
     Expression<double>? playerPipHeight,
+    Expression<double>? playerWindowX,
+    Expression<double>? playerWindowY,
+    Expression<double>? playerPipX,
+    Expression<double>? playerPipY,
     Expression<String>? locale,
   }) {
     return RawValuesInsertable({
@@ -5989,6 +6189,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
         'player_normal_height': playerNormalHeight,
       if (playerPipWidth != null) 'player_pip_width': playerPipWidth,
       if (playerPipHeight != null) 'player_pip_height': playerPipHeight,
+      if (playerWindowX != null) 'player_window_x': playerWindowX,
+      if (playerWindowY != null) 'player_window_y': playerWindowY,
+      if (playerPipX != null) 'player_pip_x': playerPipX,
+      if (playerPipY != null) 'player_pip_y': playerPipY,
       if (locale != null) 'locale': locale,
     });
   }
@@ -6007,6 +6211,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Value<double?>? playerNormalHeight,
     Value<double?>? playerPipWidth,
     Value<double?>? playerPipHeight,
+    Value<double?>? playerWindowX,
+    Value<double?>? playerWindowY,
+    Value<double?>? playerPipX,
+    Value<double?>? playerPipY,
     Value<String?>? locale,
   }) {
     return AppSettingsCompanion(
@@ -6026,6 +6234,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       playerNormalHeight: playerNormalHeight ?? this.playerNormalHeight,
       playerPipWidth: playerPipWidth ?? this.playerPipWidth,
       playerPipHeight: playerPipHeight ?? this.playerPipHeight,
+      playerWindowX: playerWindowX ?? this.playerWindowX,
+      playerWindowY: playerWindowY ?? this.playerWindowY,
+      playerPipX: playerPipX ?? this.playerPipX,
+      playerPipY: playerPipY ?? this.playerPipY,
       locale: locale ?? this.locale,
     );
   }
@@ -6078,6 +6290,18 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     if (playerPipHeight.present) {
       map['player_pip_height'] = Variable<double>(playerPipHeight.value);
     }
+    if (playerWindowX.present) {
+      map['player_window_x'] = Variable<double>(playerWindowX.value);
+    }
+    if (playerWindowY.present) {
+      map['player_window_y'] = Variable<double>(playerWindowY.value);
+    }
+    if (playerPipX.present) {
+      map['player_pip_x'] = Variable<double>(playerPipX.value);
+    }
+    if (playerPipY.present) {
+      map['player_pip_y'] = Variable<double>(playerPipY.value);
+    }
     if (locale.present) {
       map['locale'] = Variable<String>(locale.value);
     }
@@ -6100,6 +6324,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
           ..write('playerNormalHeight: $playerNormalHeight, ')
           ..write('playerPipWidth: $playerPipWidth, ')
           ..write('playerPipHeight: $playerPipHeight, ')
+          ..write('playerWindowX: $playerWindowX, ')
+          ..write('playerWindowY: $playerWindowY, ')
+          ..write('playerPipX: $playerPipX, ')
+          ..write('playerPipY: $playerPipY, ')
           ..write('locale: $locale')
           ..write(')'))
         .toString();
@@ -8614,6 +8842,10 @@ typedef $$AppSettingsTableCreateCompanionBuilder =
       Value<double?> playerNormalHeight,
       Value<double?> playerPipWidth,
       Value<double?> playerPipHeight,
+      Value<double?> playerWindowX,
+      Value<double?> playerWindowY,
+      Value<double?> playerPipX,
+      Value<double?> playerPipY,
       Value<String?> locale,
     });
 typedef $$AppSettingsTableUpdateCompanionBuilder =
@@ -8631,6 +8863,10 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
       Value<double?> playerNormalHeight,
       Value<double?> playerPipWidth,
       Value<double?> playerPipHeight,
+      Value<double?> playerWindowX,
+      Value<double?> playerWindowY,
+      Value<double?> playerPipX,
+      Value<double?> playerPipY,
       Value<String?> locale,
     });
 
@@ -8705,6 +8941,26 @@ class $$AppSettingsTableFilterComposer
 
   ColumnFilters<double> get playerPipHeight => $composableBuilder(
     column: $table.playerPipHeight,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get playerWindowX => $composableBuilder(
+    column: $table.playerWindowX,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get playerWindowY => $composableBuilder(
+    column: $table.playerWindowY,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get playerPipX => $composableBuilder(
+    column: $table.playerPipX,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get playerPipY => $composableBuilder(
+    column: $table.playerPipY,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8788,6 +9044,26 @@ class $$AppSettingsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get playerWindowX => $composableBuilder(
+    column: $table.playerWindowX,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get playerWindowY => $composableBuilder(
+    column: $table.playerWindowY,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get playerPipX => $composableBuilder(
+    column: $table.playerPipX,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get playerPipY => $composableBuilder(
+    column: $table.playerPipY,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get locale => $composableBuilder(
     column: $table.locale,
     builder: (column) => ColumnOrderings(column),
@@ -8864,6 +9140,26 @@ class $$AppSettingsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<double> get playerWindowX => $composableBuilder(
+    column: $table.playerWindowX,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get playerWindowY => $composableBuilder(
+    column: $table.playerWindowY,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get playerPipX => $composableBuilder(
+    column: $table.playerPipX,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get playerPipY => $composableBuilder(
+    column: $table.playerPipY,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get locale =>
       $composableBuilder(column: $table.locale, builder: (column) => column);
 }
@@ -8912,6 +9208,10 @@ class $$AppSettingsTableTableManager
                 Value<double?> playerNormalHeight = const Value.absent(),
                 Value<double?> playerPipWidth = const Value.absent(),
                 Value<double?> playerPipHeight = const Value.absent(),
+                Value<double?> playerWindowX = const Value.absent(),
+                Value<double?> playerWindowY = const Value.absent(),
+                Value<double?> playerPipX = const Value.absent(),
+                Value<double?> playerPipY = const Value.absent(),
                 Value<String?> locale = const Value.absent(),
               }) => AppSettingsCompanion(
                 id: id,
@@ -8927,6 +9227,10 @@ class $$AppSettingsTableTableManager
                 playerNormalHeight: playerNormalHeight,
                 playerPipWidth: playerPipWidth,
                 playerPipHeight: playerPipHeight,
+                playerWindowX: playerWindowX,
+                playerWindowY: playerWindowY,
+                playerPipX: playerPipX,
+                playerPipY: playerPipY,
                 locale: locale,
               ),
           createCompanionCallback:
@@ -8944,6 +9248,10 @@ class $$AppSettingsTableTableManager
                 Value<double?> playerNormalHeight = const Value.absent(),
                 Value<double?> playerPipWidth = const Value.absent(),
                 Value<double?> playerPipHeight = const Value.absent(),
+                Value<double?> playerWindowX = const Value.absent(),
+                Value<double?> playerWindowY = const Value.absent(),
+                Value<double?> playerPipX = const Value.absent(),
+                Value<double?> playerPipY = const Value.absent(),
                 Value<String?> locale = const Value.absent(),
               }) => AppSettingsCompanion.insert(
                 id: id,
@@ -8959,6 +9267,10 @@ class $$AppSettingsTableTableManager
                 playerNormalHeight: playerNormalHeight,
                 playerPipWidth: playerPipWidth,
                 playerPipHeight: playerPipHeight,
+                playerWindowX: playerWindowX,
+                playerWindowY: playerWindowY,
+                playerPipX: playerPipX,
+                playerPipY: playerPipY,
                 locale: locale,
               ),
           withReferenceMapper: (p0) => p0

@@ -27,6 +27,14 @@ class AppSettings {
   double? playerPipWidth;
   double? playerPipHeight;
 
+  // Player window top-left in normal mode (restore-on-reopen)
+  double? playerWindowX;
+  double? playerWindowY;
+
+  // Pip window top-left (where the user parked the mini window)
+  double? playerPipX;
+  double? playerPipY;
+
   String? locale;
 
   AppSettings({
@@ -38,6 +46,10 @@ class AppSettings {
     this.playerNormalHeight,
     this.playerPipWidth,
     this.playerPipHeight,
+    this.playerWindowX,
+    this.playerWindowY,
+    this.playerPipX,
+    this.playerPipY,
     this.locale,
   });
 }

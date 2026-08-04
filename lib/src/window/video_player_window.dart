@@ -49,8 +49,18 @@ class _VideoPlayerWindowAppState extends ConsumerState<VideoPlayerWindowApp> {
     _currentArguments = widget.arguments ?? appWindow.arguments;
   }
 
-  Future<bool> _handleCloseRequest(BuildContext context, DesktopWindow window) {
-    return _closeController.requestClose();
+  Future<bool> _handleCloseRequest(
+    BuildContext context,
+    DesktopWindow window,
+  ) async {
+    final allow = await _closeController.requestClose();
+    if (allow) {
+      // Final frame, written before this engine (and its debounce timers)
+      // dies. Also the only capture point for pure window moves — dragging
+      // the window emits no metric events.
+      await WindowHelper.saveNow();
+    }
+    return allow;
   }
 
   void _handleArgumentsChanged(DesktopWindow window) {

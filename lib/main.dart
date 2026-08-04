@@ -130,7 +130,13 @@ List<WindowConfiguration> _buildWindowConfigurations() {
       title: 'Vidra Player',
       sizeBuilder: (_) => WindowHelper.playerSize(),
       minSize: AppConfig.playerMiniSize,
-      alignment: Alignment.center,
+      // Center only when no position survived — a non-null alignment here
+      // would re-center the window on ready and discard the restored
+      // top-left passed to openNewWindow.
+      alignmentBuilder: (_) async =>
+          await WindowHelper.savedPlayerPosition() == null
+          ? Alignment.center
+          : null,
       backgroundEffectBuilder: _resolveBackgroundEffect,
       alwaysOnTop: false,
       buttonVisibilityBuilder: _resolvePlayerButtonVisibility,

@@ -20,6 +20,9 @@ class PlayerWindowLauncher {
   }) async {
     await appWindow.openNewWindow(
       size: await WindowHelper.playerSize(),
+      // Saved normal-mode top-left; null centers via the window
+      // configuration's alignment fallback.
+      position: await WindowHelper.savedPlayerPosition(),
       name: 'player',
       arguments: {
         'videoId': videoId,

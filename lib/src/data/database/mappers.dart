@@ -167,6 +167,10 @@ extension AppSettingMapper on db.AppSetting {
       ..playerNormalHeight = playerNormalHeight
       ..playerPipWidth = playerPipWidth
       ..playerPipHeight = playerPipHeight
+      ..playerWindowX = playerWindowX
+      ..playerWindowY = playerWindowY
+      ..playerPipX = playerPipX
+      ..playerPipY = playerPipY
       ..locale = locale;
   }
 }
@@ -185,6 +189,10 @@ extension AppSettingsCompanionMapper on domain.AppSettings {
       playerNormalHeight: Value(playerNormalHeight),
       playerPipWidth: Value(playerPipWidth),
       playerPipHeight: Value(playerPipHeight),
+      playerWindowX: Value(playerWindowX),
+      playerWindowY: Value(playerWindowY),
+      playerPipX: Value(playerPipX),
+      playerPipY: Value(playerPipY),
       locale: Value(locale),
     );
   }

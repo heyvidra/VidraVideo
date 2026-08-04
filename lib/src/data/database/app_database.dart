@@ -322,6 +322,18 @@ class AppSettings extends Table {
   RealColumn get playerPipWidth => real().nullable()();
   RealColumn get playerPipHeight => real().nullable()();
 
+  /// Last top-left of the player window in NORMAL mode. Size alone cannot
+  /// restore "where I left it" — and window MOVES emit no metric events,
+  /// so these are captured at close/pip-enter snapshots, not on resize.
+  RealColumn get playerWindowX => real().nullable()();
+  RealColumn get playerWindowY => real().nullable()();
+
+  /// Same for PIP mode: where the user parked the mini window. Without it
+  /// every pip entry flies to the bottom-right default, discarding the
+  /// user's chosen corner.
+  RealColumn get playerPipX => real().nullable()();
+  RealColumn get playerPipY => real().nullable()();
+
   TextColumn get locale => text().nullable()();
 }
 
@@ -344,7 +356,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 10;
 
   /// True when [table] already has a column named [name].
   ///
@@ -440,6 +452,16 @@ class AppDatabase extends _$AppDatabase {
             subscriptions,
             subscriptions.crossSeenRemarks,
           );
+        }
+        // v9: player window position (normal mode), for restore-on-reopen.
+        if (from < 9 && to >= 9) {
+          await _addColumnIfAbsent(m, appSettings, appSettings.playerWindowX);
+          await _addColumnIfAbsent(m, appSettings, appSettings.playerWindowY);
+        }
+        // v10: pip window position, so pip entry returns to the user's spot.
+        if (from < 10 && to >= 10) {
+          await _addColumnIfAbsent(m, appSettings, appSettings.playerPipX);
+          await _addColumnIfAbsent(m, appSettings, appSettings.playerPipY);
         }
       });
     },
