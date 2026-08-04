@@ -30,6 +30,41 @@ void main() {
       expect(list.single.remarks, '更新至3集');
     });
 
+    test('picks up the cast line beside a grid thumb', () {
+      // Real structure: the thumb anchor's SIBLING detail div carries the
+      // comma-separated cast. The old parser stopped at </a> and lost it —
+      // dbku cards rendered with an empty subtitle while the data sat in
+      // the very HTML being parsed.
+      const html =
+          '<li class="col-lg-8 col-md-6"><div class="myui-vodlist__box">'
+          '<a class="myui-vodlist__thumb lazyload" href="/voddetail/148144.html" '
+          'title="凤池生春" data-original="https://img.example.com/f.jpg">'
+          '<span class="play hidden-xs"></span>'
+          '<span class="pic-tag pic-tag-top"><span class="tag" style="background-color: #858484;">9.1分</span></span>'
+          '<span class="pic-text text-right">更新至19集</span></a>'
+          '<div class="myui-vodlist__detail">'
+          '<h4 class="title text-overflow"><a href="/voddetail/148144.html" title="凤池生春">凤池生春</a></h4>'
+          '<p class="text text-overflow text-muted hidden-xs">朱丽岚,邓凯,薛八一</p>'
+          '</div></div></li>';
+
+      final list = DbkuParser.parseVideoList(html);
+      expect(list, hasLength(1));
+      expect(list.single.actor, '朱丽岚,邓凯,薛八一');
+      expect(list.single.rating, 9.1);
+      expect(list.single.remarks, '更新至19集');
+    });
+
+    test('a grid item without a cast line still parses, actor null', () {
+      const html =
+          '<li class="col-lg-8"><div class="myui-vodlist__box">'
+          '<a class="myui-vodlist__thumb lazyload" href="/voddetail/1.html" '
+          'title="X" data-original="https://img.example.com/x.jpg"></a>'
+          '</div></li>';
+      final list = DbkuParser.parseVideoList(html);
+      expect(list, hasLength(1));
+      expect(list.single.actor, isNull);
+    });
+
     test('reads a search item, and counts each show once', () {
       // The search template repeats /voddetail/ links (thumb, heading, buttons);
       // only the thumb anchor should be picked up.
@@ -50,6 +85,46 @@ void main() {
       expect(list.single.apiId, 4570);
       expect(list.single.rating, 8.5);
       expect(list.single.remarks, '全36集');
+    });
+  });
+
+  group('parseSearchList', () {
+    test('extracts the full media-row fields; 未知 becomes null', () {
+      // Real structure of a /vodsearch result row: labelled spans with the
+      // values as bare text. 导演 is the site's own 未知 placeholder and must
+      // come through as null so the UI's fallback stays the single source
+      // of "missing".
+      const html =
+          '<li class="clearfix"><div class="thumb">'
+          '<a class="myui-vodlist__thumb img-lg-150 lazyload" href="/voddetail/148144.html" '
+          'title="凤池生春" data-original="https://img.example.com/f.jpg">'
+          '<span class="play hidden-xs"></span>'
+          '<span class="pic-tag pic-tag-top"><span class="tag" style="background-color: #858484;">9.1分</span></span>'
+          '<span class="pic-text text-right">更新至19集</span> </a></div>'
+          '<div class="detail"><h4 class="title"><a class="searchkey" href="/voddetail/148144.html">凤池生春</a></h4>'
+          '<p><span class="text-muted">导演：</span>未知</p>'
+          '<p><span class="text-muted">主演：</span>朱丽岚,邓凯,薛八一</p>'
+          '<p><span class="text-muted">分类：</span>短剧<span class="split-line"></span>'
+          '<span class="text-muted hidden-xs">地区：</span>大陆<span class="split-line"></span>'
+          '<span class="text-muted hidden-xs">年份：</span>2026</p>'
+          '<p class="hidden-xs"><span class="text-muted">简介：</span>《凤池生春》线上看，共21集…'
+          '<a href="/voddetail/148144.html">详情 &gt;</a></p>'
+          '<p class="margin-0"><a class="btn btn-sm btn-warm" href="/vodplay/148144-1-1.html">立即播放</a>'
+          '<a class="btn btn-sm btn-default hidden-xs" href="/voddetail/148144.html">查看详情</a></p>'
+          '</div></li>';
+
+      final list = DbkuParser.parseSearchList(html);
+      expect(list, hasLength(1), reason: 'one row, however many voddetail links');
+      final v = list.single;
+      expect(v.apiId, 148144);
+      expect(v.director, isNull, reason: '未知 is a placeholder, not a name');
+      expect(v.actor, '朱丽岚,邓凯,薛八一');
+      expect(v.type, '短剧');
+      expect(v.region, '大陆');
+      expect(v.year, '2026');
+      expect(v.blurb, startsWith('《凤池生春》线上看'));
+      expect(v.rating, 9.1);
+      expect(v.remarks, '更新至19集');
     });
   });
 

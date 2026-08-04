@@ -16,17 +16,27 @@ class DbkuParser {
 
   /// Thumb anchor, shared verbatim by the grid pages (`/vodtype`, `/vodshow`)
   /// and the search page (`/vodsearch`) — same attributes in the same order.
+  /// The trailing group runs to the item's own `</li>` so the sibling
+  /// `myui-vodlist__detail` block (which carries the cast line on grid
+  /// pages) is in reach; non-greedy keeps it from crossing into the next
+  /// item.
   static final _item = RegExp(
     r'<a class="myui-vodlist__thumb[^"]*"\s+href="/voddetail/(\d+)\.html"\s+'
-    r'title="([^"]*)"\s+data-original="([^"]*)"(.*?)</a>',
+    r'title="([^"]*)"\s+data-original="([^"]*)"(.*?)</a>(.*?)</li>',
     dotAll: true,
   );
   static final _score = RegExp(r'>([\d.]+)分<');
   static final _remarks = RegExp(r'<span class="pic-text[^"]*">([^<]*)</span>');
 
+  /// Cast line under a grid thumb: already comma-separated plain text.
+  static final _listActor = RegExp(r'<p class="text[^"]*">([^<]*)</p>');
+
   static List<Video> parseVideoList(String html) {
     return _item.allMatches(html).map((m) {
       final body = m.group(4) ?? '';
+      final detail = m.group(5) ?? '';
+      final rawActor = _listActor.firstMatch(detail)?.group(1);
+      final actor = rawActor == null ? null : _unescape(rawActor).trim();
       return Video(
         apiId: int.parse(m.group(1)!),
         sourceId: 'dbku',
@@ -34,6 +44,51 @@ class DbkuParser {
         coverUrl: m.group(3)!,
         rating: double.tryParse(_score.firstMatch(body)?.group(1) ?? '') ?? 0.0,
         remarks: _remarks.firstMatch(body)?.group(1),
+        actor: (actor == null || actor.isEmpty) ? null : actor,
+      );
+    }).toList();
+  }
+
+  // --- search --------------------------------------------------------------
+
+  // The search page renders a media list, not a thumb grid: every item
+  // carries 导演/主演/分类/地区/年份 and a 简介 teaser as plain text after
+  // labelled spans. The grid parser above still MATCHES these items (the
+  // thumb anchor is identical), it just cannot see the extra fields — so
+  // this parser reuses it for the shared part and layers the rest on top.
+  static final _mDirector = RegExp(r'导演：</span>([^<]*)');
+  static final _mActor = RegExp(r'主演：</span>([^<]*)');
+  static final _mTypeName = RegExp(r'分类：</span>([^<]*)');
+  static final _mRegion = RegExp(r'地区：</span>([^<]*)');
+  static final _mYear = RegExp(r'年份：</span>\s*(\d{4})');
+  static final _mBlurb = RegExp(r'简介：</span>([^<]*)');
+
+  static List<Video> parseSearchList(String html) {
+    return _item.allMatches(html).map((m) {
+      final body = m.group(4) ?? '';
+      final detail = m.group(5) ?? '';
+      String? field(RegExp re) {
+        final raw = re.firstMatch(detail)?.group(1);
+        if (raw == null) return null;
+        final text = _unescape(raw).trim();
+        // The site prints a literal 未知 placeholder; keep our "missing"
+        // convention (null) so the UI's own fallback stays in charge.
+        return (text.isEmpty || text == '未知') ? null : text;
+      }
+
+      return Video(
+        apiId: int.parse(m.group(1)!),
+        sourceId: 'dbku',
+        title: _unescape(m.group(2)!),
+        coverUrl: m.group(3)!,
+        rating: double.tryParse(_score.firstMatch(body)?.group(1) ?? '') ?? 0.0,
+        remarks: _remarks.firstMatch(body)?.group(1),
+        director: field(_mDirector),
+        actor: field(_mActor),
+        type: field(_mTypeName) ?? '',
+        region: field(_mRegion),
+        year: field(_mYear),
+        blurb: field(_mBlurb),
       );
     }).toList();
   }
