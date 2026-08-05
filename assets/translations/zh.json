@@ -28,7 +28,10 @@
       "content": "关闭窗口将退出Vidra。",
       "cancel": "我再看看",
       "confirm": "关闭"
-    }
+    },
+    "minimize": "最小化",
+    "maximize": "最大化",
+    "restore": "还原"
   },
   "search": {
     "placeholder": "请输入搜索关键词",

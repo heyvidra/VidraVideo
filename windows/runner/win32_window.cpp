@@ -146,6 +146,7 @@ bool Win32Window::Create(const std::wstring& title,
   }
 
   UpdateTheme(window);
+  RoundCorners(window);
 
   return OnCreate();
 }
@@ -274,6 +275,21 @@ bool Win32Window::OnCreate() {
 
 void Win32Window::OnDestroy() {
   // No-op; provided for subclasses.
+}
+
+// Windows 11 rounds a window's corners for you — but only if you ask, once you
+// have taken over the frame. bitsdojo runs with BDW_CUSTOM_FRAME, and a custom
+// frame opts out of the default rounding, which is why the app was the one
+// square-cornered window on the desktop.
+//
+// DWMWA_WINDOW_CORNER_PREFERENCE landed in Windows 11 (build 22000); on 10 the
+// call simply fails and the window stays square, which is that OS's own look.
+void Win32Window::RoundCorners(HWND const window) {
+  static constexpr DWORD kDwmwaWindowCornerPreference = 33;
+  static constexpr DWORD kDwmwcpRound = 2;
+  DWORD preference = kDwmwcpRound;
+  DwmSetWindowAttribute(window, kDwmwaWindowCornerPreference, &preference,
+                        sizeof(preference));
 }
 
 void Win32Window::UpdateTheme(HWND const window) {

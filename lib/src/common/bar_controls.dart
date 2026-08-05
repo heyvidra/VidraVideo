@@ -28,6 +28,7 @@ class BarIcon extends StatefulWidget {
     this.active = false,
     this.badge,
     this.wrap,
+    this.hoverTone,
   });
 
   final IconData icon;
@@ -45,6 +46,10 @@ class BarIcon extends StatefulWidget {
   /// rotate the glyph without owning its size or colour.
   final Widget Function(BuildContext context, Widget icon)? wrap;
 
+  /// What this control turns into under the pointer, when hovering it should
+  /// say something — the window's close button going red.
+  final Color? hoverTone;
+
   /// The one icon size in the bars.
   static const double iconSize = 17;
 
@@ -61,7 +66,9 @@ class _BarIconState extends State<BarIcon> {
   @override
   Widget build(BuildContext context) {
     final t = VidraTokens.of(context);
-    final color = widget.active ? t.cyan : t.fg2;
+    final color = widget.active
+        ? t.cyan
+        : (_hover && widget.hoverTone != null ? widget.hoverTone! : t.fg2);
 
     Widget glyph = Icon(widget.icon, size: BarIcon.iconSize, color: color);
     if (widget.wrap != null) glyph = widget.wrap!(context, glyph);
@@ -72,7 +79,9 @@ class _BarIconState extends State<BarIcon> {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: _hover ? t.fg.withValues(alpha: 0.07) : Colors.transparent,
+        color: _hover
+            ? (widget.hoverTone ?? t.fg).withValues(alpha: 0.12)
+            : Colors.transparent,
       ),
       child: widget.badge == null
           ? glyph

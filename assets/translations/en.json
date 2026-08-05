@@ -28,7 +28,10 @@
       "content": "Closing the window will exit Vidra.",
       "cancel": "Cancel",
       "confirm": "Close"
-    }
+    },
+    "minimize": "Minimise",
+    "maximize": "Maximise",
+    "restore": "Restore"
   },
   "search": {
     "placeholder": "Enter search keywords",

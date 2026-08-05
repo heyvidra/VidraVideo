@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -142,8 +143,62 @@ class _DashboardTitleBarState extends ConsumerState<DashboardTitleBar> {
             onTap: () => ref.read(themeModeProvider.notifier).toggleTheme(),
           ),
           const LanguageSwitcher(),
+          // Windows and Linux keep their minimise/maximise/close here, at the
+          // end of the same row rather than loose in the corner: they are the
+          // window's controls and so is everything to their left. macOS has
+          // its own, on the other end of this bar.
+          if (!Platform.isMacOS) ...[
+            const SizedBox(width: 2),
+            const _WindowControls(),
+          ],
         ],
       ),
+    );
+  }
+}
+
+/// Minimise, maximise, close — drawn in the app's own icon family rather than
+/// bitsdojo's, so they match the four controls they sit beside instead of
+/// arriving with their own size, colour and hover.
+///
+/// Close routes through `appWindow.close()`, which is what the native button
+/// did: the app's `onCloseRequested` interceptor still gets to ask before the
+/// window goes.
+class _WindowControls extends StatefulWidget {
+  const _WindowControls();
+
+  @override
+  State<_WindowControls> createState() => _WindowControlsState();
+}
+
+class _WindowControlsState extends State<_WindowControls> {
+  @override
+  Widget build(BuildContext context) {
+    final t = VidraTokens.of(context);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        BarIcon(
+          icon: Icons.remove_rounded,
+          tooltip: tr('dashboard.minimize'),
+          onTap: appWindow.minimize,
+        ),
+        BarIcon(
+          icon: appWindow.isMaximized
+              ? Icons.filter_none_rounded
+              : Icons.crop_square_rounded,
+          tooltip: appWindow.isMaximized
+              ? tr('dashboard.restore')
+              : tr('dashboard.maximize'),
+          onTap: () => setState(appWindow.maximizeOrRestore),
+        ),
+        BarIcon(
+          icon: Icons.close_rounded,
+          tooltip: tr('common.close'),
+          hoverTone: t.clash,
+          onTap: appWindow.close,
+        ),
+      ],
     );
   }
 }

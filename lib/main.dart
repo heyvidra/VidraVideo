@@ -42,7 +42,13 @@ Future<void> _setupNotifications() async {
   }
 }
 
-Future<void> main() async {
+Future<void> main(List<String> args) async {
+  // A secondary window learns WHICH window it is from its engine's entrypoint
+  // arguments. The native side also posts a `windowReady` message carrying the
+  // same thing, but it fires during plugin registration — before this handler
+  // exists — so on Windows the player window came up nameless and rendered the
+  // default child: a blank sheet. Seed synchronously, before the first build.
+  seedWindowIdentityFromArgs(args);
   await _runApp();
 }
 

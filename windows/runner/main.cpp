@@ -5,6 +5,7 @@
 #include <flutter/standard_method_codec.h>
 #include <map>
 #include <string>
+#include <vector>
 #include <windows.h>
 
 #include "flutter_window.h"
@@ -39,6 +40,24 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
       [](const wchar_t *title, int x, int y, int width, int height,
          const char *name, const char *arguments) -> HWND {
         flutter::DartProject project(L"data");
+
+        // Hand the window its identity through the ENGINE's entrypoint
+        // arguments. bitsdojo's Windows plugin also posts a `windowReady`
+        // message with the same name/arguments, but it does that during
+        // plugin registration — before Dart main has installed the channel
+        // handler — so the player window came up with no name, matched no
+        // route, and rendered blank. macOS never hit this because there the
+        // plugin owns window creation and injects these itself; on Windows
+        // the factory is ours, and it was dropping both on the floor.
+        std::vector<std::string> entrypoint_args;
+        if (name && *name) {
+          entrypoint_args.push_back(std::string("--bdw-name=") + name);
+        }
+        if (arguments && *arguments) {
+          entrypoint_args.push_back(std::string("--bdw-args=") + arguments);
+        }
+        project.set_dart_entrypoint_arguments(std::move(entrypoint_args));
+
         auto window = new FlutterWindow(project);
         Win32Window::Point origin(x, y);
         Win32Window::Size size(width, height);

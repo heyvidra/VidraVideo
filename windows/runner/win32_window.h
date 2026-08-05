@@ -87,6 +87,10 @@ class Win32Window {
   // Retrieves a class instance pointer for |window|
   static Win32Window* GetThisFromHandle(HWND const window) noexcept;
 
+  // Ask DWM for Windows 11's rounded corners, which a custom frame opts out
+  // of by default.
+  static void RoundCorners(HWND const window);
+
   // Update the window frame's theme to match the system theme.
   static void UpdateTheme(HWND const window);
 
