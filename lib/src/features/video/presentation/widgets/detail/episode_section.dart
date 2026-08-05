@@ -6,7 +6,9 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:vidra/src/features/video/domain/video_collection.dart';
 import 'package:vidra/src/features/video/domain/play_history.dart'
-    show EpisodeHistory;
+    show EpisodeHistory, isEpisodicType;
+import 'package:vidra/src/features/video/domain/merged_history.dart';
+import 'package:vidra/src/features/video/data/cross_source_catalog.dart';
 import 'package:vidra/src/features/download/data/download_provider.dart';
 import 'package:vidra/src/features/video/presentation/widgets/detail/episode_item.dart';
 import 'package:vidra/src/features/video/presentation/play_history_provider.dart';
@@ -48,12 +50,7 @@ class EpisodeSection extends HookConsumerWidget {
 
     final theme = Theme.of(context);
 
-    final historiesAsync = ref.watch(
-      episodeHistoriesProvider((
-        videoId: video.apiId,
-        sourceId: video.sourceId,
-      )),
-    );
+    final counterpart = _counterpartOf(ref, video);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -69,13 +66,16 @@ class EpisodeSection extends HookConsumerWidget {
                   style: theme.textTheme.titleLarge,
                 ),
                 const SizedBox(width: 16),
+                // Action before status: the button is the only thing in this
+                // row the user can act on, so it sits where the eye lands
+                // after the heading.
+                _SubscribeButton(video: video),
+                const SizedBox(width: 12),
                 // Beside the heading rather than under the hero title: over a
                 // backdrop image it competed with the artwork for contrast and
                 // read as decoration. Here it sits next to the thing it is
                 // about — the episode list.
                 CrossSourceWatchBadge(video: video),
-                const SizedBox(width: 12),
-                _SubscribeButton(video: video),
               ],
             ),
             _buildControls(context, ref, lastRefresh),
@@ -84,11 +84,15 @@ class EpisodeSection extends HookConsumerWidget {
         _SourcePicker(video: video, altSelected: altSelected),
         const SizedBox(height: 16),
         if (!altSelected.value)
-          historiesAsync.when(
-            data: (histories) =>
-                _episodeGrid(gridVideo: video, histories: histories),
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (error, stack) => Text('Error: $error'),
+          _MergedGrid(
+            gridVideo: video,
+            other: counterpart == null
+                ? null
+                : (
+                    videoId: counterpart.videoId,
+                    sourceId: counterpart.sourceId,
+                  ),
+            buildGrid: _episodeGrid,
           )
         else
           _AltEpisodes(video: video, buildGrid: _episodeGrid),
@@ -330,8 +334,11 @@ class _SubscribeButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    // By show, not by catalog row: the same 九门 followed from the other
+    // source used to read "订阅" here, and tapping it added a second row
+    // rather than undoing the first.
     final following = ref.watch(
-      isSubscribedProvider((sourceId: video.sourceId, videoId: video.apiId)),
+      isSubscribedProvider((title: video.title, year: video.year)),
     );
 
     return OutlinedButton.icon(
@@ -363,11 +370,35 @@ class _SubscribeButton extends ConsumerWidget {
   }
 }
 
+/// The counterpart this page can switch to, or null when the other catalogs
+/// have never been browsed for this show.
+///
+/// Reads the locally cached catalog rather than the watch history. The history
+/// answer excluded the show's own source by construction, so the switcher
+/// appeared on every detail page EXCEPT the one the user had actually watched
+/// on — the page where switching is most obviously wanted. See
+/// [crossSourceCounterpartsProvider], which is also local-only: this fires on
+/// every detail page open, and the sources ban IPs under request storms.
+///
+/// First of the list: there are two catalogs today, and a picker that grew a
+/// third tab would need the selection to stop being a boolean anyway.
+CrossSourceEntry? _counterpartOf(WidgetRef ref, Video video) {
+  final list = ref
+      .watch(
+        crossSourceCounterpartsProvider((
+          title: video.title,
+          year: video.year,
+          sourceId: video.sourceId,
+        )),
+      )
+      .value;
+  return (list == null || list.isEmpty) ? null : list.first;
+}
+
 /// Chooses which catalog feeds the episode grid.
 ///
-/// Rendered only when the cross-source index has actually matched this show on
-/// another catalog (title + year, from watch history) — an unmatched show gets
-/// no picker rather than a control that cannot do anything.
+/// Rendered only when the show is actually known on another catalog — an
+/// unmatched show gets no picker rather than a control that cannot do anything.
 class _SourcePicker extends ConsumerWidget {
   const _SourcePicker({required this.video, required this.altSelected});
 
@@ -376,7 +407,7 @@ class _SourcePicker extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final match = crossSourceWatchFor(ref, video);
+    final match = _counterpartOf(ref, video);
     if (match == null) return const SizedBox.shrink();
 
     final theme = Theme.of(context);
@@ -410,6 +441,91 @@ class _SourcePicker extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// One catalog's grid, with the OTHER catalog's progress folded in.
+///
+/// Watch state belongs to the show, not to whichever catalog served the stream
+/// — the two are different encodes of the same episode. Before this, opening
+/// the source you had NOT watched on showed a wall of untouched tiles beside a
+/// badge announcing you were on episode 14, which reads as the app having lost
+/// your place.
+///
+/// The join goes through [mergeHistoriesByEpisodeNumber] and never through
+/// array position; see its doc for why, and for why the merged map must not be
+/// handed to `resolveResumeTarget`.
+class _MergedGrid extends ConsumerWidget {
+  const _MergedGrid({
+    required this.gridVideo,
+    required this.other,
+    required this.buildGrid,
+  });
+
+  final Video gridVideo;
+
+  /// The catalog to borrow progress from, or null when this show is known on
+  /// one catalog only.
+  final ({int videoId, String? sourceId})? other;
+
+  final Widget Function({
+    required Video gridVideo,
+    required Map<int, EpisodeHistory> histories,
+  })
+  buildGrid;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ownAsync = ref.watch(
+      episodeHistoriesProvider((
+        videoId: gridVideo.apiId,
+        sourceId: gridVideo.sourceId,
+      )),
+    );
+    return ownAsync.when(
+      loading: () => const _EpisodeGridSkeleton(),
+      error: (error, _) => Text('Error: $error'),
+      data: (own) {
+        final o = other;
+        if (o == null) {
+          return buildGrid(gridVideo: gridVideo, histories: own);
+        }
+        // Strictly the local copy. This runs on every detail page open, and
+        // videoByIdProvider would turn each one into a detail request against
+        // the OTHER catalog — a per-page-open request to a source that bans
+        // IPs for exactly that, to draw a checkmark. No local copy, no borrow.
+        final otherVideo = ref
+            .watch(
+              locallyCachedVideoProvider((id: o.videoId, sourceId: o.sourceId)),
+            )
+            .value;
+        final otherHistories = ref
+            .watch(
+              episodeHistoriesProvider((
+                videoId: o.videoId,
+                sourceId: o.sourceId,
+              )),
+            )
+            .value;
+        // The borrow is an enhancement, not a precondition. Drawing as soon as
+        // this source's own progress is in hand keeps the grid off the other
+        // catalog's critical path; the borrowed checkmarks appear when it
+        // lands, which is a tile repaint rather than a page that sat blank.
+        if (otherVideo == null || otherHistories == null) {
+          return buildGrid(gridVideo: gridVideo, histories: own);
+        }
+        return buildGrid(
+          gridVideo: gridVideo,
+          histories: mergeHistoriesByEpisodeNumber(
+            localEpisodes: gridVideo.urls ?? const <VideoEpisode>[],
+            localHistories: own,
+            otherEpisodes: otherVideo.urls ?? const <VideoEpisode>[],
+            otherHistories: otherHistories,
+            episodic: isEpisodicType(gridVideo.type),
+          ),
+        );
+      },
     );
   }
 }
@@ -470,7 +586,7 @@ class _AltEpisodes extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final match = crossSourceWatchFor(ref, video);
+    final match = _counterpartOf(ref, video);
     if (match == null) return const SizedBox.shrink();
 
     final altAsync = ref.watch(
@@ -486,16 +602,12 @@ class _AltEpisodes extends ConsumerWidget {
             child: Text(tr('video.player.no_episodes')),
           );
         }
-        final historiesAsync = ref.watch(
-          episodeHistoriesProvider((
-            videoId: alt.apiId,
-            sourceId: alt.sourceId,
-          )),
-        );
-        return historiesAsync.when(
-          data: (histories) => buildGrid(gridVideo: alt, histories: histories),
-          loading: () => const _EpisodeGridSkeleton(),
-          error: (e, _) => Text('$e'),
+        // Symmetric with the local grid: over here it is THIS page's source
+        // that has the progress to lend.
+        return _MergedGrid(
+          gridVideo: alt,
+          other: (videoId: video.apiId, sourceId: video.sourceId),
+          buildGrid: buildGrid,
         );
       },
     );

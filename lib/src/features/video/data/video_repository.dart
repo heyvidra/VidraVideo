@@ -8,6 +8,8 @@ import '../../../data/database/app_database_provider.dart';
 import '../../../data/database/mappers.dart';
 import '../../../core/network/dio_provider.dart';
 import '../domain/video_collection.dart';
+import '../domain/episode_number.dart';
+import '../domain/play_history.dart' show isEpisodicType;
 import '../domain/video_settings.dart';
 import '../domain/category.dart'; // Relative to this file
 import '../../settings/presentation/settings_provider.dart';
@@ -205,7 +207,10 @@ class VideoRepository {
                   .getSingleOrNull();
 
           // Preserve local ID if the row already exists
-          var v = video!.copyWith(id: existing?.id);
+          var v = _markNewEpisodes(
+            video!.copyWith(id: existing?.id),
+            previous: existing?.toDomain().urls,
+          );
           final newId = await _db
               .into(_db.videos)
               .insert(v.toCompanion(), mode: InsertMode.insertOrReplace);
@@ -216,6 +221,81 @@ class VideoRepository {
       }
     }
     return video;
+  }
+
+  /// The locally stored detail for one show, or null when there is none.
+  ///
+  /// Never falls through to the network, which is the whole difference from
+  /// [getVideo] — and from `cachedVideoByIdProvider`, which prefers the cache
+  /// but still fetches on a miss. This backs the cross-source episode merge,
+  /// and that runs on EVERY detail page open: a miss has to cost nothing, or
+  /// opening any show quietly bills a request to the OTHER catalog, which is
+  /// precisely the traffic the caches on this class exist to remove.
+  ///
+  /// A row with no episode list counts as a miss. Catalog browsing stores rows
+  /// with nothing but the poster fields, and there is no progress to align
+  /// against a list that isn't there.
+  Future<Video?> locallyCachedVideo(int apiId, {String? sourceId}) async {
+    final sid = sourceId ?? _defaultDataSource.id;
+    final row =
+        await (_db.select(_db.videos)
+              ..where((t) => t.sourceId.equals(sid) & t.apiId.equals(apiId)))
+            .getSingleOrNull();
+    final video = row?.toDomain();
+    return (video?.urls?.isNotEmpty ?? false) ? video : null;
+  }
+
+  /// Flags the episodes that appeared since this show was last cached.
+  ///
+  /// The 新 badge used to be whatever the source said: olevod ships a `new`
+  /// field and dbku ships none, so one catalog's page was dotted with orange
+  /// and the other never was — for the same show, on the same day. Computing
+  /// it from our own previous snapshot gives both catalogs the same rule.
+  ///
+  /// It also gives a better answer than the field did. olevod marked 第14集 new
+  /// on a viewer who had already watched it on the other source; "new" is a
+  /// property of the LIST changing, and the list is what we can see change.
+  ///
+  /// First sighting marks nothing. There is no previous snapshot to have
+  /// appeared since, and flagging a whole catalogue-fresh show would make the
+  /// badge mean "unseen by this app", which is every episode of everything.
+  /// Episodes are matched by their own [episodeNumberOf], never by position —
+  /// a source that inserts a 预告 at the top would otherwise renumber the
+  /// entire list and light up every tile.
+  Video _markNewEpisodes(Video video, {List<VideoEpisode>? previous}) {
+    final current = video.urls;
+    if (current == null || current.isEmpty) return video;
+    if (previous == null || previous.isEmpty) return video;
+    if (!isEpisodicType(video.type)) return video;
+
+    final episodic = true;
+    final seen = <int>{};
+    for (var i = 0; i < previous.length; i++) {
+      final n = episodeNumberOf(
+        previous[i].title,
+        index: i,
+        episodic: episodic,
+      );
+      if (n != null) seen.add(n);
+    }
+    if (seen.isEmpty) return video;
+
+    return video.copyWith(
+      urls: [
+        for (var i = 0; i < current.length; i++)
+          () {
+            final n = episodeNumberOf(
+              current[i].title,
+              index: i,
+              episodic: episodic,
+            );
+            // An unnumbered row cannot be told apart from the unnumbered row
+            // that was there last time, so it is left as the source filed it.
+            if (n == null) return current[i];
+            return current[i].copyWith(isNew: !seen.contains(n));
+          }(),
+      ],
+    );
   }
 
   // Video Settings methods
@@ -282,4 +362,12 @@ final cachedVideoByIdProvider = FutureProvider.autoDispose
     .family<Video?, ({int id, String? sourceId})>((ref, arg) async {
       final repo = ref.watch(videoRepositoryProvider);
       return await repo.getVideo(arg.id, sourceId: arg.sourceId);
+    });
+
+/// Strictly local, unlike [cachedVideoByIdProvider], which still fetches when
+/// the cache misses. See [VideoRepository.locallyCachedVideo].
+final locallyCachedVideoProvider = FutureProvider.autoDispose
+    .family<Video?, ({int id, String? sourceId})>((ref, arg) async {
+      final repo = ref.watch(videoRepositoryProvider);
+      return await repo.locallyCachedVideo(arg.id, sourceId: arg.sourceId);
     });

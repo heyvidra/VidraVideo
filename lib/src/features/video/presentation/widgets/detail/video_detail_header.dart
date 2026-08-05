@@ -6,7 +6,9 @@ import 'package:vidra/src/features/video/domain/video_collection.dart';
 import 'package:vidra/src/features/video/data/video_repository.dart';
 import 'package:vidra/src/features/video/presentation/widgets/cards/popular_video_card.dart';
 import 'package:vidra/src/features/video/domain/play_history.dart';
+import 'package:vidra/src/features/video/domain/episode_number.dart';
 import 'package:vidra/src/features/video/domain/resume_target.dart';
+import 'package:vidra/src/features/video/presentation/widgets/cross_source_watch_badge.dart';
 import 'package:vidra/src/features/video/presentation/play_history_provider.dart';
 import 'package:vidra/src/window/player_window_launcher.dart';
 
@@ -193,6 +195,36 @@ class _TypeBadge extends StatelessWidget {
   }
 }
 
+/// Where the other catalog's progress lands in THIS catalog's episode list, or
+/// null when there is no such progress, no readable episode number on it, or no
+/// row here carrying that number.
+///
+/// Every step can legitimately fail, and each failure means the same thing:
+/// leave the button alone. An episode the other source numbered 15 simply does
+/// not exist on a catalog that stops at 14, and pointing the button at the
+/// nearest row instead would open an episode the viewer has not reached.
+int? _localIndexOfCrossSourceEpisode(
+  WidgetRef ref,
+  Video video,
+  List<VideoEpisode> episodes,
+) {
+  final match = crossSourceWatchFor(ref, video);
+  if (match == null) return null;
+  final number = episodeNumberOf(
+    match.lastEpisodeTitle,
+    index: match.lastEpisodeIndex,
+    episodic: true,
+  );
+  if (number == null) return null;
+  for (var i = 0; i < episodes.length; i++) {
+    if (episodeNumberOf(episodes[i].title, index: i, episodic: true) ==
+        number) {
+      return i;
+    }
+  }
+  return null;
+}
+
 /// The page's primary action. Reads history so a viewer on episode 12 is
 /// offered episode 12 — it used to be hardcoded to `episodeIndex: 0`, which
 /// made the biggest button on the page a one-click trip back to the start.
@@ -213,20 +245,37 @@ class _PlayButton extends ConsumerWidget {
         const <int, EpisodeHistory>{};
     final videoHistory = ref.watch(videoHistoryProvider(key)).value;
 
-    final target = resolveResumeTarget(
+    var target = resolveResumeTarget(
       histories: histories,
       lastEpisodeIndex: videoHistory?.lastEpisodeIndex,
       episodeCount: episodes.isEmpty ? null : episodes.length,
     );
 
-    final episodeLabel =
-        (target.episodeIndex < episodes.length
-            ? episodes[target.episodeIndex].title
-            : null) ??
-        tr(
-          'video.detail.episode_prefix',
-          args: [(target.episodeIndex + 1).toString()],
-        );
+    // Nothing watched HERE, but the same show was watched on the other
+    // catalog: offer to continue rather than to start over. The badge beside
+    // the episode list already says "已在 独播库 看到 第14集", and the biggest
+    // button on the page saying 立即播放 next to it was the app contradicting
+    // itself.
+    //
+    // Deliberately NOT done by feeding the merged grid map to
+    // resolveResumeTarget: a borrowed row's `episodeIndex` points into the
+    // OTHER catalog's list, so that would resume at whatever sits at that
+    // position here — a different episode in exactly the case this exists for.
+    // The episode NUMBER is the only shared coordinate, so it is resolved on
+    // that side and mapped back to a local row.
+    if (target.isFirstTime && isEpisodicType(video.type)) {
+      final local = _localIndexOfCrossSourceEpisode(ref, video, episodes);
+      if (local != null) {
+        target = ResumeTarget(episodeIndex: local);
+      }
+    }
+
+    final label = episodeLabel(
+      target.episodeIndex < episodes.length
+          ? episodes[target.episodeIndex].title
+          : null,
+      index: target.episodeIndex,
+    );
 
     return ElevatedButton.icon(
       onPressed: () async {
@@ -252,7 +301,7 @@ class _PlayButton extends ConsumerWidget {
             // surfaces the source's 立即播放 / 粤语播放 line labels, which read
             // as gibberish next to "continue watching".
             : isEpisodicType(video.type)
-            ? tr('video.detail.continue_watching', args: [episodeLabel])
+            ? tr('video.detail.continue_watching', args: [label])
             : tr('video.detail.continue_watching_short'),
       ),
       style: ElevatedButton.styleFrom(

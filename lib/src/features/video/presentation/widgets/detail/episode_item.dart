@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:vidra/src/features/video/data/history_repository.dart';
 import 'package:vidra/src/features/video/domain/video_collection.dart';
+import 'package:vidra/src/features/video/domain/episode_number.dart';
 import 'package:vidra/src/features/video/domain/play_history.dart';
 import 'package:vidra/src/features/download/data/download_provider.dart';
 import 'package:vidra/src/features/download/domain/download_task.dart';
@@ -126,12 +127,7 @@ class EpisodeItem extends ConsumerWidget {
         episodes: [
           {
             'index': originalIndex,
-            'title':
-                episode.title ??
-                tr(
-                  'video.detail.episode_prefix',
-                  args: [(originalIndex + 1).toString()],
-                ),
+            'title': episodeLabel(episode.title, index: originalIndex),
             'url': episode.url ?? '',
           },
         ],
@@ -141,13 +137,7 @@ class EpisodeItem extends ConsumerWidget {
           content: Text(
             tr(
               'video.detail.download_added',
-              args: [
-                episode.title ??
-                    tr(
-                      'video.detail.episode_prefix',
-                      args: [(originalIndex + 1).toString()],
-                    ),
-              ],
+              args: [episodeLabel(episode.title, index: originalIndex)],
             ),
           ),
           backgroundColor: Colors.green,
@@ -202,11 +192,10 @@ class EpisodeItem extends ConsumerWidget {
           if (isSelected && !isDownloadMode)
             const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 20),
           Text(
-            episode.title ??
-                tr(
-                  'video.detail.episode_prefix',
-                  args: [(originalIndex + 1).toString()],
-                ),
+            // Through [episodeLabel] rather than printed raw: one catalog
+            // writes 第01集 where the other writes 第1集, and the two detail
+            // pages of one show rendered the same episode differently.
+            episodeLabel(episode.title, index: originalIndex),
             style: TextStyle(
               color: isSelected && !isDownloadMode
                   ? Colors.white

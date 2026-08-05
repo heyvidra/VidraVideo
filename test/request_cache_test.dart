@@ -70,7 +70,9 @@ class CountingSource implements VideoDataSource {
   @override
   Future<List<Video>> searchVideos(String keyword) async {
     searchCalls++;
-    return [Video(apiId: 2, sourceId: id, title: keyword, coverUrl: '', rating: 0)];
+    return [
+      Video(apiId: 2, sourceId: id, title: keyword, coverUrl: '', rating: 0),
+    ];
   }
 
   @override
@@ -82,6 +84,33 @@ class CountingSource implements VideoDataSource {
   @override
   Future<String?> getDownloadUrl(Video video, {VideoEpisode? episode}) async =>
       null;
+}
+
+/// A catalog that gains episodes between visits, and never volunteers a `new`
+/// flag of its own — dbku's shape, which is the case the source field could not
+/// serve.
+class GrowingSource extends CountingSource {
+  int episodes = 1;
+
+  @override
+  Future<Video?> getVideoDetail(int id) async {
+    detailCalls++;
+    return Video(
+      apiId: id,
+      sourceId: this.id,
+      title: 'A',
+      coverUrl: '',
+      rating: 0,
+      urls: [
+        for (var n = 1; n <= episodes; n++)
+          VideoEpisode(
+            index: n - 1,
+            title: '第$n集',
+            qualities: [VideoQuality(name: 'hd', url: 'http://x/$n.m3u8')],
+          ),
+      ],
+    );
+  }
 }
 
 void main() {
@@ -124,20 +153,22 @@ void main() {
 
     tearDown(() => database.close());
 
-    test('an identical list query within the window is served from cache',
-        () async {
-      await repo.fetchVideos(categoryId: 1);
-      await repo.fetchVideos(categoryId: 1);
-      expect(source.listCalls, 1);
+    test(
+      'an identical list query within the window is served from cache',
+      () async {
+        await repo.fetchVideos(categoryId: 1);
+        await repo.fetchVideos(categoryId: 1);
+        expect(source.listCalls, 1);
 
-      // A different tuple is a different key.
-      await repo.fetchVideos(categoryId: 1, page: 2);
-      expect(source.listCalls, 2);
+        // A different tuple is a different key.
+        await repo.fetchVideos(categoryId: 1, page: 2);
+        expect(source.listCalls, 2);
 
-      // And the escape hatch still reaches the network.
-      await repo.fetchVideos(categoryId: 1, forceRefresh: true);
-      expect(source.listCalls, 3);
-    });
+        // And the escape hatch still reaches the network.
+        await repo.fetchVideos(categoryId: 1, forceRefresh: true);
+        expect(source.listCalls, 3);
+      },
+    );
 
     test('a repeated search is served from cache', () async {
       await repo.searchVideos('foo');
@@ -147,17 +178,67 @@ void main() {
       expect(source.searchCalls, 2);
     });
 
-    test('forceRefresh within the freshness window becomes a cache read',
-        () async {
-      // First visit: network (and the row lands in drift with episodes).
-      await repo.getVideo(7, forceRefresh: true);
-      expect(source.detailCalls, 1);
+    test(
+      'forceRefresh within the freshness window becomes a cache read',
+      () async {
+        // First visit: network (and the row lands in drift with episodes).
+        await repo.getVideo(7, forceRefresh: true);
+        expect(source.detailCalls, 1);
 
-      // Re-entering the detail seconds later must NOT refetch — on dbku
-      // this is the difference between 0 requests and one per episode.
-      final v = await repo.getVideo(7, forceRefresh: true);
-      expect(source.detailCalls, 1);
-      expect(v?.urls, isNotEmpty, reason: 'served from the drift cache');
+        // Re-entering the detail seconds later must NOT refetch — on dbku
+        // this is the difference between 0 requests and one per episode.
+        final v = await repo.getVideo(7, forceRefresh: true);
+        expect(source.detailCalls, 1);
+        expect(v?.urls, isNotEmpty, reason: 'served from the drift cache');
+      },
+    );
+  });
+
+  group('新 badge is computed, not taken from the source', () {
+    // olevod ships a `new` field and dbku ships none, so the same show wore
+    // orange dots on one catalog's page and none on the other's. The badge is
+    // now our own diff against the previous snapshot — the same rule for every
+    // catalog, and a better answer than the field, which marked 第14集 new to a
+    // viewer who had already watched it on the other source.
+    late GrowingSource source;
+    late AppDatabase database;
+
+    setUp(() {
+      source = GrowingSource();
+      database = AppDatabase.forTesting(NativeDatabase.memory());
+    });
+
+    tearDown(() => database.close());
+
+    // A fresh repository over the SAME database is the honest way to express
+    // "later, after the show updated": the detail freshness window deliberately
+    // downgrades a forceRefresh minutes after the last fetch, so re-asking the
+    // same instance is a cache read by design and would never reach the diff.
+    Future<Video?> visit() => VideoRepository(source, [
+      source,
+    ], database).getVideo(1, forceRefresh: true);
+
+    test('a first sighting marks nothing, then only what appeared', () async {
+      source.episodes = 3;
+      final first = await visit();
+      expect(
+        first!.urls!.every((e) => e.isNew != true),
+        isTrue,
+        reason: 'no previous snapshot for anything to have appeared since',
+      );
+
+      source.episodes = 5;
+      final second = await visit();
+      expect(
+        second!.urls!.map((e) => e.isNew == true).toList(),
+        [false, false, false, true, true],
+        reason: 'only 第4集 and 第5集 were absent last time',
+      );
+
+      // The badge means "appeared since you last looked", not "recently
+      // aired", so a visit that finds nothing added clears it.
+      final third = await visit();
+      expect(third!.urls!.every((e) => e.isNew != true), isTrue);
     });
   });
 
@@ -174,34 +255,36 @@ void main() {
     String play(int n) =>
         '<script>player_aaaa = {"url":"http://cdn/e$n.m3u8","encrypt":0}</script>';
 
-    test('a repeat detail fetch only resolves episodes it has never seen',
-        () async {
-      final pages = {
-        '/voddetail/9.html': detail2,
-        '/vodplay/9-1-1.html': play(1),
-        '/vodplay/9-1-2.html': play(2),
-        '/vodplay/9-1-3.html': play(3),
-      };
-      final adapter = _FakePages(pages);
-      final dio = Dio()..httpClientAdapter = adapter;
-      final ds = DbkuDataSource(dio);
+    test(
+      'a repeat detail fetch only resolves episodes it has never seen',
+      () async {
+        final pages = {
+          '/voddetail/9.html': detail2,
+          '/vodplay/9-1-1.html': play(1),
+          '/vodplay/9-1-2.html': play(2),
+          '/vodplay/9-1-3.html': play(3),
+        };
+        final adapter = _FakePages(pages);
+        final dio = Dio()..httpClientAdapter = adapter;
+        final ds = DbkuDataSource(dio);
 
-      final v1 = await ds.getVideoDetail(9);
-      expect(v1?.urls, hasLength(2));
-      expect(adapter.requests.where((p) => p.contains('vodplay')).length, 2);
+        final v1 = await ds.getVideoDetail(9);
+        expect(v1?.urls, hasLength(2));
+        expect(adapter.requests.where((p) => p.contains('vodplay')).length, 2);
 
-      // The show gained one episode; the run must not be re-resolved.
-      pages['/voddetail/9.html'] = detail3;
-      final v2 = await ds.getVideoDetail(9);
-      expect(v2?.urls, hasLength(3));
-      expect(
-        adapter.requests.where((p) => p.contains('vodplay')).length,
-        3,
-        reason: 'only the NEW episode pays a play-page request',
-      );
-      expect(v2!.urls![0].qualities!.single.url, 'http://cdn/e1.m3u8');
-      expect(v2.urls![2].qualities!.single.url, 'http://cdn/e3.m3u8');
-    });
+        // The show gained one episode; the run must not be re-resolved.
+        pages['/voddetail/9.html'] = detail3;
+        final v2 = await ds.getVideoDetail(9);
+        expect(v2?.urls, hasLength(3));
+        expect(
+          adapter.requests.where((p) => p.contains('vodplay')).length,
+          3,
+          reason: 'only the NEW episode pays a play-page request',
+        );
+        expect(v2!.urls![0].qualities!.single.url, 'http://cdn/e1.m3u8');
+        expect(v2.urls![2].qualities!.single.url, 'http://cdn/e3.m3u8');
+      },
+    );
   });
 }
 
@@ -213,10 +296,19 @@ class _FakePages implements HttpClientAdapter {
   final requests = <String>[];
 
   @override
-  Future<ResponseBody> fetch(RequestOptions options, Stream<Uint8List>? requestStream, Future<void>? cancelFuture) async {
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
     requests.add(options.uri.path);
-    return ResponseBody.fromString(pages[options.uri.path] ?? '', 200,
-        headers: {Headers.contentTypeHeader: ['text/html; charset=utf-8']});
+    return ResponseBody.fromString(
+      pages[options.uri.path] ?? '',
+      200,
+      headers: {
+        Headers.contentTypeHeader: ['text/html; charset=utf-8'],
+      },
+    );
   }
 
   @override

@@ -4,6 +4,7 @@ import '../../video/domain/video_collection.dart';
 import '../data/subscription_notifier_service.dart';
 import '../data/subscription_repository.dart';
 import '../domain/subscription.dart';
+import '../domain/subscription_identity.dart';
 
 final subscriptionsProvider =
     AsyncNotifierProvider<SubscriptionNotifier, List<Subscription>>(
@@ -18,12 +19,15 @@ final unreadSubscriptionCountProvider = Provider<int>((ref) {
 });
 
 /// Whether one show is followed, for the detail page's button.
+///
+/// Keyed by the SHOW, not by the catalog row — see [isShowSubscribed]. Asking
+/// the row for whichever source happens to be on screen answered "not
+/// following" on a show followed yesterday from the other catalog, and the tap
+/// that followed then created a second row instead of undoing anything.
 final isSubscribedProvider =
-    Provider.family<bool, ({String? sourceId, int videoId})>((ref, arg) {
-      final source = arg.sourceId;
-      if (source == null) return false;
+    Provider.family<bool, ({String title, String? year})>((ref, arg) {
       final subs = ref.watch(subscriptionsProvider).value ?? const [];
-      return subs.any((s) => s.sourceId == source && s.videoId == arg.videoId);
+      return isShowSubscribed(subs, title: arg.title, year: arg.year);
     });
 
 class SubscriptionNotifier extends AsyncNotifier<List<Subscription>> {
@@ -36,14 +40,32 @@ class SubscriptionNotifier extends AsyncNotifier<List<Subscription>> {
     state = AsyncData(await _repo.all());
   }
 
+  /// Follow or unfollow the SHOW, across every catalog that holds it.
+  ///
+  /// Unfollowing has to span sources or it does not stop anything: the rows are
+  /// per (sourceId, videoId), so deleting only the one for the page on screen
+  /// leaves the other catalog's row due for checks, and the show keeps
+  /// notifying from a source the user may never have opened — with no
+  /// subscription visible anywhere to explain where it came from.
+  ///
+  /// Following still writes a single row, for the catalog the user is looking
+  /// at. Subscribing to both would double every notification, and the checker
+  /// already carries the other source's progress on that one row
+  /// (`crossSeenSourceId`/`crossSeenRemarks`).
   Future<void> toggle(Video video) async {
     final source = video.sourceId;
     if (source == null) return;
-    final existing = await _repo.find(source, video.apiId);
-    if (existing == null) {
+    final owned = subscriptionsForShow(
+      state.value ?? const [],
+      title: video.title,
+      year: video.year,
+    );
+    if (owned.isEmpty) {
       await _repo.subscribe(video);
     } else {
-      await _repo.unsubscribe(source, video.apiId);
+      for (final s in owned) {
+        await _repo.unsubscribe(s.sourceId, s.videoId);
+      }
     }
     await _refresh();
   }
