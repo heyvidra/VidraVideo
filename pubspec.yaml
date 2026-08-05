@@ -44,7 +44,7 @@ dependencies:
     git:
       url: https://github.com/heyvidra/bitsdojo_window_plus.git
       path: bitsdojo_window
-      ref: v1.2.1
+      ref: v1.2.2
 
   path: ^1.9.1
   easy_localization: ^3.0.8
