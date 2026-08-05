@@ -177,11 +177,16 @@ class _VideoPlayerWindowState extends State<VideoPlayerWindow>
   Widget build(BuildContext context) {
     if (_videoId == null) {
       return Scaffold(
-        // backgroundColor: Colors.black,
+        // Black, uncommented. A player window has no light state: with this
+        // commented out it fell through to the theme's scaffold colour, which
+        // after the redesign is 0xFFE7EDF5 — near-white, and indistinguishable
+        // from a window that never painted at all. Now the two look different,
+        // which is the whole point of having a waiting state.
+        backgroundColor: Colors.black,
         body: Center(
           child: Text(
             tr('common.waiting_for_video'),
-            style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+            style: const TextStyle(color: Colors.white70),
           ),
         ),
       );

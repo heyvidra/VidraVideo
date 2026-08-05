@@ -111,7 +111,12 @@ Future<void> _runApp() async {
 }
 
 List<WindowConfiguration> _buildWindowConfigurations() {
-  final readyAnimation = Platform.isLinux
+  // No pop-in on Windows either. It animates size AND position at the moment
+  // the window first composites, and this codebase already documents that
+  // exact pattern producing a white DWM flash there — the PiP path avoids it
+  // for the same reason. On a window that is slow to present its first frame
+  // the "flash" is simply what you are left looking at.
+  final readyAnimation = Platform.isLinux || Platform.isWindows
       ? const WindowReadyAnimation.none()
       : const WindowReadyAnimation.popIn();
   return [
@@ -157,9 +162,16 @@ List<WindowConfiguration> _buildWindowConfigurations() {
 }
 
 WindowEffect _resolveBackgroundEffect(DesktopWindow window) {
-  return platformWindowCapabilities.supportsBackgroundEffects
-      ? WindowEffect.acrylic
-      : WindowEffect.disabled;
+  if (!platformWindowCapabilities.supportsBackgroundEffects) {
+    return WindowEffect.disabled;
+  }
+  // Acrylic makes the HWND's background non-opaque through a DWM composition
+  // attribute. Behind a video that is worth nothing — the picture covers the
+  // window — and a non-opaque window that has not yet presented a frame is
+  // exactly what shows up as a blank white sheet in the taskbar preview.
+  // macOS keeps it: its blur is behind the catalog's glass, where it reads.
+  if (Platform.isWindows) return WindowEffect.disabled;
+  return WindowEffect.acrylic;
 }
 
 Map<DesktopWindowButton, bool>? _resolvePlayerButtonVisibility(
