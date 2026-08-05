@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
+import 'package:vidra/src/common/screen_chrome.dart';
+import 'package:vidra/src/features/subscription/presentation/widgets/update_banner.dart';
 import 'package:vidra/src/features/video/presentation/widgets/list/category_filter.dart';
 import 'package:vidra/src/features/video/presentation/video_list_provider.dart';
 import 'package:vidra/src/features/video/presentation/widgets/cards/popular_video_card.dart';
@@ -47,10 +49,20 @@ class VideoListScreen extends HookConsumerWidget {
     return CustomScrollView(
       controller: scrollController,
       slivers: [
+        // Before the filters, because it is not one: it answers the question
+        // the catalog was opened to ask, and a filter row is what you reach for
+        // only once that answer is "nothing".
+        const SliverToBoxAdapter(child: UpdateBanner()),
+
         // Header (Category Filter)
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(
+              kContentGutter,
+              10,
+              kContentGutter,
+              12,
+            ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -90,14 +102,9 @@ class VideoListScreen extends HookConsumerWidget {
         // Loading State Skeleton
         if (listState.isLoading && videos.isEmpty)
           SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: kContentGutter),
             sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 220,
-                childAspectRatio: 0.7,
-                mainAxisSpacing: 20,
-                crossAxisSpacing: 20,
-              ),
+              gridDelegate: kPosterGrid,
               delegate: SliverChildBuilderDelegate(
                 (context, index) => const VideoCardSkeleton(),
                 childCount: 12, // Show a reasonable number of skeletons
@@ -107,14 +114,9 @@ class VideoListScreen extends HookConsumerWidget {
 
         if (videos.isNotEmpty) ...[
           SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: kContentGutter),
             sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 220, // Adjusted for responsiveness
-                childAspectRatio: 0.7,
-                mainAxisSpacing: 20,
-                crossAxisSpacing: 20,
-              ),
+              gridDelegate: kPosterGrid,
               delegate: SliverChildBuilderDelegate((context, index) {
                 return PopularVideoCard(video: videos[index]);
               }, childCount: videos.length),
@@ -124,19 +126,14 @@ class VideoListScreen extends HookConsumerWidget {
           // Loading footer - use skeletons instead of spinner
           if (listState.isLoading)
             SliverPadding(
-              padding: const EdgeInsets.only(
-                left: 16,
-                right: 16,
-                top: 20,
-                bottom: 20,
+              padding: const EdgeInsets.fromLTRB(
+                kContentGutter,
+                20,
+                kContentGutter,
+                20,
               ),
               sliver: SliverGrid(
-                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 220,
-                  childAspectRatio: 0.7,
-                  mainAxisSpacing: 20,
-                  crossAxisSpacing: 20,
-                ),
+                gridDelegate: kPosterGrid,
                 delegate: SliverChildBuilderDelegate(
                   (context, index) => const VideoCardSkeleton(),
                   childCount: 4, // Show a row of loading items at bottom

@@ -35,10 +35,7 @@ class WindowTitleBarButtonsConfig {
   };
 
   static Map<String, dynamic> closeOnlyArguments() {
-    return const {
-      showButtonsKey: true,
-      modeKey: 'closeOnly',
-    };
+    return const {showButtonsKey: true, modeKey: 'closeOnly'};
   }
 
   static Map<DesktopWindowButton, bool> resolve(
@@ -59,10 +56,13 @@ class WindowTitleBarButtonsConfig {
     if (mode != null) {
       return switch (mode) {
         WindowTitleBarButtonsMode.hidden => _visibilityFor(const {}),
-        WindowTitleBarButtonsMode.closeOnly =>
-          _visibilityFor(const {DesktopWindowButton.close}),
+        WindowTitleBarButtonsMode.closeOnly => _visibilityFor(const {
+          DesktopWindowButton.close,
+        }),
         WindowTitleBarButtonsMode.all => _visibilityFor(_allButtons),
-        WindowTitleBarButtonsMode.custom => _visibilityFor(defaultVisibleButtons),
+        WindowTitleBarButtonsMode.custom => _visibilityFor(
+          defaultVisibleButtons,
+        ),
       };
     }
 

@@ -1,10 +1,18 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart' hide DropdownMenu;
-import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import '../../../common/bar_controls.dart';
 import '../../../common/dropdown_menu.dart';
 import '../../video/data/video_repository.dart';
 
-class DataSourceSwitcher extends HookConsumerWidget {
+/// Which catalog the app is browsing.
+///
+/// A [BarChip] rather than a shape of its own: it is the same kind of control
+/// as the catalog's type / area / year chips — a named value you can change —
+/// and it was the one thing on the toolbar carrying a filled glyph and
+/// hardcoded `white70` text. The name is capped and elided here; it used to be
+/// free to push the window's controls off the right edge of the bar.
+class DataSourceSwitcher extends ConsumerWidget {
   final VoidCallback? onDataSourceChanged;
 
   const DataSourceSwitcher({super.key, this.onDataSourceChanged});
@@ -14,17 +22,15 @@ class DataSourceSwitcher extends HookConsumerWidget {
     final theme = Theme.of(context);
     final sources = ref.watch(availableDataSourcesProvider);
     final activeId = ref.watch(activeDataSourceIdProvider);
-    final isDark = theme.brightness == Brightness.dark;
-    final isHovered = useState(false);
 
     final activeSource = sources.firstWhere(
       (s) => s.id == activeId,
       orElse: () => sources.first,
     );
-    // activeId is already the string id
 
     return DropdownMenu(
-      menuWidth: 160,
+      menuWidth: 180,
+      followTheme: true,
       offset: const Offset(0, 8),
       menuBuilder: (context, close) {
         return sources.map((source) {
@@ -32,7 +38,11 @@ class DataSourceSwitcher extends HookConsumerWidget {
           return PlayerMenuItem(
             text: source.name,
             trailing: isSelected
-                ? Icon(Icons.check, size: 16, color: theme.colorScheme.primary)
+                ? Icon(
+                    Icons.check_rounded,
+                    size: 16,
+                    color: theme.colorScheme.primary,
+                  )
                 : null,
             textColor: isSelected ? theme.colorScheme.primary : null,
             onTap: () {
@@ -47,40 +57,10 @@ class DataSourceSwitcher extends HookConsumerWidget {
           );
         }).toList();
       },
-      child: MouseRegion(
-        onEnter: (_) => isHovered.value = true,
-        onExit: (_) => isHovered.value = false,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          decoration: BoxDecoration(
-            color: isHovered.value
-                ? (isDark
-                      ? Colors.white.withValues(alpha: 0.1)
-                      : Colors.black.withValues(alpha: 0.05))
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.source,
-                color: isDark ? Colors.white70 : Colors.black54,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                activeSource.name,
-                style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-              ),
-              const SizedBox(width: 4),
-              Icon(
-                Icons.keyboard_arrow_down_rounded,
-                color: isDark ? Colors.white54 : Colors.black45,
-              ),
-            ],
-          ),
-        ),
+      child: BarChip(
+        label: tr('video.detail.source'),
+        value: activeSource.name,
+        maxValueWidth: 160,
       ),
     );
   }

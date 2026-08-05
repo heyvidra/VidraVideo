@@ -1,19 +1,21 @@
 {
   "navigation": {
     "home": "Home",
+    "subscriptions": "Following",
     "downloads": "Downloads",
     "link_download": "Link Download",
-    "recent": "Recent",
+    "recent": "Continue",
     "settings": "Settings",
-    "section_menu": "Menu",
-    "section_library": "Library",
+    "section_menu": "Library",
+    "section_library": "Mine",
     "section_general": "General"
   },
   "recent": {
     "title": "Recent Activity",
     "clear_all": "Clear All",
     "empty": "No recent playback history",
-    "watched_to": "Up to {}"
+    "watched_to": "Up to {}",
+    "remove": "Remove from history"
   },
   "dashboard": {
     "search_hint": "Search",
@@ -94,7 +96,29 @@
       "cast_info": "Cast: {}",
       "storyline": "Storyline",
       "continue_watching": "Continue {}",
-      "continue_watching_short": "Continue"
+      "continue_watching_short": "Continue",
+      "source_diffs": "{} differ",
+      "rating": "Rating",
+      "type": "Type",
+      "year": "Year",
+      "open_on_source": "Open on {}",
+      "source_lookup": "Look up",
+      "source_absent": "Not there",
+      "episode_total": "{} episodes",
+      "episode_unit": "EP",
+      "newer_by": "{} newer",
+      "older_by": "{} older",
+      "cross_source_note": "Progress is shared across sources by episode NUMBER, not by list position. An episode only some catalogs carry is only recognised by those.",
+      "compare": "Compare",
+      "unwatched_count": "{} unwatched",
+      "watched_upto": "Up to {}",
+      "watched_upto_on": "On {}, up to {}",
+      "episode_count": "{} eps",
+      "refresh_cooldown": "Too soon — retry in {}s",
+      "source": "Source",
+      "seen_on": "Watched on {}",
+      "play_count": "{} plays",
+      "seen_on_episode": "{} · up to {}"
     },
     "section": {
       "episodes": "Episodes",
@@ -198,13 +222,19 @@
     "downloading_progress": "Downloading {}/{}",
     "episodes_count": "{} episodes",
     "episode_fallback": "Episode",
-    "time_left": "{} left"
+    "time_left": "{} left",
+    "active_count": "{} downloading"
   },
   "filter": {
     "all_types": "All Types",
     "all_areas": "All Areas",
     "all_years": "All Years",
-    "no_category": "No Category"
+    "no_category": "No Category",
+    "type": "Type",
+    "area": "Area",
+    "year": "Year",
+    "any": "All",
+    "loading_category": "Loading…"
   },
   "common": {
     "refresh": "Refresh",
@@ -218,7 +248,13 @@
     "view_details": "View Details",
     "waiting_for_video": "Waiting for video...",
     "close": "Close",
-    "retry": "Retry"
+    "retry": "Retry",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "back": "Back",
+    "minutes_short": "{}m",
+    "hours_short": "{}h",
+    "days_short": "{}d"
   },
   "subscription": {
     "title": "Subscriptions",
@@ -236,6 +272,9 @@
     "every_days": "About every {} days",
     "every_hours": "About every {} hours",
     "notify_title": "New episodes",
-    "notify_body_more": "{} and {} more updated"
+    "notify_body_more": "{} and {} more updated",
+    "go_watch": "Watch",
+    "dismiss": "Dismiss",
+    "mark_all_read": "Mark all read"
   }
 }

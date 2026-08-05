@@ -5,8 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/database/app_database_provider.dart';
 import '../../features/settings/data/settings_repository.dart';
 
-// Provider for initial value (overridden in main.dart)
-final initialThemeModeProvider = Provider<ThemeMode>((ref) => ThemeMode.dark);
+/// Overridden in main.dart from stored settings; this is only what a fresh
+/// install opens on. Light because that is the theme the current design was
+/// drawn in — an app whose first screen is not the one it was designed for is
+/// showing every user its second-best face.
+final initialThemeModeProvider = Provider<ThemeMode>((ref) => ThemeMode.light);
 
 class ThemeModeNotifier extends Notifier<ThemeMode> {
   @override

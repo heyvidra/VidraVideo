@@ -4,6 +4,8 @@ import 'package:easy_localization/easy_localization.dart';
 import 'play_history_provider.dart';
 import '../domain/play_history.dart';
 import '../domain/video_collection.dart';
+import '../../../common/bar_controls.dart';
+import '../../../common/screen_chrome.dart';
 import '../../../common/skeleton/video_card_skeleton.dart';
 import 'widgets/cards/popular_video_card.dart';
 import 'package:vidra/src/window/player_window_launcher.dart';
@@ -31,149 +33,141 @@ class _RecentListScreenState extends ConsumerState<RecentListScreen> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: Text(tr('recent.title')),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () =>
-                ref.read(playHistoryProvider.notifier).manualRefresh(),
-            tooltip: tr('common.refresh'),
-          ),
-          TextButton(
-            onPressed: () => _confirmClearAll(context, ref),
-            child: Text(
-              tr('recent.clear_all'),
-              style: const TextStyle(color: Colors.red),
-            ),
-          ),
-          const SizedBox(width: 16),
-        ],
-      ),
-      body: historyAsync.when(
-        data: (history) {
-          if (history.isEmpty) {
-            return Center(
-              child: Text(
-                tr('recent.empty'),
-                style: const TextStyle(color: Colors.grey),
+      body: Column(
+        children: [
+          ScreenHeader(
+            title: tr('recent.title'),
+            count: historyAsync.value?.isNotEmpty == true
+                ? '${historyAsync.value!.length}'
+                : null,
+            actions: [
+              BarIcon(
+                icon: Icons.refresh_rounded,
+                tooltip: tr('common.refresh'),
+                onTap: () =>
+                    ref.read(playHistoryProvider.notifier).manualRefresh(),
               ),
-            );
-          }
-
-          return GridView.builder(
-            padding: const EdgeInsets.all(24),
-            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: 220,
-              childAspectRatio: 0.7,
-              crossAxisSpacing: 20,
-              mainAxisSpacing: 20,
-            ),
-            itemCount: history.length,
-            itemBuilder: (context, index) {
-              final entry = history[index];
-              final item = entry.video;
-
-              try {
-                // Map VideoHistory to Video model for PopularVideoCard
-                final video = Video(
-                  apiId: item.videoId,
-                  title: item.videoTitle,
-                  coverUrl: item.coverUrl,
-                  rating: double.tryParse(item.rating ?? '') ?? 0.0,
-                  type: item.type,
-                  region: item.region,
-                  year: item.year,
-                  actor: item.actor,
-                  version: item.version,
-                  hits: item.hits,
-                  remarks: item.remarks,
-                  blurb: item.blurb,
-                  sourceId: item.sourceId,
-                );
-
-                // A film is located by its timestamp; only episodic content
-                // has a meaningful "which one". See isEpisodicType — sources
-                // file a film's audio tracks and mirrors under the episode
-                // list, so its "episode title" is 立即播放 / 粤语播放.
-                final String? watchLabel;
-                if (isEpisodicType(item.type)) {
-                  final episodeLabel =
-                      item.lastEpisodeTitle ??
-                      tr(
-                        'video.detail.episode_prefix',
-                        args: [(item.lastEpisodeIndex + 1).toString()],
-                      );
-                  watchLabel = tr('recent.watched_to', args: [episodeLabel]);
-                } else if (entry.position > Duration.zero) {
-                  watchLabel = tr(
-                    'recent.watched_to',
-                    args: [_formatPosition(entry.position)],
+              const SizedBox(width: 6),
+              ScreenAction(
+                label: tr('recent.clear_all'),
+                danger: true,
+                onTap: () => _confirmClearAll(context, ref),
+              ),
+            ],
+          ),
+          Expanded(
+            child: historyAsync.when(
+              data: (history) {
+                if (history.isEmpty) {
+                  return ScreenEmpty(
+                    icon: Icons.history_rounded,
+                    title: tr('recent.empty'),
                   );
-                } else {
-                  watchLabel = null;
                 }
 
-                return Stack(
-                  key: ValueKey('history_${item.id}'),
-                  children: [
-                    PopularVideoCard(
-                      video: video,
-                      // Straight back into the episode they left. This list
-                      // exists precisely because they intend to keep watching;
-                      // routing it through the detail page made the shortcut
-                      // longer than the long way round.
-                      onTap: () => PlayerWindowLauncher.open(
-                        videoId: item.videoId,
-                        episodeIndex: item.lastEpisodeIndex,
+                return GridView.builder(
+                  padding: const EdgeInsets.fromLTRB(
+                    kContentGutter,
+                    0,
+                    kContentGutter,
+                    24,
+                  ),
+                  gridDelegate: kPosterGrid,
+                  itemCount: history.length,
+                  itemBuilder: (context, index) {
+                    final entry = history[index];
+                    final item = entry.video;
+
+                    try {
+                      // Map VideoHistory to Video model for PopularVideoCard
+                      final video = Video(
+                        apiId: item.videoId,
+                        title: item.videoTitle,
+                        coverUrl: item.coverUrl,
+                        rating: double.tryParse(item.rating ?? '') ?? 0.0,
+                        type: item.type,
+                        region: item.region,
+                        year: item.year,
+                        actor: item.actor,
+                        version: item.version,
+                        hits: item.hits,
+                        remarks: item.remarks,
+                        blurb: item.blurb,
                         sourceId: item.sourceId,
-                      ),
-                      watchLabel: watchLabel,
-                      watchProgress: entry.progress,
-                    ),
-                    Positioned(
-                      top: 4,
-                      right: 4,
-                      child: IconButton(
-                        icon: const Icon(
-                          Icons.close,
-                          color: Colors.white,
-                          size: 16,
+                      );
+
+                      // A film is located by its timestamp; only episodic content
+                      // has a meaningful "which one". See isEpisodicType — sources
+                      // file a film's audio tracks and mirrors under the episode
+                      // list, so its "episode title" is 立即播放 / 粤语播放.
+                      final String? watchLabel;
+                      if (isEpisodicType(item.type)) {
+                        final episodeLabel =
+                            item.lastEpisodeTitle ??
+                            tr(
+                              'video.detail.episode_prefix',
+                              args: [(item.lastEpisodeIndex + 1).toString()],
+                            );
+                        watchLabel = tr(
+                          'recent.watched_to',
+                          args: [episodeLabel],
+                        );
+                      } else if (entry.position > Duration.zero) {
+                        watchLabel = tr(
+                          'recent.watched_to',
+                          args: [_formatPosition(entry.position)],
+                        );
+                      } else {
+                        watchLabel = null;
+                      }
+
+                      return PopularVideoCard(
+                        key: ValueKey('history_${item.id}'),
+                        video: video,
+                        // Straight back into the episode they left. This list
+                        // exists precisely because they intend to keep watching;
+                        // routing it through the detail page made the shortcut
+                        // longer than the long way round.
+                        onTap: () => PlayerWindowLauncher.open(
+                          videoId: item.videoId,
+                          episodeIndex: item.lastEpisodeIndex,
+                          sourceId: item.sourceId,
                         ),
-                        style: IconButton.styleFrom(
-                          backgroundColor: Colors.black45,
-                          padding: EdgeInsets.zero,
-                        ),
-                        onPressed: () {
-                          ref
+                        watchLabel: watchLabel,
+                        watchProgress: entry.progress,
+                        // Through the card's own slot, so it sits BESIDE
+                        // the rating chip instead of on top of it.
+                        trailing: _CardAction(
+                          icon: Icons.close_rounded,
+                          tooltip: tr('recent.remove'),
+                          onTap: () => ref
                               .read(playHistoryProvider.notifier)
-                              .deleteVideoHistory(item.id);
-                        },
-                      ),
-                    ),
-                  ],
+                              .deleteVideoHistory(item.id),
+                        ),
+                      );
+                    } catch (e) {
+                      return const SizedBox.shrink();
+                    }
+                  },
                 );
-              } catch (e) {
-                return const SizedBox.shrink();
-              }
-            },
-          );
-        },
-        loading: () => GridView.builder(
-          padding: const EdgeInsets.all(24),
-          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-            maxCrossAxisExtent: 220,
-            childAspectRatio: 0.7,
-            crossAxisSpacing: 20,
-            mainAxisSpacing: 20,
+              },
+              loading: () => GridView.builder(
+                padding: const EdgeInsets.fromLTRB(
+                  kContentGutter,
+                  0,
+                  kContentGutter,
+                  24,
+                ),
+                gridDelegate: kPosterGrid,
+                itemCount: 10,
+                itemBuilder: (context, index) => const VideoCardSkeleton(),
+              ),
+              error: (err, stack) => Center(
+                child: Text(tr('common.error', args: [err.toString()])),
+              ),
+            ),
           ),
-          itemCount: 10,
-          itemBuilder: (context, index) => const VideoCardSkeleton(),
-        ),
-        error: (err, stack) =>
-            Center(child: Text(tr('common.error', args: [err.toString()]))),
+        ],
       ),
     );
   }
@@ -214,4 +208,35 @@ class _RecentListScreenState extends ConsumerState<RecentListScreen> {
       ref.read(playHistoryProvider.notifier).clearHistory();
     }
   }
+}
+
+/// A dark round action laid on a poster — the shape the subscription card's
+/// unfollow button uses too.
+class _CardAction extends StatelessWidget {
+  const _CardAction({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: tooltip,
+    child: Material(
+      color: Colors.black.withValues(alpha: 0.47),
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(4),
+          child: Icon(icon, size: 14, color: Colors.white),
+        ),
+      ),
+    ),
+  );
 }

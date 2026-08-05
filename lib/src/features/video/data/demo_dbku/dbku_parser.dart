@@ -101,10 +101,14 @@ class DbkuParser {
     dotAll: true,
   );
   static final _rating = RegExp(r'<span class="branch">([\d.]+)</span>');
-  static final _type = RegExp(r'分类：</span><a href="/vodshow/(\d+)[^"]*">([^<]*)</a>');
+  static final _type = RegExp(
+    r'分类：</span><a href="/vodshow/(\d+)[^"]*">([^<]*)</a>',
+  );
   static final _region = RegExp(r'地区：</span><a[^>]*>([^<]*)</a>');
   static final _year = RegExp(r'年份：</span><a[^>]*>(\d{4})</a>');
-  static final _updated = RegExp(r'更新：</span><span class="text-red">([^<]*)</span>');
+  static final _updated = RegExp(
+    r'更新：</span><span class="text-red">([^<]*)</span>',
+  );
   static final _actor = RegExp(r'主演：</span>(.*?)</p>', dotAll: true);
   static final _director = RegExp(r'导演：</span>(.*?)</p>', dotAll: true);
   static final _anchorText = RegExp(r'>([^<]+)</a>');

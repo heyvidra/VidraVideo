@@ -4,12 +4,13 @@ import 'vidradlp_downloader.dart';
 import 'm3u8_downloader.dart';
 
 /// Progress callback shared by all segment downloaders.
-typedef DownloadProgressCallback = void Function(
-  double progress,
-  int bytesDownloaded,
-  int? totalBytes,
-  String status,
-);
+typedef DownloadProgressCallback =
+    void Function(
+      double progress,
+      int bytesDownloaded,
+      int? totalBytes,
+      String status,
+    );
 
 /// A downloader that turns an HLS/m3u8 URL into a single local file.
 ///
@@ -44,13 +45,18 @@ SegmentDownloader createSegmentDownloader({
   String? configJson,
 }) {
   if (vidradlpLibraryAvailable()) {
-    logR('SegmentDownloader',
-        'using vidraDlp (native, TS→MP4 remux, concurrency=$segmentConcurrency)');
+    logR(
+      'SegmentDownloader',
+      'using vidraDlp (native, TS→MP4 remux, concurrency=$segmentConcurrency)',
+    );
     return VidraDlpDownloader(
       concurrency: segmentConcurrency,
       configJson: configJson,
     );
   }
-  logR('SegmentDownloader', 'vidraDlp lib unavailable → pure-Dart .ts fallback');
+  logR(
+    'SegmentDownloader',
+    'vidraDlp lib unavailable → pure-Dart .ts fallback',
+  );
   return M3U8Downloader(maxConcurrentDownloads: segmentConcurrency);
 }

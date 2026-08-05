@@ -162,7 +162,8 @@ class Video {
   }
 
   @override
-  int get hashCode => Object.hash(sourceId, apiId, title, coverUrl, urls?.length);
+  int get hashCode =>
+      Object.hash(sourceId, apiId, title, coverUrl, urls?.length);
 }
 
 class VideoQuality {

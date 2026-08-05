@@ -1,7 +1,18 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:vidra/src/config/design_tokens.dart';
 import 'package:vidra/src/features/video/domain/category.dart';
 
+/// What narrows the current category: type, area, year.
+///
+/// Laid out, not hidden behind menus — the whole point of a filter row is that
+/// you can see what is on offer without asking. One line each, scrolling
+/// sideways: the catalogs ship 20 areas and 26 years, and as wrapping pills
+/// that was four rows and roughly 240px of chrome above the grid. A row that
+/// scrolls stays one row however many options arrive.
+///
+/// The top-level categories that used to head this strip are in the rail now:
+/// they are destinations, not filters.
 class CategoryFilter extends StatelessWidget {
   final Category selectedCategory;
   final List<Category> categories;
@@ -26,156 +37,148 @@ class CategoryFilter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final hasType = selectedCategory.children.isNotEmpty;
+    final hasArea = selectedCategory.areas.isNotEmpty;
+    final hasYear = selectedCategory.years.isNotEmpty;
+    if (!hasType && !hasArea && !hasYear) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 1. Top Level Categories
-        Row(
-          children: [
-            Expanded(
-              // Scrollbars hidden app-wide via NoScrollbarBehavior
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: categories.map((category) {
-                    final isSelected = category.id == selectedCategory.id;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 24),
-                      child: InkWell(
-                        onTap: () => onCategoryChanged(category),
-                        borderRadius: BorderRadius.circular(20),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: isSelected
-                              ? BoxDecoration(
-                                  color: theme.colorScheme.primary,
-                                  borderRadius: BorderRadius.circular(20),
-                                )
-                              : null,
-                          child: Text(
-                            category.name == '无分类'
-                                ? tr('filter.no_category')
-                                : (category.name == '加载中...'
-                                      ? tr('common.loading')
-                                      : category.name),
-                            style: TextStyle(
-                              color: isSelected
-                                  ? Colors.white
-                                  : theme.colorScheme.onSurface,
-                              fontSize: 16,
-                              fontWeight: isSelected
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
-            const SizedBox(width: 16),
-          ],
-        ),
-        // Show sub-filters only if not "Live"
-        if (selectedCategory.children.isNotEmpty ||
-            selectedCategory.areas.isNotEmpty) ...[
-          const SizedBox(height: 16),
-
-          // 2. Sub-Categories (Type)
-          if (selectedCategory.children.isNotEmpty)
-            _buildFilterRow(
-              context,
-              tr('filter.all_types'),
-              selectedCategory.children.map((e) => e.name).toList(),
-              selectedSubType,
-              (val) => onFilterChanged(val, selectedArea, selectedYear),
-            ),
-
-          // 3. Areas
-          if (selectedCategory.areas.isNotEmpty)
-            _buildFilterRow(
-              context,
-              tr('filter.all_areas'),
-              selectedCategory.areas,
-              selectedArea,
-              (val) => onFilterChanged(selectedSubType, val, selectedYear),
-            ),
-
-          // 4. Years
-          if (selectedCategory.years.isNotEmpty)
-            _buildFilterRow(
-              context,
-              tr('filter.all_years'),
-              selectedCategory.years,
-              selectedYear,
-              (val) => onFilterChanged(selectedSubType, selectedArea, val),
-            ),
-        ],
+        if (hasType)
+          _FilterRow(
+            label: tr('filter.type'),
+            value: selectedSubType,
+            options: selectedCategory.children.map((e) => e.name).toList(),
+            onPick: (v) => onFilterChanged(v, selectedArea, selectedYear),
+          ),
+        if (hasArea)
+          _FilterRow(
+            label: tr('filter.area'),
+            value: selectedArea,
+            options: selectedCategory.areas,
+            onPick: (v) => onFilterChanged(selectedSubType, v, selectedYear),
+          ),
+        if (hasYear)
+          _FilterRow(
+            label: tr('filter.year'),
+            value: selectedYear,
+            options: selectedCategory.years,
+            onPick: (v) => onFilterChanged(selectedSubType, selectedArea, v),
+          ),
       ],
     );
   }
+}
 
-  Widget _buildFilterRow(
-    BuildContext context,
-    String allLabel,
-    List<String> items,
-    String? selectedItem,
-    Function(String?) onSelected,
-  ) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    // null represents "all"; its display text is the translated allLabel.
-    final List<String?> allItems = [null, ...items];
+/// One filter, spelled out: its name, then every value it can take.
+class _FilterRow extends StatelessWidget {
+  const _FilterRow({
+    required this.label,
+    required this.value,
+    required this.options,
+    required this.onPick,
+  });
+
+  final String label;
+  final String? value;
+  final List<String> options;
+  final ValueChanged<String?> onPick;
+
+  /// Enough for a two-character label plus its gap, so the three rows' options
+  /// start on the same vertical line.
+  static const _labelWidth = 40.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = VidraTokens.of(context);
+    // "All" is a value like any other and leads the row — it is the one every
+    // filter starts on and the one people come back to.
+    final all = <String?>[null, ...options];
+
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Wrap(
-        spacing: 0,
-        runSpacing: 8,
-        children: allItems.map((label) {
-          final isSelected = label == selectedItem;
-          final displayLabel = label ?? allLabel;
-
-          return Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: InkWell(
-              onTap: () => onSelected(label),
-              borderRadius: BorderRadius.circular(15),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: isSelected
-                    ? BoxDecoration(
-                        color: theme.colorScheme.primary.withAlpha(
-                          isDark ? 50 : 30,
-                        ),
-                        borderRadius: BorderRadius.circular(15),
-                      )
-                    : null,
-                child: Text(
-                  displayLabel,
-                  style: TextStyle(
-                    color: isSelected
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.onSurface,
-                    fontSize: 13,
-                    fontWeight: isSelected
-                        ? FontWeight.bold
-                        : FontWeight.normal,
-                  ),
-                ),
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          SizedBox(
+            width: _labelWidth,
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 12, height: 1.4, color: t.fg3),
+            ),
+          ),
+          Expanded(
+            // Scrollbars are hidden app-wide (NoScrollbarBehavior); the row
+            // scrolls on trackpad and shift-wheel.
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (final option in all) ...[
+                    _OptionPill(
+                      label: option ?? tr('filter.any'),
+                      selected: option == value,
+                      onTap: () => onPick(option),
+                    ),
+                    const SizedBox(width: 6),
+                  ],
+                ],
               ),
             ),
-          );
-        }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One value a filter can take.
+///
+/// Bordered even when unselected: with no shape at all a row of these reads as
+/// a sentence, and the only cue that any of it is tappable is that one word
+/// happens to be coloured.
+class _OptionPill extends StatelessWidget {
+  const _OptionPill({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = VidraTokens.of(context);
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        hoverColor: t.fg.withValues(alpha: 0.05),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 4),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            color: selected
+                ? t.cyan.withValues(alpha: 0.12)
+                : t.fg.withValues(alpha: 0.04),
+            border: Border.all(
+              color: selected ? t.cyan.withValues(alpha: 0.42) : t.edgeSoft,
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              height: 1.4,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+              color: selected ? t.cyan : t.fg2,
+            ),
+          ),
+        ),
       ),
     );
   }

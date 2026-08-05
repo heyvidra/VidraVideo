@@ -2,10 +2,14 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:shimmer_animation/shimmer_animation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:vidra/src/common/skeleton/skeleton_box.dart';
+import 'package:vidra/src/config/design_tokens.dart';
 import 'package:vidra/src/features/video/data/video_repository.dart';
 import 'package:vidra/src/features/video/domain/video_collection.dart';
+import 'package:vidra/src/features/subscription/domain/subscription_identity.dart';
+import 'package:vidra/src/features/subscription/presentation/subscription_provider.dart';
+import 'package:vidra/src/features/video/data/cross_source_catalog.dart';
 import 'package:vidra/src/features/video/presentation/widgets/cross_source_watch_badge.dart';
 
 /// Ties a card's cover to the same image on the detail page it opens.
@@ -36,6 +40,20 @@ class PopularVideoCard extends ConsumerStatefulWidget {
   /// how many episodes exist, not how many you have watched.
   final String? watchLabel;
 
+  /// Replaces the card's own second line. 追更 has something better to say
+  /// there than a date — which catalog moved, and how far.
+  final String? subtitle;
+
+  /// Overrides the card's own guess. A followed show KNOWS whether it has
+  /// gained an episode since you last looked; the catalog can only infer it
+  /// from a timestamp.
+  final bool? isNew;
+
+  /// An action for this card, in the poster's top-right beside the rating.
+  /// Beside, not on top of: the recent list's delete button was drawn over the
+  /// rating chip, and both were unreadable.
+  final Widget? trailing;
+
   const PopularVideoCard({
     super.key,
     required this.video,
@@ -44,6 +62,9 @@ class PopularVideoCard extends ConsumerStatefulWidget {
     this.onTap,
     this.watchProgress,
     this.watchLabel,
+    this.subtitle,
+    this.isNew,
+    this.trailing,
   });
 
   @override
@@ -52,6 +73,22 @@ class PopularVideoCard extends ConsumerStatefulWidget {
 
 class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
     with SingleTickerProviderStateMixin {
+  /// Corner radius shared by the card, its cover and the chips laid over it —
+  /// three different radii on one card is what makes a grid look assembled
+  /// rather than designed.
+  static const _radius = 14.0;
+
+  /// Where progress and "new" are drawn. Deliberately the two accents that mean
+  /// something: cyan is only ever playback progress, amber is only ever "this
+  /// gained an episode".
+  ///
+  /// The DARK variants of both tokens whatever the theme: everything here sits
+  /// on a poster under a black scrim, and the light theme's `--cyan` is a deep
+  /// teal that disappears against it.
+  static const _progressColor = Color(0xFF7BE7F0);
+  static const _freshColor = Color(0xFFFFC559);
+  static const _onFresh = Color(0xFF38270A);
+
   bool isHovered = false;
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
@@ -90,6 +127,38 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
     return format(hits / 1000000000, 'b');
   }
 
+  /// "今天 · 更新至第 15 集", or whichever half of it exists.
+  ///
+  /// Relative for the first two days and absolute after: "3 天前" is a worse
+  /// answer than "08-05" once it stops meaning "since you last looked", and a
+  /// show that updates weekly is read by its date.
+  String _subtitle() {
+    if (widget.subtitle != null) return widget.subtitle!;
+    final parts = <String>[];
+    final t = widget.video.vodTime;
+    if (t != null && t > 0) {
+      final at = DateTime.fromMillisecondsSinceEpoch(t * 1000);
+      final days = DateTime.now().difference(at).inDays;
+      parts.add(
+        days < 1
+            ? tr('common.today')
+            : days < 2
+            ? tr('common.yesterday')
+            : '${at.month.toString().padLeft(2, '0')}-'
+                  '${at.day.toString().padLeft(2, '0')}',
+      );
+    }
+    final remarks = widget.video.remarks;
+    if (remarks != null && remarks.trim().isNotEmpty) parts.add(remarks.trim());
+    // Falls back to the cast rather than to an empty line: a card with a blank
+    // second row looks broken, and some catalog rows carry neither date nor
+    // progress line.
+    if (parts.isEmpty) {
+      return widget.video.actor ?? widget.video.blurb ?? '';
+    }
+    return parts.join(' · ');
+  }
+
   void _openDetail() {
     final sourceId = widget.video.sourceId;
     final path = sourceId != null
@@ -98,59 +167,146 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
     context.push(path, extra: widget.video);
   }
 
+  /// The desktop path a click cannot offer: things you want to do TO a show
+  /// without opening it.
+  ///
+  /// Only actions that need nothing the card does not already have. Play and
+  /// download are deliberately absent — a catalog row carries no episode list,
+  /// so either would have to fetch the detail first, and a context menu that
+  /// silently spends a request on a source that bans IPs is not a shortcut.
+  Future<void> _openMenu(Offset position) async {
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox?;
+    if (overlay == null) return;
+
+    final following = isShowSubscribed(
+      ref.read(subscriptionsProvider).value ?? const [],
+      title: widget.video.title,
+      year: widget.video.year,
+    );
+    final elsewhere =
+        ref
+            .read(
+              crossSourceCounterpartsProvider((
+                title: widget.video.title,
+                year: widget.video.year,
+                sourceId: widget.video.sourceId,
+              )),
+            )
+            .value ??
+        const <CrossSourceEntry>[];
+
+    final picked = await showMenu<VoidCallback>(
+      context: context,
+      position: RelativeRect.fromRect(
+        position & const Size(1, 1),
+        Offset.zero & overlay.size,
+      ),
+      items: [
+        PopupMenuItem(
+          value: _openDetail,
+          child: Text(tr('common.view_details')),
+        ),
+        PopupMenuItem(
+          value: () =>
+              ref.read(subscriptionsProvider.notifier).toggle(widget.video),
+          child: Text(
+            following
+                ? tr('subscription.unfollow')
+                : tr('subscription.subscribe'),
+          ),
+        ),
+        // One entry per catalog that also carries this show. Read from the
+        // local cache, so an unbrowsed catalog simply does not appear rather
+        // than the menu going and looking for one.
+        if (elsewhere.isNotEmpty) const PopupMenuDivider(),
+        for (final other in elsewhere)
+          PopupMenuItem(
+            value: () => context.push(
+              '/detail/${other.videoId}?sourceId=${other.sourceId}',
+            ),
+            child: Text(
+              tr(
+                'video.detail.open_on_source',
+                args: [sourceDisplayName(ref, other.sourceId)],
+              ),
+            ),
+          ),
+      ],
+    );
+    picked?.call();
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return InkWell(
-      onTap: widget.onTap ?? _openDetail,
-      child: MouseRegion(
-        onEnter: widget.enableHover
-            ? (_) {
-                setState(() => isHovered = true);
-                _controller.forward();
-              }
-            : null,
-        onExit: widget.enableHover
-            ? (_) {
-                setState(() => isHovered = false);
-                _controller.reverse();
-              }
-            : null,
-        child: AnimatedBuilder(
-          animation: _scaleAnimation,
-          builder: (context, child) {
-            return Transform.scale(scale: _scaleAnimation.value, child: child);
-          },
-          child: Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardTheme.color,
-              borderRadius: BorderRadius.circular(8),
-              border:
-                  Theme.of(context).cardTheme.shape is RoundedRectangleBorder
-                  ? Border.fromBorderSide(
-                      (Theme.of(context).cardTheme.shape
-                              as RoundedRectangleBorder)
-                          .side,
-                    )
-                  : null,
-              boxShadow: isHovered
-                  ? [
-                      BoxShadow(
-                        color: Colors.black.withAlpha(50),
-                        blurRadius: 15,
-                        offset: const Offset(0, 8),
-                      ),
-                    ]
-                  : [
-                      BoxShadow(
-                        color: Colors.black.withAlpha(isDark ? 0 : 15),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+    return GestureDetector(
+      onSecondaryTapUp: (d) => _openMenu(d.globalPosition),
+      // Trackpads and touch report a long press where a mouse reports a right
+      // click.
+      onLongPressStart: (d) => _openMenu(d.globalPosition),
+      child: InkWell(
+        onTap: widget.onTap ?? _openDetail,
+        child: MouseRegion(
+          onEnter: widget.enableHover
+              ? (_) {
+                  setState(() => isHovered = true);
+                  _controller.forward();
+                }
+              : null,
+          onExit: widget.enableHover
+              ? (_) {
+                  setState(() => isHovered = false);
+                  _controller.reverse();
+                }
+              : null,
+          child: AnimatedBuilder(
+            animation: _scaleAnimation,
+            builder: (context, child) {
+              return Transform.scale(
+                scale: _scaleAnimation.value,
+                child: child,
+              );
+            },
+            child: Container(
+              decoration: BoxDecoration(
+                // `--glass-2` with `--edge-soft`, the same material as every
+                // other panel in the window.
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: VidraTokens.of(context).glass2,
+                ),
+                borderRadius: BorderRadius.circular(_radius),
+                border: Border.all(color: VidraTokens.of(context).edgeSoft),
+                // Two shadows rather than one: a tight contact shadow keeps the
+                // card attached to the page while a wide, soft one carries the
+                // lift. A single blur does one job or the other, and hover with
+                // only the wide shadow reads as the card floating off.
+                boxShadow: isHovered
+                    ? [
+                        BoxShadow(
+                          color: Colors.black.withAlpha(isDark ? 130 : 40),
+                          blurRadius: 28,
+                          offset: const Offset(0, 14),
+                        ),
+                        BoxShadow(
+                          color: Colors.black.withAlpha(isDark ? 90 : 26),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
+                    : [
+                        BoxShadow(
+                          color: Colors.black.withAlpha(isDark ? 60 : 18),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: isHovered ? _buildHoverContent() : _buildNormalContent(),
             ),
-            clipBehavior: Clip.antiAlias,
-            child: isHovered ? _buildHoverContent() : _buildNormalContent(),
           ),
         ),
       ),
@@ -159,7 +315,6 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
 
   Widget _buildNormalContent() {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     // Resolved here rather than at every call site: cards are built by the
     // catalog, search and category screens, and threading a lookup through all
     // of them to say one line would be the same wiring three times.
@@ -184,20 +339,13 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
                         sourceId: widget.video.sourceId,
                       ),
                   fit: BoxFit.cover,
-                  placeholder: (context, url) => Shimmer(
-                    duration: const Duration(seconds: 2),
-                    interval: const Duration(milliseconds: 500),
-                    color: isDark
-                        ? Colors.white.withAlpha(80)
-                        : Colors.black.withAlpha(20),
-                    enabled: true,
-                    direction: const ShimmerDirection.fromLTRB(),
-                    child: Container(
-                      color: isDark ? Colors.grey[800] : Colors.grey[200],
-                    ),
-                  ),
-                  errorWidget: (context, url, err) => Container(
-                    color: isDark ? Colors.grey[900] : Colors.grey[300],
+                  // The same block the skeleton grid draws, so a card whose
+                  // cover is still loading matches the cards that have not
+                  // arrived at all. The greys it used were off-palette on both
+                  // themes.
+                  placeholder: (context, url) => const SkeletonBox(radius: 0),
+                  errorWidget: (context, url, err) => ColoredBox(
+                    color: VidraTokens.of(context).fg.withValues(alpha: 0.09),
                   ),
                 ),
               ),
@@ -210,120 +358,121 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
                   children: [
                     if (widget.video.version != null &&
                         widget.video.version!.isNotEmpty)
-                      _buildBadge(
-                        widget.video.version!,
-                        const Color(0xFF2196F3),
-                      ), // Blue
-                    if (widget.video.version != null) const SizedBox(width: 4),
-                    // "Latest" or other badges
-                    if ((DateTime.now()
-                            .difference(
-                              DateTime.fromMillisecondsSinceEpoch(
-                                (widget.video.vodTime ?? 0) * 1000,
-                              ),
-                            )
-                            .inDays <
-                        7))
+                      _buildBadge(widget.video.version!),
+                    if (widget.video.version != null) const SizedBox(width: 5),
+                    if (_isFresh)
                       _buildBadge(
                         tr('video.detail.new_badge'),
-                        const Color(0xFFFF9800),
-                      ), // Orange
+                        fill: _freshColor,
+                      ),
                   ],
                 ),
               ),
 
-              // Score (Top Right)
+              // Score and the card's action share the top-right corner, in a
+              // row. The recent list used to Position its delete button at the
+              // same 8,8 as the rating chip, so the two were drawn on top of
+              // each other and neither could be read.
               Positioned(
                 top: 8,
                 right: 8,
-                child: Text(
-                  "${widget.video.rating}",
-                  style: TextStyle(
-                    color: const Color(0xFFFF9800), // Orange
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    shadows: [
-                      Shadow(
-                        blurRadius: 4,
-                        color: Colors.black.withAlpha(150),
-                        offset: const Offset(0, 1),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // On its own chip, not bare text: an orange number sat
+                    // directly on the poster, and half the covers in a catalog
+                    // are bright enough to swallow it whole — a shadow only
+                    // smears it.
+                    if (widget.video.rating > 0)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withAlpha(120),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.star_rounded,
+                              size: 12,
+                              color: _freshColor,
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              '${widget.video.rating}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                fontFeatures: [FontFeature.tabularFigures()],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
+                    if (widget.trailing != null) ...[
+                      const SizedBox(width: 5),
+                      widget.trailing!,
                     ],
-                  ),
+                  ],
                 ),
               ),
 
-              if ((widget.watchProgress ?? 0) > 0.01)
+              // Bottom overlay carries YOUR progress and nothing else. The
+              // catalog's own "更新至第 N 集" moved below the poster, where the
+              // date that qualifies it can sit beside it — the two were saying
+              // the same thing in two places, and neither said when.
+              if (label != null)
                 Positioned(
                   bottom: 0,
                   left: 0,
                   right: 0,
                   child: Container(
-                    height: 3,
-                    color: Colors.white24,
-                    child: FractionallySizedBox(
-                      alignment: Alignment.centerLeft,
-                      widthFactor: widget.watchProgress!.clamp(0.0, 1.0),
-                      child: Container(color: const Color(0xFF00E5FF)),
+                    padding: const EdgeInsets.fromLTRB(9, 14, 9, 7),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.topCenter,
+                        colors: [
+                          Colors.black.withAlpha(190),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                    child: Text(
+                      label,
+                      style: const TextStyle(
+                        color: _progressColor,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                   ),
                 ),
 
-              // Bottom Overlay
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.bottomCenter,
-                      end: Alignment.topCenter,
-                      colors: [Colors.black.withAlpha(180), Colors.transparent],
+              // Above the gradient so it never fades out with it, and inset so
+              // it reads as a control rather than as the card's bottom edge.
+              if ((widget.watchProgress ?? 0) > 0.01)
+                Positioned(
+                  bottom: 6,
+                  left: 9,
+                  right: 9,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: LinearProgressIndicator(
+                      value: widget.watchProgress!.clamp(0.0, 1.0),
+                      minHeight: 3,
+                      backgroundColor: Colors.white.withAlpha(64),
+                      valueColor: const AlwaysStoppedAnimation(_progressColor),
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.whatshot,
-                        color: Color(0xFFFF5722),
-                        size: 14,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _formatHits(widget.video.hits),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      // "看到第 5 集" wins over "更新至第 05 集": on a card you
-                      // are returning to, your own progress is the answer you
-                      // came for, and both together won't fit.
-                      if (label != null || widget.video.remarks != null)
-                        Expanded(
-                          child: Text(
-                            label ?? widget.video.remarks!,
-                            style: TextStyle(
-                              color: label != null
-                                  ? const Color(0xFF00E5FF)
-                                  : Colors.white,
-                              fontSize: 12,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                            textAlign: TextAlign.right,
-                          ),
-                        ),
-                    ],
-                  ),
                 ),
-              ),
             ],
           ),
         ),
@@ -345,14 +494,19 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
                     fontSize: 14,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
+                // When it last moved, and how far it has got. The cast used to
+                // be here; it is in the hover panel now, because a name you do
+                // not recognise answers nothing while a date answers "is this
+                // still running" at a glance.
                 Text(
-                  widget.video.actor ?? (widget.video.blurb ?? ""),
+                  _subtitle(),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: theme.colorScheme.onSurfaceVariant,
-                    fontSize: 12,
+                    fontSize: 11.5,
+                    fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
               ],
@@ -381,14 +535,7 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
                 .read(videoRepositoryProvider)
                 .resolveUrl(widget.video.coverUrl),
             fit: BoxFit.cover,
-            placeholder: (context, url) => Shimmer(
-              duration: const Duration(seconds: 2),
-              interval: const Duration(milliseconds: 500),
-              color: Colors.white.withAlpha(50),
-              enabled: true,
-              direction: const ShimmerDirection.fromLTRB(),
-              child: Container(color: Colors.grey[800]),
-            ),
+            placeholder: (context, url) => const SkeletonBox(radius: 0),
           ),
         ),
         Container(color: Colors.black.withAlpha(100)),
@@ -401,34 +548,47 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
             children: [
               if (widget.video.version != null &&
                   widget.video.version!.isNotEmpty)
-                _buildBadge(widget.video.version!, const Color(0xFF2196F3)),
-              if ((DateTime.now()
-                      .difference(
-                        DateTime.fromMillisecondsSinceEpoch(
-                          (widget.video.vodTime ?? 0) * 1000,
-                        ),
-                      )
-                      .inDays <
-                  7))
+                _buildBadge(widget.video.version!),
+              if (_isFresh)
                 Padding(
-                  padding: const EdgeInsets.only(left: 4),
+                  padding: const EdgeInsets.only(left: 5),
                   child: _buildBadge(
                     tr('video.detail.new_badge'),
-                    const Color(0xFFFF9800),
+                    fill: _freshColor,
                   ),
                 ),
             ],
           ),
         ),
+        // The action has to be here TOO, in the same corner at the same size.
+        // Hovering swaps this whole subtree in, and it did not render
+        // `trailing` — so the delete button and the unfollow bell vanished the
+        // moment the pointer arrived, which is the only moment anyone reaches
+        // for them.
         Positioned(
           top: 8,
           right: 8,
-          child: Text(
-            "${widget.video.rating}",
-            style: const TextStyle(
-              color: Color(0xFFFF9800),
-              fontWeight: FontWeight.bold,
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (widget.video.rating > 0) ...[
+                const Icon(Icons.star_rounded, size: 13, color: _freshColor),
+                const SizedBox(width: 3),
+                Text(
+                  '${widget.video.rating}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
+              if (widget.trailing != null) ...[
+                const SizedBox(width: 5),
+                widget.trailing!,
+              ],
+            ],
           ),
         ),
 
@@ -457,14 +617,25 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
                 ),
                 const SizedBox(height: 4),
 
-                // Tags (Type, Region, Year)
+                // Tags (Type, Region, Year), plus the play count that used to
+                // lead the resting card. It compares shows against each other,
+                // which is a question for the moment you are weighing one — not
+                // for every card in a scrolling grid.
                 Wrap(
-                  spacing: 8,
+                  spacing: 6,
                   runSpacing: 4,
                   children: [
-                    _buildTag(theme, widget.video.type),
-                    _buildTag(theme, widget.video.region ?? ''),
-                    _buildTag(theme, widget.video.year ?? ''),
+                    for (final t in [
+                      widget.video.type,
+                      widget.video.region ?? '',
+                      widget.video.year ?? '',
+                      if ((widget.video.hits ?? 0) > 0)
+                        tr(
+                          'video.detail.play_count',
+                          args: [_formatHits(widget.video.hits)],
+                        ),
+                    ])
+                      if (t.isNotEmpty) _buildTag(theme, t),
                   ],
                 ),
                 const SizedBox(height: 4),
@@ -505,21 +676,23 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
             ),
           ),
         ),
-        Positioned(
-          top: 70,
-          left: 0,
-          right: 0,
+        // Centred in the cover rather than parked at a hardcoded offset: the
+        // grid sizes cards to the window, so `top: 70` put the play ring
+        // anywhere from mid-poster to behind the info panel. Aligned slightly
+        // above centre so it clears that panel at every card height.
+        Align(
+          alignment: const Alignment(0, -0.35),
           child: Container(
-            alignment: Alignment.center,
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(11),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.white70, width: 5),
+              color: Colors.black.withAlpha(70),
+              border: Border.all(color: Colors.white70, width: 3),
             ),
             child: const Icon(
-              Icons.play_arrow,
-              color: Colors.white70,
-              size: 32,
+              Icons.play_arrow_rounded,
+              color: Colors.white,
+              size: 30,
             ),
           ),
         ),
@@ -529,14 +702,12 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
         // cards a straight-to-playback tap left the episode list unreachable
         // from the one screen a viewer returns to.
         if (widget.onTap != null)
-          Positioned(
-            top: 150,
-            left: 0,
-            right: 0,
+          Align(
+            alignment: const Alignment(0, 0.15),
             child: Center(
               child: Material(
                 color: Colors.black45,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(999),
                 child: InkWell(
                   // Its own tap target: the card's InkWell sits underneath and
                   // would otherwise start playback instead.
@@ -570,19 +741,36 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
     );
   }
 
-  Widget _buildBadge(String text, Color color) {
+  /// Listed within the last week, which is what the catalog's own timestamp can
+  /// actually support. Per-episode "new" is computed against our own previous
+  /// snapshot — see `VideoRepository._markNewEpisodes` — but that lives on the
+  /// episode list, and a card has no episodes to compare.
+  bool get _isFresh {
+    if (widget.isNew != null) return widget.isNew!;
+    final t = widget.video.vodTime;
+    if (t == null || t <= 0) return false;
+    final at = DateTime.fromMillisecondsSinceEpoch(t * 1000);
+    return DateTime.now().difference(at).inDays < 7;
+  }
+
+  /// One badge shape for everything laid on a cover.
+  ///
+  /// [fill] is for the one badge that must be seen from across the grid;
+  /// everything else is the same neutral darkening, because a card that answers
+  /// with four saturated colours answers with none.
+  Widget _buildBadge(String text, {Color? fill}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
       decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(2),
+        color: fill ?? Colors.black.withAlpha(120),
+        borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         text,
-        style: const TextStyle(
-          color: Colors.white,
+        style: TextStyle(
+          color: fill == null ? Colors.white : _onFresh,
           fontSize: 10,
-          fontWeight: FontWeight.bold,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
@@ -591,10 +779,10 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
   Widget _buildTag(ThemeData theme, String text) {
     final isDark = theme.brightness == Brightness.dark;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
       decoration: BoxDecoration(
-        color: Colors.white.withAlpha(isDark ? 30 : 50),
-        borderRadius: BorderRadius.circular(4),
+        color: Colors.white.withAlpha(isDark ? 34 : 54),
+        borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         text,

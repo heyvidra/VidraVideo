@@ -1,19 +1,21 @@
 {
   "navigation": {
     "home": "首页",
+    "subscriptions": "追更",
     "downloads": "下载",
     "link_download": "链接下载",
-    "recent": "最近播放",
+    "recent": "继续观看",
     "settings": "设置",
-    "section_menu": "菜单",
-    "section_library": "库",
+    "section_menu": "片库",
+    "section_library": "我的",
     "section_general": "通用"
   },
   "recent": {
     "title": "最近播放",
     "clear_all": "清除全部",
     "empty": "暂无播放历史",
-    "watched_to": "看到 {}"
+    "watched_to": "看到 {}",
+    "remove": "从记录中移除"
   },
   "dashboard": {
     "search_hint": "搜索",
@@ -94,7 +96,29 @@
       "cast_info": "主演: {}",
       "storyline": "简介",
       "continue_watching": "继续观看 {}",
-      "continue_watching_short": "继续观看"
+      "continue_watching_short": "继续观看",
+      "source_diffs": "{} 处不同",
+      "rating": "评分",
+      "type": "分类",
+      "year": "年份",
+      "open_on_source": "在 {} 打开",
+      "source_lookup": "查找",
+      "source_absent": "未收录",
+      "episode_total": "全 {} 集",
+      "episode_unit": "集",
+      "newer_by": "快 {}",
+      "older_by": "慢 {}",
+      "cross_source_note": "进度按集号在所有源之间共享，不按列表位置。某一集只在部分源存在时，只有那些源认得它。",
+      "compare": "对照",
+      "unwatched_count": "{} 集未看",
+      "watched_upto": "看到 {}",
+      "watched_upto_on": "已在 {} 看到 {}",
+      "episode_count": "{} 集",
+      "refresh_cooldown": "刷新太频繁，请在 {} 秒后重试",
+      "source": "片源",
+      "seen_on": "在 {} 看过",
+      "play_count": "{} 次播放",
+      "seen_on_episode": "{} 看到 {}"
     },
     "section": {
       "episodes": "剧集",
@@ -198,13 +222,19 @@
     "downloading_progress": "下载中 {}/{}",
     "episodes_count": "{} 集",
     "episode_fallback": "剧集",
-    "time_left": "剩 {}"
+    "time_left": "剩 {}",
+    "active_count": "{} 项下载中"
   },
   "filter": {
     "all_types": "全部类型",
     "all_areas": "全部地区",
     "all_years": "全部年份",
-    "no_category": "无分类"
+    "no_category": "无分类",
+    "type": "类型",
+    "area": "地区",
+    "year": "年份",
+    "any": "全部",
+    "loading_category": "加载中…"
   },
   "common": {
     "refresh": "刷新",
@@ -218,7 +248,13 @@
     "view_details": "查看详情",
     "waiting_for_video": "正在准备视频...",
     "close": "关闭",
-    "retry": "重试"
+    "retry": "重试",
+    "today": "今天",
+    "yesterday": "昨天",
+    "back": "返回",
+    "minutes_short": "{} 分",
+    "hours_short": "{} 小时",
+    "days_short": "{} 天"
   },
   "subscription": {
     "title": "订阅",
@@ -236,6 +272,9 @@
     "every_days": "约每 {} 天更新",
     "every_hours": "约每 {} 小时更新",
     "notify_title": "追剧更新",
-    "notify_body_more": "{} 等 {} 部剧集有更新"
+    "notify_body_more": "{} 等 {} 部剧集有更新",
+    "go_watch": "去看看",
+    "dismiss": "知道了",
+    "mark_all_read": "全部已读"
   }
 }

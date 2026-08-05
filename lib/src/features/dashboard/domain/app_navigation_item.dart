@@ -9,6 +9,21 @@ enum AppNavigationItem {
     sectionKey: 'navigation.section_menu',
     route: '/',
   ),
+  // Order is the rail's order: 追更 / 继续观看 / 下载 / 链接下载, per the design.
+  subscriptions(
+    labelKey: 'navigation.subscriptions',
+    icon: Icons.notifications_none,
+    branchIndex: 5,
+    sectionKey: 'navigation.section_library',
+    route: '/subscriptions',
+  ),
+  recent(
+    labelKey: 'navigation.recent',
+    icon: Icons.schedule,
+    branchIndex: 2,
+    sectionKey: 'navigation.section_library',
+    route: '/recent',
+  ),
   downloads(
     labelKey: 'navigation.downloads',
     icon: Icons.download,
@@ -24,13 +39,6 @@ enum AppNavigationItem {
     sectionKey: 'navigation.section_library',
     route: '/download-url',
     requiresMediaFfi: true,
-  ),
-  recent(
-    labelKey: 'navigation.recent',
-    icon: Icons.schedule,
-    branchIndex: 2,
-    sectionKey: 'navigation.section_library',
-    route: '/recent',
   ),
   settings(
     labelKey: 'navigation.settings',

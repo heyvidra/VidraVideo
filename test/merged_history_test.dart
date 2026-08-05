@@ -11,6 +11,13 @@ import 'package:vidra/src/features/video/domain/play_history.dart';
 import 'package:vidra/src/features/video/domain/video_collection.dart';
 
 void main() {
+  /// Most cases borrow from one catalog; the list form only matters where the
+  /// test is about several of them disagreeing.
+  List<CatalogProgress> one(
+    List<VideoEpisode> episodes,
+    Map<int, EpisodeHistory> histories,
+  ) => [(episodes: episodes, histories: histories)];
+
   List<VideoEpisode> titled(Iterable<String> titles) => [
     for (final t in titles) VideoEpisode(title: t),
   ];
@@ -47,17 +54,16 @@ void main() {
       final merged = mergeHistoriesByEpisodeNumber(
         localEpisodes: unpadded(1, 14),
         localHistories: local,
-        otherEpisodes: padded(1, 15),
         // Further in AND more recent, and still the wrong answer: it measures a
         // different encode, so 90s into dbku's file is not 90s into olevod's.
-        otherHistories: {
+        others: one(padded(1, 15), {
           2: watched(
             2,
             source: 'dbku',
             position: 90000,
             at: DateTime(2026, 8, 4),
           ),
-        },
+        }),
         episodic: true,
       );
 
@@ -70,8 +76,7 @@ void main() {
     final merged = mergeHistoriesByEpisodeNumber(
       localEpisodes: unpadded(1, 14),
       localHistories: const {},
-      otherEpisodes: padded(1, 15),
-      otherHistories: {6: watched(6, source: 'dbku')},
+      others: one(padded(1, 15), {6: watched(6, source: 'dbku')}),
       episodic: true,
     );
 
@@ -87,8 +92,7 @@ void main() {
     final merged = mergeHistoriesByEpisodeNumber(
       localEpisodes: unpadded(2, 15),
       localHistories: const {},
-      otherEpisodes: padded(1, 15),
-      otherHistories: {4: watched(4, source: 'dbku', videoId: 77)},
+      others: one(padded(1, 15), {4: watched(4, source: 'dbku', videoId: 77)}),
       episodic: true,
     );
 
@@ -107,11 +111,10 @@ void main() {
     final merged = mergeHistoriesByEpisodeNumber(
       localEpisodes: unpadded(1, 14),
       localHistories: local,
-      otherEpisodes: padded(1, 15),
       // 第15集 exists only over there — a bonus instalment this catalog never
       // listed. There is no tile for it and inventing key 14 would hand the
       // episode grid an index past the end of its own list.
-      otherHistories: {14: watched(14, source: 'dbku')},
+      others: one(padded(1, 15), {14: watched(14, source: 'dbku')}),
       episodic: true,
     );
 
@@ -126,12 +129,11 @@ void main() {
       // A dubbed track parked mid-list, which happens on both catalogs.
       localEpisodes: titled(['第1集', '粤语版', '第3集']),
       localHistories: const {},
-      otherEpisodes: padded(1, 3),
-      otherHistories: {
+      others: one(padded(1, 3), {
         0: watched(0, source: 'dbku'),
         1: watched(1, source: 'dbku'),
         2: watched(2, source: 'dbku'),
-      },
+      }),
       episodic: true,
     );
 
@@ -149,8 +151,7 @@ void main() {
         mergeHistoriesByEpisodeNumber(
           localEpisodes: unpadded(1, 2),
           localHistories: const {},
-          otherEpisodes: titled(['第01集', '第02集', '第02集']),
-          otherHistories: {
+          others: one(titled(['第01集', '第02集', '第02集']), {
             1: watched(
               1,
               source: 'dbku',
@@ -161,7 +162,7 @@ void main() {
               source: 'dbku',
               at: row == 2 ? DateTime(2026, 8, 4) : DateTime(2026, 7, 1),
             ),
-          },
+          }),
           episodic: true,
         );
 
@@ -180,15 +181,13 @@ void main() {
     final args = (
       localEpisodes: titled(['1', '2']),
       localHistories: local,
-      otherEpisodes: titled(['1', '2']),
-      otherHistories: {1: watched(1, source: 'dbku')},
+      others: one(titled(['1', '2']), {1: watched(1, source: 'dbku')}),
     );
 
     final film = mergeHistoriesByEpisodeNumber(
       localEpisodes: args.localEpisodes,
       localHistories: args.localHistories,
-      otherEpisodes: args.otherEpisodes,
-      otherHistories: args.otherHistories,
+      others: args.others,
       episodic: false,
     );
     expect(identical(film, local), isTrue);
@@ -197,8 +196,7 @@ void main() {
     final show = mergeHistoriesByEpisodeNumber(
       localEpisodes: args.localEpisodes,
       localHistories: args.localHistories,
-      otherEpisodes: args.otherEpisodes,
-      otherHistories: args.otherHistories,
+      others: args.others,
       episodic: true,
     );
     expect(show[1]!.sourceId, 'dbku');
@@ -214,12 +212,11 @@ void main() {
     final merged = mergeHistoriesByEpisodeNumber(
       localEpisodes: titled(['', '第2集', '第3集']),
       localHistories: const {},
-      otherEpisodes: padded(1, 3),
-      otherHistories: {
+      others: one(padded(1, 3), {
         0: watched(0, source: 'dbku'),
         1: watched(1, source: 'dbku'),
         2: watched(2, source: 'dbku'),
-      },
+      }),
       episodic: true,
     );
 
@@ -236,11 +233,71 @@ void main() {
     final merged = mergeHistoriesByEpisodeNumber(
       localEpisodes: [VideoEpisode(), VideoEpisode(), VideoEpisode()],
       localHistories: const {},
-      otherEpisodes: padded(1, 3),
-      otherHistories: {1: watched(1, source: 'dbku')},
+      others: one(padded(1, 3), {1: watched(1, source: 'dbku')}),
       episodic: true,
     );
 
     expect(merged[1]!.episodeIndex, 1);
+  });
+
+  test('three catalogs fold into one answer per episode', () {
+    // The source count is not ours to fix — a fourth catalog is a config change
+    // away — so the join takes every source at once rather than nominating one
+    // as THE other, a question with no good answer past two.
+    final merged = mergeHistoriesByEpisodeNumber(
+      localEpisodes: unpadded(1, 6),
+      localHistories: {0: watched(0, source: 'olevod')},
+      others: [
+        (episodes: padded(1, 6), histories: {2: watched(2, source: 'dbku')}),
+        (episodes: unpadded(1, 6), histories: {4: watched(4, source: 'star')}),
+      ],
+      episodic: true,
+    );
+
+    expect(merged[0]!.sourceId, 'olevod', reason: 'this source still wins');
+    expect(merged[2]!.sourceId, 'dbku');
+    expect(merged[4]!.sourceId, 'star');
+    expect(merged.keys, unorderedEquals([0, 2, 4]));
+  });
+
+  test('two catalogs claiming one episode resolve to the later viewing', () {
+    // The rule that settles a duplicate WITHIN a catalog, now settling one
+    // BETWEEN two. Asserted from both directions so "the last source wins"
+    // cannot pass.
+    Map<int, EpisodeHistory> newerOn(String source) =>
+        mergeHistoriesByEpisodeNumber(
+          localEpisodes: unpadded(1, 4),
+          localHistories: const {},
+          others: [
+            (
+              episodes: padded(1, 4),
+              histories: {
+                1: watched(
+                  1,
+                  source: 'dbku',
+                  at: source == 'dbku'
+                      ? DateTime(2026, 8, 4)
+                      : DateTime(2026, 7, 1),
+                ),
+              },
+            ),
+            (
+              episodes: unpadded(1, 4),
+              histories: {
+                1: watched(
+                  1,
+                  source: 'star',
+                  at: source == 'star'
+                      ? DateTime(2026, 8, 4)
+                      : DateTime(2026, 7, 1),
+                ),
+              },
+            ),
+          ],
+          episodic: true,
+        );
+
+    expect(newerOn('dbku')[1]!.sourceId, 'dbku');
+    expect(newerOn('star')[1]!.sourceId, 'star');
   });
 }

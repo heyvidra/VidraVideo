@@ -76,7 +76,9 @@ class DbkuDataSource implements VideoDataSource {
       final html = await _getHtml('/voddetail/$id.html');
       final video = DbkuParser.parseVideoDetail(html, id);
       if (video == null) return null;
-      return video.copyWith(urls: await _resolveEpisodes(video.urls ?? const []));
+      return video.copyWith(
+        urls: await _resolveEpisodes(video.urls ?? const []),
+      );
     } on DioException catch (e) {
       logD('Dbku', 'Error fetching video detail: $e');
       throw ApiException.fromDioException(e);
@@ -177,7 +179,9 @@ class DbkuDataSource implements VideoDataSource {
   /// [resolveEpisodeUrl] per episode would cut the detail fetch to one request
   /// but would cache `/vodplay/` paths instead, moving the cost onto every
   /// play and every "download all".
-  Future<List<VideoEpisode>> _resolveEpisodes(List<VideoEpisode> episodes) async {
+  Future<List<VideoEpisode>> _resolveEpisodes(
+    List<VideoEpisode> episodes,
+  ) async {
     final resolved = <VideoEpisode>[];
     for (var i = 0; i < episodes.length; i += _resolveBatch) {
       final batch = episodes.skip(i).take(_resolveBatch).map(_resolveEpisode);
@@ -200,11 +204,15 @@ class DbkuDataSource implements VideoDataSource {
     if (playPath == null) return episode;
     final known = _resolvedThisSession[playPath];
     if (known != null) {
-      return episode.copyWith(qualities: [VideoQuality(name: '标清', url: known)]);
+      return episode.copyWith(
+        qualities: [VideoQuality(name: '标清', url: known)],
+      );
     }
     final url = await resolveEpisodeUrl(playPath);
     if (url == null) return episode.copyWith(qualities: const []);
     _resolvedThisSession[playPath] = url;
-    return episode.copyWith(qualities: [VideoQuality(name: '标清', url: url)]);
+    return episode.copyWith(
+      qualities: [VideoQuality(name: '标清', url: url)],
+    );
   }
 }

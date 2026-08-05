@@ -2,8 +2,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
-import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:vidra/src/config/design_tokens.dart';
 import 'package:vidra/src/features/video/data/video_repository.dart';
 import 'package:vidra/src/features/video/presentation/widgets/detail/video_detail_header.dart';
 import 'package:vidra/src/features/video/presentation/widgets/detail/episode_section.dart';
@@ -33,7 +33,6 @@ class VideoDetailScreen extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
     // Robust ID parsing
     final id =
         int.tryParse(videoId) ?? (double.tryParse(videoId)?.toInt() ?? -1);
@@ -43,17 +42,18 @@ class VideoDetailScreen extends HookConsumerWidget {
     );
     final isAscending = useState(true);
     final isDownloadMode = useState(false);
+    // Owned here rather than inside EpisodeSection: its pinned bar and its grid
+    // are two separate slivers now, and they have to agree on which catalog is
+    // selected.
+    final selectedSource = useState<String?>(null);
+    final lastRefresh = useState<DateTime?>(null);
+    final showComparison = useState(false);
 
+    // No app bar. The window's own toolbar carries the back button and the
+    // search field — a page-level toolbar here put a second search box eight
+    // pixels below the first one.
     return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        iconTheme: IconThemeData(color: theme.colorScheme.onSurface),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-        ),
-        backgroundColor: Colors.transparent,
-      ),
+      backgroundColor: Colors.transparent,
       body: videoAsync.when(
         data: (video) {
           if (video == null) {
@@ -61,12 +61,16 @@ class VideoDetailScreen extends HookConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.search_off, size: 64, color: Colors.grey),
+                  Icon(
+                    Icons.search_off,
+                    size: 64,
+                    color: VidraTokens.of(context).fg4,
+                  ),
                   const SizedBox(height: 16),
                   Text(
                     '${tr('video.detail.not_found')}\n(ID: $videoId, Source: ${sourceId ?? 'default'})',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.grey),
+                    style: TextStyle(color: VidraTokens.of(context).fg3),
                   ),
                 ],
               ),
@@ -76,38 +80,38 @@ class VideoDetailScreen extends HookConsumerWidget {
             behavior: ScrollConfiguration.of(
               context,
             ).copyWith(scrollbars: false),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header section (Backdrop, title, action buttons)
-                  VideoDetailHeader(
+            // Slivers, not a Column in a SingleChildScrollView: the episode
+            // controls pin to the top while the grid scrolls under them, and
+            // only a sliver can do that. Switching source is only ever done to
+            // see what it does to the grid, so on a long show the control and
+            // its effect must not scroll apart.
+            child: CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(
+                  child: VideoDetailHeader(
                     video: video,
                     isDownloadMode: isDownloadMode,
                   ),
+                ),
 
-                  // Content section
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Episode list and sorting
-                        EpisodeSection(
-                          video: video,
-                          isAscending: isAscending,
-                          isDownloadMode: isDownloadMode,
-                        ),
+                // Episode controls (pinned) and the grid
+                ...EpisodeSection(
+                  video: video,
+                  isAscending: isAscending,
+                  isDownloadMode: isDownloadMode,
+                  selectedSource: selectedSource,
+                  lastRefresh: lastRefresh,
+                  showComparison: showComparison,
+                ).slivers(context, ref),
 
-                        // Storyline and additional details
-                        VideoInfoSection(video: video),
-
-                        const SizedBox(height: 48),
-                      ],
-                    ),
+                // Storyline and additional details
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(8, 0, 8, 32),
+                  sliver: SliverToBoxAdapter(
+                    child: VideoInfoSection(video: video),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           );
         },
@@ -136,68 +140,62 @@ class _LoadingWithCover extends StatelessWidget {
     final video = seed;
     if (video == null) return const VideoDetailSkeleton();
 
-    final theme = Theme.of(context);
+    final t = VidraTokens.of(context);
     return SingleChildScrollView(
       physics: const NeverScrollableScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            height: 500,
-            width: double.infinity,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                Hero(
-                  tag: videoPosterHeroTag(video),
-                  child: CachedNetworkImage(
-                    imageUrl: video.coverUrl.startsWith('http')
-                        ? video.coverUrl
-                        : ProviderScope.containerOf(context)
-                              .read(videoRepositoryProvider)
-                              .resolveUrl(
-                                video.coverUrl,
-                                sourceId: video.sourceId,
-                              ),
-                    fit: BoxFit.cover,
-                    errorWidget: (_, _, _) => Container(
-                      color: theme.brightness == Brightness.dark
-                          ? Colors.grey[900]
-                          : Colors.grey[300],
+          // The same 176px card the loaded page opens with, so nothing jumps
+          // when the fetch lands.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+            child: SizedBox(
+              height: 176,
+              width: double.infinity,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Hero(
+                      tag: videoPosterHeroTag(video),
+                      child: CachedNetworkImage(
+                        imageUrl: video.coverUrl.startsWith('http')
+                            ? video.coverUrl
+                            : ProviderScope.containerOf(context)
+                                  .read(videoRepositoryProvider)
+                                  .resolveUrl(
+                                    video.coverUrl,
+                                    sourceId: video.sourceId,
+                                  ),
+                        fit: BoxFit.cover,
+                        errorWidget: (_, _, _) =>
+                            ColoredBox(color: t.fg.withValues(alpha: 0.08)),
+                      ),
                     ),
-                  ),
-                ),
-                // The same wash the real header uses, so the moment the data
-                // lands nothing shifts.
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      stops: const [0.0, 0.5, 0.95],
-                      colors: [
-                        Colors.transparent,
-                        theme.scaffoldBackgroundColor.withValues(alpha: 0.5),
-                        theme.scaffoldBackgroundColor,
-                      ],
+                    const DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment(-1, -0.2),
+                          end: Alignment(1, 0.2),
+                          stops: [0.06, 0.62, 0.94],
+                          colors: [
+                            Color(0xDB060A12),
+                            Color(0x4D060A12),
+                            Color(0x00060A12),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-                Positioned(
-                  bottom: 0,
-                  left: 24,
-                  right: 24,
-                  child: Text(
-                    video.title,
-                    style: theme.textTheme.displayLarge?.copyWith(fontSize: 48),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
           const SizedBox(height: 24),
           const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24),
+            padding: EdgeInsets.symmetric(horizontal: 20),
             child: VideoDetailSkeleton(),
           ),
         ],

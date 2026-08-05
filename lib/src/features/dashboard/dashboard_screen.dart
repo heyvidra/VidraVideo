@@ -3,7 +3,13 @@ import 'dart:io';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'dart:async';
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:vidra/src/config/ambient_background.dart';
+import 'package:vidra/src/config/design_tokens.dart';
+import 'package:vidra/src/features/download/data/download_provider.dart';
+import 'package:vidra/src/features/download/domain/download_task.dart';
+import 'package:vidra/src/features/video/data/video_repository.dart';
 import '../subscription/data/subscription_checker.dart';
 import '../subscription/presentation/subscription_provider.dart';
 import 'package:go_router/go_router.dart';
@@ -13,7 +19,14 @@ import 'widgets/sidebar.dart';
 import 'domain/app_navigation_item.dart';
 import 'package:vidra/src/features/dashboard/widgets/titlebar.dart';
 
-const _desktopTitleBarHeight = 65.0;
+/// The toolbar pill: the window's top row, with the platform's own window
+/// controls sitting on it.
+///
+/// Its height and top margin are load-bearing on macOS — see
+/// `MainFlutterWindow.bitsdojo_window_title_bar_height`, which centres the
+/// traffic lights on this pill.
+const _pillHeight = 44.0;
+const _pillTop = 6.0;
 
 class DashboardScreen extends ConsumerStatefulWidget {
   final Widget child;
@@ -67,11 +80,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
   int _getCurrentIndex(BuildContext context) {
     final location = GoRouterState.of(context).uri.path;
-    if (location == '/') return 0;
     if (location.startsWith('/downloads')) return 1;
     if (location.startsWith('/download-url')) return 4;
     if (location.startsWith('/recent')) return 2;
     if (location.startsWith('/settings')) return 3;
+    if (location.startsWith('/subscriptions')) return 5;
     return 0;
   }
 
@@ -84,81 +97,181 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
   @override
   Widget build(BuildContext context) {
+    final location = GoRouterState.of(context).uri.path;
+    // The one toolbar. A detail page used to bring its own, eight pixels below
+    // this one and carrying a second search field.
+    final canGoBack =
+        location.contains('/detail/') || location.startsWith('/search/');
+
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: WindowBorder(
-        color: Colors.transparent,
-        width: 1,
-        child: Row(
-          children: [
-            Sidebar(
-              selectedIndex: _getCurrentIndex(context),
-              onDestinationSelected: (index) =>
-                  _onDestinationSelected(context, index),
-            ),
-            Expanded(
-              child: Column(
-                children: [
-                  Platform.isMacOS
-                      ? SizedBox(
-                          height: _desktopTitleBarHeight,
-                          child: MoveWindow(
-                            child: Padding(
-                              padding: const EdgeInsets.only(
-                                right: 16,
-                                top: 10,
-                                bottom: 10,
-                              ),
-                              child: DashboardTitleBar(
-                                onSearchSubmitted: (value) {
-                                  if (value.isNotEmpty) {
-                                    context.push('/search/$value');
-                                  }
-                                },
-                                onHomeRequested: () {
-                                  context.go('/');
-                                },
-                              ),
-                            ),
-                          ),
-                        )
-                      : SizedBox(
-                          height: _desktopTitleBarHeight,
-                          child: WindowTitleBarBox(
-                            child: Padding(
-                              padding: const EdgeInsets.only(
-                                left: 16,
-                                right: 16,
-                                top: 10,
-                                bottom: 10,
-                              ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: MoveWindow(
-                                      child: DashboardTitleBar(
-                                        onSearchSubmitted: (value) {
-                                          if (value.isNotEmpty) {
-                                            context.push('/search/$value');
-                                          }
-                                        },
-                                        onHomeRequested: () {
-                                          context.go('/');
-                                        },
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  const WindowButtons(),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                  Expanded(child: widget.child),
-                ],
+      // Painted by AmbientBackground instead: every translucent surface in the
+      // app is standing in the light it casts, and a Scaffold colour under it
+      // would just be a second opaque layer to punch through.
+      backgroundColor: Colors.transparent,
+      body: AmbientBackground(
+        child: WindowBorder(
+          color: Colors.transparent,
+          width: 1,
+          // The window is one column: the toolbar pill, then the rail and the
+          // content side by side, then the status line. The rail starts BELOW
+          // the toolbar — a full-height rail put the search box in the
+          // content's column, where it read as belonging to the page rather
+          // than to the window.
+          child: Column(
+            children: [
+              _TopBar(
+                showBack: canGoBack,
+                onSearchSubmitted: (value) {
+                  if (value.isNotEmpty) context.push('/search/$value');
+                },
+                onHomeRequested: () => context.go('/'),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 0),
+                  // Stretch, or the rail sizes to its rows and floats in the
+                  // vertical middle of the window.
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Sidebar(
+                        selectedIndex: _getCurrentIndex(context),
+                        onDestinationSelected: (index) =>
+                            _onDestinationSelected(context, index),
+                      ),
+                      Expanded(child: widget.child),
+                    ],
+                  ),
+                ),
+              ),
+              const AppStatusBar(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The window's top row: one pill carrying the platform's window controls and
+/// the app's own.
+///
+/// The pill used to sit BELOW a separate 46px strip that held nothing but the
+/// traffic lights and the wordmark — two bars of chrome where the window needs
+/// one. The lights now sit on the pill (macOS centres them there; see
+/// [MainFlutterWindow]), and on Windows the pill stops short of the corner so
+/// the caption buttons keep the place users reach for.
+class _TopBar extends StatelessWidget {
+  const _TopBar({
+    required this.showBack,
+    required this.onSearchSubmitted,
+    required this.onHomeRequested,
+  });
+
+  final bool showBack;
+  final void Function(String) onSearchSubmitted;
+  final VoidCallback onHomeRequested;
+
+  @override
+  Widget build(BuildContext context) {
+    final mac = Platform.isMacOS;
+    final bar = DashboardTitleBar(
+      showBack: showBack,
+      // Nothing of ours may be drawn under the traffic lights.
+      leadingInset: mac ? 78 : 14,
+      onSearchSubmitted: onSearchSubmitted,
+      onHomeRequested: onHomeRequested,
+    );
+
+    // MoveWindow alone, without WindowTitleBarBox: that widget's only job is
+    // to reserve the platform title-bar HEIGHT, and this row sets its own —
+    // wrapped in one, the 44pt pill would be squeezed into Windows' 32pt band.
+    return SizedBox(
+      height: _pillTop + _pillHeight + 10,
+      child: Row(
+        children: [
+          Expanded(
+            child: MoveWindow(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(14, _pillTop, mac ? 14 : 8, 10),
+                child: bar,
               ),
             ),
+          ),
+          // Flush to the corner, outside the pill: that is where a Windows
+          // user throws the pointer to close a window.
+          if (!mac)
+            const Padding(
+              padding: EdgeInsets.only(top: 2),
+              child: WindowButtons(),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The strip a desktop app has and a web page does not.
+///
+/// It answers two questions that otherwise send someone hunting: which catalog
+/// am I browsing, and is anything waiting for me. Both were already known to
+/// the app and neither had anywhere to be said — the source only showed inside
+/// a dropdown, and the unread count only on a nav badge you had to be looking
+/// at the sidebar to see.
+class AppStatusBar extends ConsumerWidget {
+  const AppStatusBar({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = VidraTokens.of(context);
+    final source = ref.watch(activeDataSourceProvider);
+    final subs = ref.watch(unreadSubscriptionCountProvider);
+    final active = ref
+        .watch(downloadTasksProvider)
+        .maybeWhen(
+          data: (tasks) =>
+              tasks.where((t) => t.status == DownloadStatus.downloading).length,
+          orElse: () => 0,
+        );
+
+    final style = TextStyle(
+      fontSize: 10.5,
+      height: 1.4,
+      letterSpacing: 0.2,
+      color: t.fg3,
+      fontFeatures: VidraType.data,
+    );
+
+    return SizedBox(
+      height: 30,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+        child: Row(
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              margin: const EdgeInsets.only(right: 7),
+              decoration: BoxDecoration(
+                color: t.cyan,
+                shape: BoxShape.circle,
+                boxShadow: [BoxShadow(color: t.cyanGlow, blurRadius: 10)],
+              ),
+            ),
+            Text(source.name, style: style),
+            if (active > 0) ...[
+              const SizedBox(width: 18),
+              Text(
+                tr('download.active_count', args: ['$active']),
+                style: style,
+              ),
+            ],
+            const Spacer(),
+            if (subs > 0)
+              Text(
+                tr('subscription.updates_waiting', args: ['$subs']),
+                style: style.copyWith(color: t.amber),
+              ),
           ],
         ),
       ),

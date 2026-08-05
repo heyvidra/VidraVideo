@@ -1,6 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 
+import '../config/design_tokens.dart';
+
 /// 流畅的下拉菜单组件，基于 PlayerOverlayPanel 样式
 class DropdownMenu extends StatefulWidget {
   /// 触发按钮
@@ -29,6 +31,15 @@ class DropdownMenu extends StatefulWidget {
   final VoidCallback? onOpen;
   final VoidCallback? onClose;
 
+  /// Whether the panel takes its colours from the theme.
+  ///
+  /// Off by default because this component was built for the PLAYER, whose
+  /// overlays are black over video whatever theme the app is in. In the
+  /// catalog window that black slab was a hole in a light page — and the
+  /// selected row, tinted with the light theme's deep-teal accent, was
+  /// unreadable on it.
+  final bool followTheme;
+
   const DropdownMenu({
     super.key,
     required this.child,
@@ -40,6 +51,7 @@ class DropdownMenu extends StatefulWidget {
     this.offset = const Offset(0, 8),
     this.onOpen,
     this.onClose,
+    this.followTheme = false,
   });
 
   @override
@@ -140,27 +152,36 @@ class _DropdownMenuState extends State<DropdownMenu>
   Widget _buildMenuPanel() {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final t = VidraTokens.of(context);
 
     Widget panelContent = Container(
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.6,
       ),
       decoration: BoxDecoration(
-        color: widget.useBlur
+        color: widget.followTheme
+            ? t.barBg
+            : widget.useBlur
             ? Colors.black.withValues(alpha: 0.5)
             : (theme.cardTheme.color?.withValues(alpha: 0.95) ??
                   (isDark
                       ? const Color(0xFF1C1C1C).withValues(alpha: 0.95)
                       : Colors.white.withValues(alpha: 0.95))),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.1),
-            blurRadius: 20,
-            spreadRadius: 5,
-          ),
-        ],
+        border: Border.all(
+          color: widget.followTheme
+              ? t.edgeSoft
+              : Colors.white.withValues(alpha: 0.1),
+        ),
+        boxShadow: widget.followTheme
+            ? t.drop2
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.1),
+                  blurRadius: 20,
+                  spreadRadius: 5,
+                ),
+              ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

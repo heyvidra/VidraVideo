@@ -1,7 +1,7 @@
 name: vidra
 description: "Vidra - Video Streaming App"
 publish_to: "none"
-version: 1.6.11+19
+version: 1.7.0+20
 
 environment:
   sdk: ^3.10.1
@@ -9,6 +9,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # Reads the real version off the bundle for the rail's footer — already in
+  # the lock file as a transitive dep, so declaring it costs nothing.
+  package_info_plus: ^10.2.1
 
   flutter_riverpod: ^3.3.1
   hooks_riverpod: ^3.3.1

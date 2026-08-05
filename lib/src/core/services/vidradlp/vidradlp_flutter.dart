@@ -40,12 +40,12 @@ class VidraDlpDownloadRequest {
 
   /// Convert to the stable FFI JSON request shape.
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'schema_version': 1,
-        'url': url,
-        'format_id': formatId,
-        'output': output,
-        'options': options,
-      };
+    'schema_version': 1,
+    'url': url,
+    'format_id': formatId,
+    'output': output,
+    'options': options,
+  };
 
   /// Encode this request for [VidraDlpClient.downloadStart].
   String toJsonString() => jsonEncode(toJson());
@@ -413,7 +413,7 @@ class VidraDlpClient {
     if (errPtr == nullptr) {
       return {
         'schema_version': 1,
-        'error': {'code': 'unknown', 'message': 'Unknown native error'}
+        'error': {'code': 'unknown', 'message': 'Unknown native error'},
       };
     }
     try {

@@ -2,19 +2,56 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // Dark Theme Colors
-  static const Color darkScaffoldBg = Color(0xFF0F1014);
-  static const Color darkCardColor = Color(0xFF1E1F24);
-  static const Color darkPrimaryColor = Color(0xFFE50914);
-  static const Color darkOnSurface = Color(0xFFFFFFFF);
-  static const Color darkOnSurfaceVariant = Color(0xFFB3B3B3);
+  // ── Accents ───────────────────────────────────────────────────────────────
+  // Three saturated colours in the whole app, each with exactly one meaning.
+  // The palette this replaced spent a Netflix red on every selected thing, an
+  // orange on both "new" and the rating, a blue on the language tag and a cyan
+  // on progress — five colours saying nothing in particular, so nothing on a
+  // card stood out from anything else.
 
-  // Light Theme Colors
-  static const Color lightScaffoldBg = Colors.transparent;
-  static const Color lightCardColor = Color(0xFFB3B3B3);
-  static const Color lightPrimaryColor = Color(0xFFE50914);
-  static const Color lightOnSurface = Color(0xFF2C2C2E);
-  static const Color lightOnSurfaceVariant = Color(0xFF48484A);
+  /// Selection and focus. Cyan rather than the old red because it is also the
+  /// playback-progress colour: "where you are" is one idea, and a selected
+  /// source feeding a grid is the same kind of statement as a progress bar.
+  ///
+  /// These three are [VidraTokens]' `cyan` / `amber` / `clash`; the constants
+  /// stay because a `ColorScheme` needs literals. Widgets should read the
+  /// tokens, which carry the light variant too.
+  static const Color accent = Color(0xFF7BE7F0);
+  static const Color accentLight = Color(0xFF0C7C87);
+
+  /// Reserved for ONE thing: this gained an episode. Nothing else may use it,
+  /// which is what makes an amber dot worth looking at.
+  static const Color onAir = Color(0xFFFFC559);
+
+  /// Reserved for source disagreement.
+  static const Color clash = Color(0xFFFF9A7A);
+
+  // ── Dark ──────────────────────────────────────────────────────────────────
+  // Neutrals biased toward the accent instead of pure grey: a card on a warm
+  // grey over a teal-lit background reads as a different material, and every
+  // surface in a glass-and-ambient design has to look like it belongs to the
+  // same room.
+
+  /// The base the ambient light is painted over — see [AmbientBackground],
+  /// which paints the real page ramp on top of it. This is what shows through
+  /// where a widget asks the theme for a background instead: the pinned
+  /// episode bar's opaque state, a dialog, a snack bar.
+  static const Color darkScaffoldBg = Color(0xFF0A1220);
+
+  /// Translucent, not solid: surfaces are meant to let the ambient wash show
+  /// through. A solid card over a lit background is the one thing that reads as
+  /// pasted on. `--glass-2`, top stop.
+  static const Color darkCardColor = Color(0x13FFFFFF);
+  static const Color darkPrimaryColor = accent;
+  static const Color darkOnSurface = Color(0xF5FFFFFF);
+  static const Color darkOnSurfaceVariant = Color(0xA8FFFFFF);
+
+  // ── Light ─────────────────────────────────────────────────────────────────
+  static const Color lightScaffoldBg = Color(0xFFE7EDF5);
+  static const Color lightCardColor = Color(0x9EFFFFFF);
+  static const Color lightPrimaryColor = accentLight;
+  static const Color lightOnSurface = Color(0xF20C141E);
+  static const Color lightOnSurfaceVariant = Color(0x9E0C141E);
 
   // 字体名
   static const String windowsFont = "HarmonyOSSans";
@@ -108,14 +145,42 @@ class AppTheme {
       appBarTheme: appBarTheme,
       cardTheme: cardTheme,
       dialogTheme: appliedDialogTheme,
+      // The one in the delete-task dialog was an unstyled white square with no
+      // fill state to speak of.
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? primaryColor
+              : Colors.transparent,
+        ),
+        checkColor: WidgetStatePropertyAll(
+          brightness == Brightness.dark
+              ? const Color(0xFF05323A)
+              : Colors.white,
+        ),
+        side: BorderSide(color: colorScheme.onSurfaceVariant, width: 1.4),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: primaryColor,
+          textStyle: const TextStyle(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      // primaryColor, not the dark accent literal: on the light theme a
+      // #7BE7F0 track is a pale wash on near-white, and the inactive half was
+      // white-on-white outright.
       sliderTheme: SliderThemeData(
         trackHeight: 2,
-        thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
-        overlayShape: RoundSliderOverlayShape(overlayRadius: 12),
-        activeTrackColor: Colors.red,
-        inactiveTrackColor: Colors.white.withValues(alpha: 0.3),
-        thumbColor: Colors.red,
-        overlayColor: Colors.red.withValues(alpha: 0.2),
+        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+        overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+        activeTrackColor: primaryColor,
+        inactiveTrackColor: colorScheme.onSurface.withValues(alpha: 0.16),
+        thumbColor: primaryColor,
+        overlayColor: primaryColor.withValues(alpha: 0.18),
       ),
     );
   }
@@ -130,8 +195,9 @@ class AppTheme {
         secondary: darkPrimaryColor,
         surface: darkCardColor,
         onSurface: darkOnSurface,
+        outline: const Color(0x3DFFFFFF),
         onSurfaceVariant: darkOnSurfaceVariant,
-        surfaceContainerLow: const Color(0xFF16171C),
+        surfaceContainerLow: const Color(0x0DFFFFFF),
       ),
       baseTextTheme: ThemeData.dark().textTheme.copyWith(
         displayLarge: const TextStyle(
@@ -156,15 +222,48 @@ class AppTheme {
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: Colors.white.withAlpha(25), width: 0.5),
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: Colors.white.withAlpha(28), width: 0.5),
         ),
       ),
-      dialogTheme: DialogThemeData(
-        backgroundColor: darkCardColor,
-        elevation: 24,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      dialogTheme: _dialogTheme(
+        background: const Color(0xFF141F30),
+        edge: const Color(0x29FFFFFF),
+        title: darkOnSurface,
+        body: darkOnSurfaceVariant,
       ),
+    );
+  }
+
+  /// One dialog surface for both themes.
+  ///
+  /// They used to be a Material default with a hardcoded fill and no outline:
+  /// a dark slab on a dark scrim over a dark page, with nothing marking where
+  /// the panel ended. The border is what makes it a sheet of something rather
+  /// than a hole, and it is the same `--edge` every other surface uses.
+  static DialogThemeData _dialogTheme({
+    required Color background,
+    required Color edge,
+    required Color title,
+    required Color body,
+  }) {
+    return DialogThemeData(
+      backgroundColor: background,
+      surfaceTintColor: Colors.transparent,
+      elevation: 20,
+      shadowColor: const Color(0x66000000),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: edge),
+      ),
+      titleTextStyle: TextStyle(
+        color: title,
+        fontSize: 17,
+        height: 1.4,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.3,
+      ),
+      contentTextStyle: TextStyle(color: body, fontSize: 13.5, height: 1.6),
     );
   }
 
@@ -178,8 +277,9 @@ class AppTheme {
         secondary: lightPrimaryColor,
         surface: lightCardColor,
         onSurface: lightOnSurface,
+        outline: const Color(0x330C141E),
         onSurfaceVariant: lightOnSurfaceVariant,
-        surfaceContainerLow: Colors.transparent,
+        surfaceContainerLow: const Color(0x99FFFFFF),
       ),
       baseTextTheme: ThemeData.light().textTheme.copyWith(
         displayLarge: const TextStyle(
@@ -204,14 +304,15 @@ class AppTheme {
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: Colors.black.withAlpha(20), width: 0.5),
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: Colors.black.withAlpha(18), width: 0.5),
         ),
       ),
-      dialogTheme: DialogThemeData(
-        backgroundColor: Colors.white,
-        elevation: 8,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      dialogTheme: _dialogTheme(
+        background: const Color(0xFFF7FAFD),
+        edge: const Color(0x1F0C141E),
+        title: lightOnSurface,
+        body: lightOnSurfaceVariant,
       ),
     );
   }

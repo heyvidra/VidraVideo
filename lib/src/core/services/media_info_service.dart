@@ -36,7 +36,10 @@ class MediaInfoService {
 
   /// Runs in a fresh isolate: a throwaway client extracts then frees. Returns
   /// the raw MediaEntry JSON (sendable across the isolate boundary).
-  static Map<String, dynamic> _extractInIsolate(String url, String? configJson) {
+  static Map<String, dynamic> _extractInIsolate(
+    String url,
+    String? configJson,
+  ) {
     final client = VidraDlpClient(configJson: configJson);
     try {
       return client.extract(url);

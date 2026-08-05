@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:vidra/src/config/design_tokens.dart';
 import 'package:vidra/src/features/video/domain/video_collection.dart';
 import 'package:vidra/src/features/video/data/video_repository.dart';
 import 'package:vidra/src/features/video/presentation/widgets/cards/popular_video_card.dart';
@@ -10,8 +11,16 @@ import 'package:vidra/src/features/video/domain/episode_number.dart';
 import 'package:vidra/src/features/video/domain/resume_target.dart';
 import 'package:vidra/src/features/video/presentation/widgets/cross_source_watch_badge.dart';
 import 'package:vidra/src/features/video/presentation/play_history_provider.dart';
+import 'package:vidra/src/features/subscription/presentation/subscription_provider.dart';
 import 'package:vidra/src/window/player_window_launcher.dart';
 
+/// `.dhero` + `.dhead`.
+///
+/// A 176px backdrop card with the poster standing on its lower edge, the title
+/// and facts on the dark half of the backdrop beside it, and the actions
+/// landing just below. The measurements are the design's: the hero used to be
+/// 500px of full-bleed cover art, which put the episode list — the reason
+/// anyone opens this page — off the first screen entirely.
 class VideoDetailHeader extends ConsumerWidget {
   final Video video;
   final ValueNotifier<bool> isDownloadMode;
@@ -22,119 +31,138 @@ class VideoDetailHeader extends ConsumerWidget {
     required this.isDownloadMode,
   });
 
+  static const _hero = 176.0;
+  static const _posterW = 100.0;
+  static const _posterH = 142.0;
+
+  /// How far the head row starts above the hero's bottom edge: `margin-top:
+  /// -116px` on a 176px hero.
+  static const _headTop = _hero - 116.0;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     final repository = ref.read(videoRepositoryProvider);
 
-    return SizedBox(
-      height: 500,
-      width: double.infinity,
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned(
+          left: 8,
+          right: 8,
+          top: 4,
+          height: _hero,
+          child: _Backdrop(video: video, repository: repository),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: _headTop + 4),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(width: 20),
+              SizedBox(
+                width: _posterW,
+                height: _posterH,
+                child: _Poster(video: video, repository: repository),
+              ),
+              const SizedBox(width: 18),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // The design's `padding-top: 42px` — what puts the title
+                    // on the dark half of the backdrop rather than above it.
+                    const SizedBox(height: 42),
+                    Text(
+                      video.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 30,
+                        height: 1,
+                        letterSpacing: -1.05,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black.withAlpha(128),
+                            blurRadius: 20,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 9),
+                    _FactPills(video: video),
+                    const SizedBox(height: 12),
+                    _Actions(video: video, isDownloadMode: isDownloadMode),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 20),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The backdrop card. Dark on the left, where the text lands.
+class _Backdrop extends StatelessWidget {
+  const _Backdrop({required this.video, required this.repository});
+
+  final Video video;
+  final VideoRepository repository;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final art = video.backdropUrl ?? video.coverUrl;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Receiving end of the card's flight. Both catalogs return a null
-          // backdrop, so this resolves to the very cover the card showed and
-          // the Hero morphs one image instead of cross-fading two.
           Hero(
             tag: videoPosterHeroTag(video),
             child: CachedNetworkImage(
-              imageUrl: (video.backdropUrl ?? video.coverUrl).startsWith('http')
-                  ? (video.backdropUrl ?? video.coverUrl)
-                  : repository.resolveUrl(video.backdropUrl ?? video.coverUrl),
+              imageUrl: art.startsWith('http')
+                  ? art
+                  : repository.resolveUrl(art, sourceId: video.sourceId),
               fit: BoxFit.cover,
-              placeholder: (context, url) => Container(
-                color: theme.brightness == Brightness.dark
-                    ? Colors.black
-                    : Colors.grey[200],
+              placeholder: (_, _) => ColoredBox(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.06),
               ),
-              errorWidget: (context, url, error) => Container(
-                color: theme.brightness == Brightness.dark
-                    ? Colors.grey[900]
-                    : Colors.grey[300],
+              errorWidget: (_, _, _) => ColoredBox(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
               ),
             ),
           ),
-          // Gradient Overlay
-          Container(
+          // Two washes, exactly as the design: one across (the text sits on
+          // the left half, so that is the half that has to be dark) and one
+          // up from the bottom so the poster has something to stand on.
+          const DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                stops: const [
-                  0.0,
-                  0.5,
-                  0.95,
-                ], // Ensure fully opaque before edge
+                begin: Alignment(-1, -0.2),
+                end: Alignment(1, 0.2),
+                stops: [0.06, 0.62, 0.94],
                 colors: [
-                  Colors.transparent,
-                  theme.scaffoldBackgroundColor.withValues(alpha: 0.5),
-                  theme.scaffoldBackgroundColor,
+                  Color(0xDB060A12),
+                  Color(0x4D060A12),
+                  Color(0x00060A12),
                 ],
               ),
             ),
           ),
-          // Anti-aliasing sub-pixel gap fix
-          Positioned(
-            bottom: -1,
-            left: 0,
-            right: 0,
-            height: 2,
-            child: Container(color: theme.scaffoldBackgroundColor),
-          ),
-          // Content Overlay
-          Positioned(
-            bottom: 0,
-            left: 24,
-            right: 24,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  video.title,
-                  style: theme.textTheme.displayLarge?.copyWith(
-                    fontSize: 48,
-                    shadows: [
-                      Shadow(
-                        color: isDark
-                            ? Colors.black.withAlpha(150)
-                            : Colors.white.withAlpha(150),
-                        blurRadius: 10,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    const Icon(Icons.star, color: Colors.amber, size: 20),
-                    const SizedBox(width: 8),
-                    _InfoBadge(
-                      label:
-                          '${video.rating}${tr("video.detail.rating_suffix")}',
-                    ),
-                    const SizedBox(width: 16),
-                    _InfoBadge(label: video.year.toString()),
-                    const SizedBox(width: 16),
-                    _TypeBadge(label: video.type.toUpperCase()),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                // Action Buttons
-                Row(
-                  children: [
-                    _PlayButton(video: video),
-                    const SizedBox(width: 16),
-                    _DownloadButton(
-                      video: video,
-                      isDownloadMode: isDownloadMode,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 48),
-              ],
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.bottomCenter,
+                end: Alignment.topCenter,
+                stops: [0.0, 0.6],
+                colors: [Color(0xB8060A12), Color(0x00060A12)],
+              ),
             ),
           ),
         ],
@@ -143,52 +171,228 @@ class VideoDetailHeader extends ConsumerWidget {
   }
 }
 
-class _InfoBadge extends StatelessWidget {
-  final String label;
-  const _InfoBadge({required this.label});
+/// The cover, standing on the backdrop's edge.
+class _Poster extends StatelessWidget {
+  const _Poster({required this.video, required this.repository});
+
+  final Video video;
+  final VideoRepository repository;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    final t = VidraTokens.of(context);
+    return DecoratedBox(
       decoration: BoxDecoration(
-        color: theme.colorScheme.onSurface.withAlpha(isDark ? 30 : 15),
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: t.drop3,
+        border: Border.all(color: t.edge, width: 1),
       ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          color: theme.colorScheme.onSurface,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(13),
+        child: CachedNetworkImage(
+          imageUrl: video.coverUrl.startsWith('http')
+              ? video.coverUrl
+              : repository.resolveUrl(video.coverUrl, sourceId: video.sourceId),
+          fit: BoxFit.cover,
+          placeholder: (_, _) => const ColoredBox(color: Color(0x33000000)),
+          errorWidget: (_, _, _) => const ColoredBox(color: Color(0x33000000)),
         ),
       ),
     );
   }
 }
 
-class _TypeBadge extends StatelessWidget {
-  final String label;
-  const _TypeBadge({required this.label});
+/// Everything the catalog claims about the show, on one line.
+///
+/// Episode count and airing state are in here because they are what a viewer
+/// checks before committing an evening.
+class _FactPills extends StatelessWidget {
+  const _FactPills({required this.video});
+
+  final Video video;
+
+  /// Whether the catalog's remarks line is an AIRING state rather than a
+  /// quality tag.
+  ///
+  /// Amber is reserved for "this is still gaining episodes". The catalogs put
+  /// 更新至第22集 and 超清 in the same field, and painting 超清 amber spends
+  /// the one colour that means something on a codec.
+  static final _airing = RegExp(r'更新|连载|集|期|話|话|完结|完結');
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final remarks = video.remarks?.trim() ?? '';
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        if (video.rating > 0) _Pill(label: '★ ${video.rating}', mono: true),
+        if ((video.year ?? '').isNotEmpty) _Pill(label: video.year!),
+        if (video.type.isNotEmpty) _Pill(label: video.type),
+        // Deliberately NO "全 N 集": that number was `urls.length`, which is
+        // how many playback lines this catalog lists — mirrors, dubs and
+        // trailers included — not how many episodes the show has. It sat next
+        // to the catalog's own 更新至第30集, which is the real answer, and
+        // contradicted it whenever a source filed an extra line.
+        if (remarks.isNotEmpty)
+          _Pill(label: remarks, live: _airing.hasMatch(remarks)),
+      ],
+    );
+  }
+}
+
+/// `.pill`. Deliberately white-based rather than the theme's `--fg-2`: these
+/// sit ON the darkened backdrop, and in the light theme `--fg-2` is near-black.
+class _Pill extends StatelessWidget {
+  const _Pill({required this.label, this.mono = false, this.live = false});
+
+  final String label;
+  final bool mono;
+  final bool live;
+
+  @override
+  Widget build(BuildContext context) {
+    const amber = Color(0xFFFFC559);
+    final fg = live ? amber : Colors.white;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
       decoration: BoxDecoration(
-        border: Border.all(color: theme.colorScheme.onSurface.withAlpha(50)),
-        borderRadius: BorderRadius.circular(4),
-        color: theme.colorScheme.onSurface.withAlpha(isDark ? 30 : 15),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: live
+              ? const [Color(0x38FFC559), Color(0x0FFFC559)]
+              : const [Color(0x24FFFFFF), Color(0x0FFFFFFF)],
+        ),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: live ? const Color(0x57FFC559) : const Color(0x2EFFFFFF),
+        ),
       ),
       child: Text(
         label,
         style: TextStyle(
-          fontSize: 12,
-          color: theme.colorScheme.onSurface,
-          fontWeight: FontWeight.bold,
+          color: fg.withValues(alpha: live ? 1 : 0.92),
+          fontSize: 11.5,
+          height: 1.35,
+          fontWeight: FontWeight.w500,
+          fontFeatures: mono ? VidraType.data : null,
+        ),
+      ),
+    );
+  }
+}
+
+/// `.acts` — play, download, follow. Follow moved up here from the episode
+/// bar: all three are things you do to the SHOW, and the episode bar is for
+/// things you do to the grid.
+class _Actions extends StatelessWidget {
+  const _Actions({required this.video, required this.isDownloadMode});
+
+  final Video video;
+  final ValueNotifier<bool> isDownloadMode;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        _PlayButton(video: video),
+        _DownloadButton(video: video, isDownloadMode: isDownloadMode),
+        _SubscribeButton(video: video),
+      ],
+    );
+  }
+}
+
+/// `.btn` — the design's one button shape.
+class ActionButton extends StatelessWidget {
+  const ActionButton({
+    super.key,
+    required this.label,
+    required this.onTap,
+    this.icon,
+    this.primary = false,
+    this.amber = false,
+    this.danger = false,
+  });
+
+  final String label;
+  final IconData? icon;
+  final VoidCallback onTap;
+  final bool primary;
+  final bool amber;
+  final bool danger;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = VidraTokens.of(context);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+
+    // `.btn-primary` is a white pill with dark ink — right on the dark theme,
+    // invisible on the light one, so light flips it. It is the page's single
+    // brightest thing either way, which is what "primary" has to mean.
+    final Color fg = primary
+        ? (dark ? const Color(0xFF0C1420) : Colors.white)
+        : danger
+        ? t.clash
+        : amber
+        ? t.amber
+        : t.fg;
+    final List<Color> fill = primary
+        ? (dark
+              ? const [Color(0xFAFFFFFF), Color(0xCCFFFFFF)]
+              : const [Color(0xFF1B2C36), Color(0xFF14232A)])
+        : amber
+        ? [t.amber.withValues(alpha: 0.22), t.amber.withValues(alpha: 0.07)]
+        : danger
+        ? [t.clash.withValues(alpha: 0.20), t.clash.withValues(alpha: 0.06)]
+        : t.glass2;
+    final Color edge = primary
+        ? Colors.transparent
+        : amber
+        ? t.amber.withValues(alpha: 0.42)
+        : danger
+        ? t.clash.withValues(alpha: 0.42)
+        : t.edgeSoft;
+
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          padding: EdgeInsets.fromLTRB(icon == null ? 17 : 13, 8, 17, 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: edge),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: fill,
+            ),
+            boxShadow: primary ? t.drop1 : null,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 16, color: fg),
+                const SizedBox(width: 7),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.35,
+                  fontWeight: primary ? FontWeight.w600 : FontWeight.w500,
+                  color: fg,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -234,7 +438,6 @@ class _PlayButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
     final key = (videoId: video.apiId, sourceId: video.sourceId);
     final episodes = video.urls ?? [];
 
@@ -252,17 +455,13 @@ class _PlayButton extends ConsumerWidget {
     );
 
     // Nothing watched HERE, but the same show was watched on the other
-    // catalog: offer to continue rather than to start over. The badge beside
-    // the episode list already says "已在 独播库 看到 第14集", and the biggest
-    // button on the page saying 立即播放 next to it was the app contradicting
-    // itself.
+    // catalog: offer to continue rather than to start over.
     //
     // Deliberately NOT done by feeding the merged grid map to
     // resolveResumeTarget: a borrowed row's `episodeIndex` points into the
     // OTHER catalog's list, so that would resume at whatever sits at that
     // position here — a different episode in exactly the case this exists for.
-    // The episode NUMBER is the only shared coordinate, so it is resolved on
-    // that side and mapped back to a local row.
+    // The episode NUMBER is the only shared coordinate.
     if (target.isFirstTime && isEpisodicType(video.type)) {
       final local = _localIndexOfCrossSourceEpisode(ref, video, episodes);
       if (local != null) {
@@ -277,8 +476,20 @@ class _PlayButton extends ConsumerWidget {
       index: target.episodeIndex,
     );
 
-    return ElevatedButton.icon(
-      onPressed: () async {
+    return ActionButton(
+      primary: true,
+      icon: target.isFirstTime
+          ? Icons.play_arrow_rounded
+          : Icons.play_circle_outline_rounded,
+      label: target.isFirstTime
+          ? tr('video.detail.play_now')
+          // Same rule as the recent-play cards: naming a film's "episode"
+          // surfaces the source's 立即播放 / 粤语播放 line labels, which read
+          // as gibberish next to "continue watching".
+          : isEpisodicType(video.type)
+          ? tr('video.detail.continue_watching', args: [label])
+          : tr('video.detail.continue_watching_short'),
+      onTap: () async {
         if (episodes.isNotEmpty) {
           await PlayerWindowLauncher.open(
             videoId: video.apiId,
@@ -291,25 +502,6 @@ class _PlayButton extends ConsumerWidget {
           );
         }
       },
-      icon: Icon(
-        target.isFirstTime ? Icons.play_arrow : Icons.play_circle_outline,
-      ),
-      label: Text(
-        target.isFirstTime
-            ? tr('video.detail.play_now')
-            // Same rule as the recent-play cards: naming a film's "episode"
-            // surfaces the source's 立即播放 / 粤语播放 line labels, which read
-            // as gibberish next to "continue watching".
-            : isEpisodicType(video.type)
-            ? tr('video.detail.continue_watching', args: [label])
-            : tr('video.detail.continue_watching_short'),
-      ),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: theme.primaryColor,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
     );
   }
 }
@@ -322,12 +514,16 @@ class _DownloadButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return ValueListenableBuilder<bool>(
       valueListenable: isDownloadMode,
       builder: (context, downloadMode, child) {
-        return OutlinedButton.icon(
-          onPressed: () {
+        return ActionButton(
+          danger: downloadMode,
+          icon: downloadMode ? Icons.close_rounded : Icons.download_rounded,
+          label: downloadMode
+              ? tr('video.detail.done')
+              : tr('video.detail.download'),
+          onTap: () {
             if ((video.urls ?? []).isEmpty) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text(tr('video.detail.no_episodes'))),
@@ -336,26 +532,34 @@ class _DownloadButton extends StatelessWidget {
             }
             isDownloadMode.value = !isDownloadMode.value;
           },
-          icon: Icon(downloadMode ? Icons.close : Icons.download),
-          label: Text(
-            downloadMode
-                ? tr('video.detail.done')
-                : tr('video.detail.download'),
-          ),
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-            side: BorderSide(
-              color: downloadMode ? Colors.red : theme.colorScheme.onSurface,
-            ),
-            foregroundColor: downloadMode
-                ? Colors.red
-                : theme.colorScheme.onSurface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
         );
       },
+    );
+  }
+}
+
+/// Follow this show. By show, not by catalog row: the same 九门 followed from
+/// the other source used to read 订阅 here, and tapping it added a second row
+/// rather than undoing the first.
+class _SubscribeButton extends ConsumerWidget {
+  const _SubscribeButton({required this.video});
+
+  final Video video;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final following = ref.watch(
+      isSubscribedProvider((title: video.title, year: video.year)),
+    );
+    return ActionButton(
+      amber: following,
+      icon: following
+          ? Icons.notifications_active_outlined
+          : Icons.notifications_none_rounded,
+      label: following
+          ? tr('subscription.subscribed')
+          : tr('subscription.subscribe'),
+      onTap: () => ref.read(subscriptionsProvider.notifier).toggle(video),
     );
   }
 }

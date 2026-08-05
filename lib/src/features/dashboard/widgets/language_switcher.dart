@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart' hide DropdownMenu;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../settings/presentation/settings_provider.dart';
+import '../../../common/bar_controls.dart';
 import '../../../common/dropdown_menu.dart';
 
 class LanguageSwitcher extends ConsumerStatefulWidget {
@@ -12,8 +13,6 @@ class LanguageSwitcher extends ConsumerStatefulWidget {
 }
 
 class _LanguageSwitcherState extends ConsumerState<LanguageSwitcher> {
-  bool _isHovered = false;
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -21,6 +20,7 @@ class _LanguageSwitcherState extends ConsumerState<LanguageSwitcher> {
 
     return DropdownMenu(
       menuWidth: 120,
+      followTheme: true,
       offset: const Offset(0, 8),
       menuBuilder: (context, close) {
         return [
@@ -54,24 +54,9 @@ class _LanguageSwitcherState extends ConsumerState<LanguageSwitcher> {
           ),
         ];
       },
-      child: MouseRegion(
-        onEnter: (_) => setState(() => _isHovered = true),
-        onExit: (_) => setState(() => _isHovered = false),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          decoration: BoxDecoration(
-            color: _isHovered
-                ? theme.colorScheme.onSurface.withValues(alpha: 0.1)
-                : Colors.transparent,
-            shape: BoxShape.circle,
-          ),
-          padding: const EdgeInsets.all(8),
-          child: Icon(
-            Icons.translate,
-            color: theme.colorScheme.onSurface,
-            size: 20,
-          ),
-        ),
+      child: BarIcon(
+        icon: Icons.translate_rounded,
+        tooltip: tr('common.language'),
       ),
     );
   }

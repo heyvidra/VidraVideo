@@ -9,7 +9,7 @@ import '../../../data/database/mappers.dart';
 import '../../../core/network/dio_provider.dart';
 import '../domain/video_collection.dart';
 import '../domain/episode_number.dart';
-import '../domain/play_history.dart' show isEpisodicType;
+import '../domain/play_history.dart' show isEpisodicType, crossSourceKey;
 import '../domain/video_settings.dart';
 import '../domain/category.dart'; // Relative to this file
 import '../../settings/presentation/settings_provider.dart';
@@ -326,6 +326,39 @@ class VideoRepository {
     final result = await _defaultDataSource.searchVideos(keyword);
     _searchCache.set(key, result);
     return result;
+  }
+
+  /// Looks for this show on ONE other catalog, and caches it if found.
+  ///
+  /// The only place the app goes looking across sources, and it is never
+  /// automatic: [CrossSourceCatalog] answers from what browsing has already
+  /// stored, which turns out to be a counterpart for about one show in
+  /// fourteen — the whole cross-source feature was invisible on the rest.
+  /// Offering the lookup as something the user asks for keeps the automatic
+  /// path at zero requests while making the feature reachable everywhere.
+  ///
+  /// Costs a search plus one detail fetch, and only on an exact
+  /// [crossSourceKey] match: a search for 九门 returns a page of things that
+  /// merely mention it, and pairing the wrong show would hand it another
+  /// show's watch progress.
+  Future<Video?> findOnSource({
+    required String sourceId,
+    required String title,
+    String? year,
+  }) async {
+    final key = '$sourceId|search|$title';
+    final cached = _searchCache.get(key);
+    final results = cached ?? await _getDataSource(sourceId).searchVideos(title);
+    if (cached == null) _searchCache.set(key, results);
+
+    final wanted = crossSourceKey(title, year);
+    for (final candidate in results) {
+      if (crossSourceKey(candidate.title, candidate.year) != wanted) continue;
+      // Fetching the detail is what actually files the row, which is what
+      // makes it a counterpart on every later visit.
+      return getVideo(candidate.apiId, sourceId: sourceId);
+    }
+    return null;
   }
 
   String resolveUrl(String url, {String? sourceId}) {

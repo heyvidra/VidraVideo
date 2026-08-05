@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vidra/src/features/video/data/video_repository.dart';
@@ -45,8 +46,16 @@ String? crossSourceWatchLabel(WidgetRef ref, Video video) {
   final where = sourceDisplayName(ref, match.sourceId);
   // A film's "episodes" are the source's audio tracks and mirrors, not
   // instalments — see [isEpisodicType].
-  if (!isEpisodicType(video.type)) return '$where 看过';
-  return '$where 看到 第 ${match.lastEpisodeIndex + 1} 集';
+  if (!isEpisodicType(video.type)) {
+    return tr('video.detail.seen_on', args: [where]);
+  }
+  return tr(
+    'video.detail.seen_on_episode',
+    args: [
+      where,
+      tr('video.detail.episode_prefix', args: ['${match.lastEpisodeIndex + 1}']),
+    ],
+  );
 }
 
 /// "已在 欧乐影院 看到 第 5 集", shown beside the episode-list heading.
@@ -66,8 +75,17 @@ class CrossSourceWatchBadge extends ConsumerWidget {
     final theme = Theme.of(context);
     final where = sourceDisplayName(ref, match.sourceId);
     final text = isEpisodicType(video.type)
-        ? '已在 $where 看到 第 ${match.lastEpisodeIndex + 1} 集'
-        : '已在 $where 看过';
+        ? tr(
+            'video.detail.watched_upto_on',
+            args: [
+              where,
+              tr(
+                'video.detail.episode_prefix',
+                args: ['${match.lastEpisodeIndex + 1}'],
+              ),
+            ],
+          )
+        : tr('video.detail.seen_on', args: [where]);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),

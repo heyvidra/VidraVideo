@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
+import '../../../../common/bar_controls.dart';
+
 import '../subscription_provider.dart';
 
 /// Titlebar entry to followed shows, with a count of the ones that have updated.
@@ -40,7 +42,6 @@ class _SubscriptionBellState extends ConsumerState<SubscriptionBell>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final unread = ref.watch(unreadSubscriptionCountProvider);
 
     // Swing when there is MORE news than before — not continuously while
@@ -50,12 +51,22 @@ class _SubscriptionBellState extends ConsumerState<SubscriptionBell>
       if (next > (prev ?? 0) && next > 0) _swing.forward(from: 0);
     });
 
-    return IconButton(
+    // The same shell as every other control on the bar — see [BarIcon], which
+    // owns the size, the colour and the hit box. This one was a 24px filled
+    // glyph in a 48px Material box beside 17px outlined ones.
+    return BarIcon(
+      icon: unread > 0
+          ? Icons.notifications_active_outlined
+          : Icons.notifications_none_rounded,
+      active: unread > 0,
+      // Past nine the exact number stops being actionable and starts being a
+      // wide badge.
+      badge: unread > 0 ? (unread > 9 ? '9+' : '$unread') : null,
       tooltip: unread > 0
           ? tr('subscription.updates_waiting', args: ['$unread'])
           : tr('subscription.title'),
-      onPressed: () => context.push('/subscriptions'),
-      icon: AnimatedBuilder(
+      onTap: () => context.push('/subscriptions'),
+      wrap: (context, icon) => AnimatedBuilder(
         animation: _swing,
         builder: (context, child) => Transform.rotate(
           // Pivot at the top of the icon, where a real bell hangs.
@@ -63,53 +74,7 @@ class _SubscriptionBellState extends ConsumerState<SubscriptionBell>
           alignment: Alignment.topCenter,
           child: child,
         ),
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Icon(
-              unread > 0
-                  ? Icons.notifications_active
-                  : Icons.notifications_none,
-              color: unread > 0
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.onSurface,
-            ),
-            if (unread > 0)
-              Positioned(
-                right: -4,
-                top: -4,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 5,
-                    vertical: 1,
-                  ),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary,
-                    borderRadius: BorderRadius.circular(999),
-                    // A ring in the surface colour so the badge stays legible
-                    // against the icon it overlaps.
-                    border: Border.all(
-                      color: theme.colorScheme.surface,
-                      width: 2,
-                    ),
-                  ),
-                  constraints: const BoxConstraints(minWidth: 18),
-                  child: Text(
-                    // Past nine the exact number stops being actionable and
-                    // starts being a wide badge.
-                    unread > 9 ? '9+' : '$unread',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      height: 1.2,
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
+        child: icon,
       ),
     );
   }

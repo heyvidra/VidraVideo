@@ -74,10 +74,9 @@ class VidraDlpDownloader implements SegmentDownloader {
       if (completer.isCompleted) return;
       cleanup();
       try {
-        Future.value(produce()).then(
-          (v) => completer.complete(v),
-          onError: completer.completeError,
-        );
+        Future.value(
+          produce(),
+        ).then((v) => completer.complete(v), onError: completer.completeError);
       } catch (e, st) {
         completer.completeError(e, st);
       }
@@ -87,10 +86,12 @@ class VidraDlpDownloader implements SegmentDownloader {
       switch (event['event'] as String?) {
         case 'progress':
           if (onProgress != null) {
-            final downloaded = (event['downloaded_bytes'] as num?)?.toInt() ?? 0;
+            final downloaded =
+                (event['downloaded_bytes'] as num?)?.toInt() ?? 0;
             final total = (event['total_bytes'] as num?)?.toInt();
-            final prog =
-                (total != null && total > 0) ? downloaded / total : 0.0;
+            final prog = (total != null && total > 0)
+                ? downloaded / total
+                : 0.0;
             onProgress(prog, downloaded, total, 'Downloading');
           }
           break;

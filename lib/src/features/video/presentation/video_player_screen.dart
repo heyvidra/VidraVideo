@@ -272,8 +272,11 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
         // the player's sprite sweep (v1.3.0) serves hover previews on every
         // platform now, so the default (enabled) is back.
       ),
+      // White, explicitly. The player's chrome is always dark over video, so
+      // it must not inherit the app's icon colour — in the light theme that is
+      // near-black, and this button vanished into the title bar.
       leading: IconButton(
-        icon: const Icon(Icons.close),
+        icon: const Icon(Icons.close, color: Colors.white),
         tooltip: tr('common.close'),
         onPressed: _handleSafeClose,
       ),

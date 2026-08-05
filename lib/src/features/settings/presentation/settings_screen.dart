@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:path_provider/path_provider.dart';
 import '../data/settings_repository.dart';
 import 'settings_provider.dart';
+import '../../../common/screen_chrome.dart';
 import '../domain/app_settings.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -22,22 +23,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final settingsRepo = ref.watch(settingsRepositoryProvider);
     final recommendedMax = ref.watch(recommendedMaxDownloadsProvider);
     final cacheSizeAsync = ref.watch(cacheSizeProvider);
-    final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(tr('settings.title'), style: theme.textTheme.titleLarge),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: theme.iconTheme,
-      ),
+      backgroundColor: Colors.transparent,
       body: settingsAsync.when(
         data: (settings) => SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.fromLTRB(0, 0, 0, 32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildSection(
+              ScreenHeader(title: tr('settings.title')),
+              _section(
                 context,
                 title: tr('settings.download.title'),
                 children: [
@@ -57,8 +53,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _buildCookieFileSetting(context, settings, settingsRepo),
                 ],
               ),
-              const SizedBox(height: 32),
-              _buildSection(
+              const SizedBox(height: 26),
+              _section(
                 context,
                 title: tr('settings.storage.title'),
                 children: [
@@ -75,31 +71,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget _buildSection(
+  /// A settings group. The card and its eyebrow come from [ScreenSection], so
+  /// this shape matches every other grouped list in the app.
+  Widget _section(
     BuildContext context, {
     required String title,
     required List<Widget> children,
   }) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 16),
-        Container(
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest.withAlpha(50),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: theme.colorScheme.outline.withAlpha(20)),
-          ),
-          child: Column(children: children),
-        ),
-      ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: kContentGutter),
+      child: ScreenSection(title: title, children: children),
     );
   }
 

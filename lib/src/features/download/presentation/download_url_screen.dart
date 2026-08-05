@@ -10,6 +10,7 @@ import '../data/download_provider.dart';
 import '../data/media_info_provider.dart';
 import '../domain/media_info.dart';
 import '../../../window/player_window_launcher.dart';
+import '../../../common/screen_chrome.dart';
 import 'widgets/download_ui.dart';
 
 typedef _QualityOption = ({String value, String label});
@@ -41,13 +42,19 @@ class DownloadUrlScreen extends HookConsumerWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text(tr('download.url.title'))),
+      backgroundColor: Colors.transparent,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          ScreenHeader(title: tr('download.url.title')),
           fullWidthContent(
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              padding: const EdgeInsets.fromLTRB(
+                kContentGutter,
+                0,
+                kContentGutter,
+                12,
+              ),
               child: _DropZone(
                 loading: parseState.isLoading,
                 onTap: parseState.isLoading ? null : pasteAndParse,

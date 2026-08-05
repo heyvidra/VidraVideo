@@ -1,6 +1,10 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:vidra/src/config/ambient_background.dart';
+import 'package:vidra/src/common/bar_controls.dart';
+import 'package:vidra/src/config/design_tokens.dart';
 import '../../../core/providers/theme_provider.dart';
 
 import 'package:bitsdojo_window/bitsdojo_window.dart';
@@ -9,14 +13,29 @@ import 'data_source_switcher.dart';
 import 'language_switcher.dart';
 import '../../subscription/presentation/widgets/subscription_bell.dart';
 
+/// The window's one toolbar: `.pillbar` in the design.
+///
+/// A single glass pill spanning the window, carrying the back affordance on
+/// the left, the search field beside it, and the window's controls on the
+/// right. There is exactly one of these — a detail page used to add a second
+/// toolbar of its own with a second search field in it.
 class DashboardTitleBar extends ConsumerStatefulWidget {
   final void Function(String) onSearchSubmitted;
   final VoidCallback? onHomeRequested;
+
+  /// Whether this route has somewhere to go back to.
+  final bool showBack;
+
+  /// Space kept clear at the pill's left edge for the platform's own window
+  /// controls — the macOS traffic lights sit ON this bar.
+  final double leadingInset;
 
   const DashboardTitleBar({
     super.key,
     required this.onSearchSubmitted,
     this.onHomeRequested,
+    this.showBack = false,
+    this.leadingInset = 14,
   });
 
   @override
@@ -25,11 +44,6 @@ class DashboardTitleBar extends ConsumerStatefulWidget {
 
 class _DashboardTitleBarState extends ConsumerState<DashboardTitleBar> {
   bool isAlwaysOnTop = false;
-
-  @override
-  void initState() {
-    super.initState();
-  }
 
   void _toggleAlwaysOnTop() {
     setState(() {
@@ -41,101 +55,141 @@ class _DashboardTitleBarState extends ConsumerState<DashboardTitleBar> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final t = VidraTokens.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Expanded(
-          child: Center(
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 450),
-              height: 45,
-              decoration: BoxDecoration(
-                color: isDark
-                    ? Colors.white.withAlpha(100)
-                    : Colors.black.withAlpha(80),
-                borderRadius: BorderRadius.circular(25),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+    return GlassPanel(
+      radius: 999,
+      blur: 12,
+      border: t.edgeSoft,
+      shadow: t.drop1,
+      padding: const EdgeInsets.fromLTRB(0, 6, 8, 6),
+      child: Row(
+        children: [
+          SizedBox(width: widget.leadingInset),
+          // The wordmark names the WINDOW, so it belongs on the window's bar.
+          Text(
+            'VIDRA',
+            style: TextStyle(
+              fontSize: 11.5,
+              height: 1.4,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 2.3,
+              color: t.fg2,
+            ),
+          ),
+          const SizedBox(width: 14),
+          if (widget.showBack) ...[
+            _PillButton(
+              label: tr('common.back'),
+              icon: Icons.chevron_left_rounded,
+              onTap: () => context.pop(),
+            ),
+            const SizedBox(width: 10),
+          ],
+          // The search field, left-aligned with the rest of the bar rather
+          // than centred: centred, it drifted away from the back button it
+          // sits next to and left a hole on both sides at wide window sizes.
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460, minWidth: 180),
+            child: SizedBox(
+              height: 32,
               child: Row(
                 children: [
+                  Icon(Icons.search, color: t.fg3, size: 17),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: TextField(
-                      style: TextStyle(color: theme.colorScheme.onSurface),
+                      style: TextStyle(color: t.fg, fontSize: 13),
+                      cursorColor: t.cyan,
                       decoration: InputDecoration(
                         hintText: tr('dashboard.search_hint'),
-                        hintStyle: TextStyle(
-                          color: isDark ? Colors.black45 : Colors.white70,
-                        ),
+                        hintStyle: TextStyle(color: t.fg3, fontSize: 13),
                         border: InputBorder.none,
                         isDense: true,
                         contentPadding: EdgeInsets.zero,
                       ),
                       onSubmitted: (value) {
-                        if (value.isNotEmpty) {
-                          widget.onSearchSubmitted(value);
-                        }
+                        if (value.isNotEmpty) widget.onSearchSubmitted(value);
                       },
                       textInputAction: TextInputAction.search,
                     ),
-                  ),
-                  Icon(
-                    Icons.search,
-                    color: isDark ? Colors.black45 : Colors.white70,
-                    size: 20,
                   ),
                 ],
               ),
             ),
           ),
-        ),
-        // Theme Toggle, Always on Top, and User Profile
-        Row(
-          children: [
-            DataSourceSwitcher(onDataSourceChanged: widget.onHomeRequested),
-            const SizedBox(width: 8),
-            const SubscriptionBell(),
-            IconButton(
-              icon: Icon(
-                isAlwaysOnTop ? Icons.push_pin : Icons.push_pin_outlined,
-                color: isAlwaysOnTop
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.onSurface,
-                // size: 20,
-              ),
-              onPressed: _toggleAlwaysOnTop,
-              tooltip: isAlwaysOnTop
-                  ? tr('dashboard.unpin_from_top')
-                  : tr('dashboard.pin_to_top'),
-            ),
-            IconButton(
-              icon: Icon(
-                isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-                color: theme.colorScheme.onSurface,
-              ),
-              onPressed: () {
-                ref.read(themeModeProvider.notifier).toggleTheme();
-              },
-              tooltip: isDark
-                  ? tr('dashboard.switch_to_light_mode')
-                  : tr('dashboard.switch_to_dark_mode'),
-            ),
-            const SizedBox(width: 8),
-            const LanguageSwitcher(),
+          const Spacer(),
+          DataSourceSwitcher(onDataSourceChanged: widget.onHomeRequested),
+          const SizedBox(width: 8),
+          const SubscriptionBell(),
+          BarIcon(
+            // Outlined even when active — the colour says "on", and a filled
+            // glyph beside four outlined ones reads as a different family
+            // rather than a different state.
+            icon: Icons.push_pin_outlined,
+            active: isAlwaysOnTop,
+            tooltip: isAlwaysOnTop
+                ? tr('dashboard.unpin_from_top')
+                : tr('dashboard.pin_to_top'),
+            onTap: _toggleAlwaysOnTop,
+          ),
+          BarIcon(
+            icon: isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+            tooltip: isDark
+                ? tr('dashboard.switch_to_light_mode')
+                : tr('dashboard.switch_to_dark_mode'),
+            onTap: () => ref.read(themeModeProvider.notifier).toggleTheme(),
+          ),
+          const LanguageSwitcher(),
+        ],
+      ),
+    );
+  }
+}
 
-            const SizedBox(width: 12),
-            const CircleAvatar(
-              radius: 18,
-              backgroundImage: NetworkImage(
-                'https://www.olevod.com/upload/vod/20250824-1/5ee9fd7793f13d492ec3c72abffbc888.jpg_384x560.jpg',
-              ),
+/// `.btn` — a pill inside the pill.
+class _PillButton extends StatelessWidget {
+  const _PillButton({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = VidraTokens.of(context);
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(8, 5, 14, 5),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: t.edgeSoft),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: t.glass2,
             ),
-            // const SizedBox(width: 8),
-            // Icon(Icons.keyboard_arrow_down, color: theme.colorScheme.onSurface),
-          ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18, color: t.fg),
+              const SizedBox(width: 2),
+              Text(label, style: TextStyle(fontSize: 13, color: t.fg)),
+            ],
+          ),
         ),
-      ],
+      ),
     );
   }
 }

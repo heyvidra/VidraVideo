@@ -22,62 +22,84 @@ typedef MediaClientNewDart = Pointer<Void> Function(Pointer<Utf8> config);
 typedef MediaClientFreeC = Void Function(Pointer<Void> client);
 typedef MediaClientFreeDart = void Function(Pointer<Void> client);
 
-typedef MediaExtractC = Pointer<Utf8> Function(
-    Pointer<Void> client, Pointer<Utf8> url, Pointer<Utf8> opts);
-typedef MediaExtractDart = Pointer<Utf8> Function(
-    Pointer<Void> client, Pointer<Utf8> url, Pointer<Utf8> opts);
+typedef MediaExtractC =
+    Pointer<Utf8> Function(
+      Pointer<Void> client,
+      Pointer<Utf8> url,
+      Pointer<Utf8> opts,
+    );
+typedef MediaExtractDart =
+    Pointer<Utf8> Function(
+      Pointer<Void> client,
+      Pointer<Utf8> url,
+      Pointer<Utf8> opts,
+    );
 
-typedef MediaCapabilityManifestJsonC = Pointer<Utf8> Function(
-    Pointer<Void> client);
-typedef MediaCapabilityManifestJsonDart = Pointer<Utf8> Function(
-    Pointer<Void> client);
+typedef MediaCapabilityManifestJsonC =
+    Pointer<Utf8> Function(Pointer<Void> client);
+typedef MediaCapabilityManifestJsonDart =
+    Pointer<Utf8> Function(Pointer<Void> client);
 
-typedef MediaDownloadStartC = Int32 Function(
-    Pointer<Void> client,
-    Pointer<Utf8> requestJson,
-    Pointer<NativeFunction<MediaProgressFnC>> callback,
-    Pointer<Void> userData,
-    Pointer<Uint64> outJobId);
-typedef MediaDownloadStartDart = int Function(
-    Pointer<Void> client,
-    Pointer<Utf8> requestJson,
-    Pointer<NativeFunction<MediaProgressFnC>> callback,
-    Pointer<Void> userData,
-    Pointer<Uint64> outJobId);
+typedef MediaDownloadStartC =
+    Int32 Function(
+      Pointer<Void> client,
+      Pointer<Utf8> requestJson,
+      Pointer<NativeFunction<MediaProgressFnC>> callback,
+      Pointer<Void> userData,
+      Pointer<Uint64> outJobId,
+    );
+typedef MediaDownloadStartDart =
+    int Function(
+      Pointer<Void> client,
+      Pointer<Utf8> requestJson,
+      Pointer<NativeFunction<MediaProgressFnC>> callback,
+      Pointer<Void> userData,
+      Pointer<Uint64> outJobId,
+    );
 
-typedef MediaDownloadCancelC = Int32 Function(
-    Pointer<Void> client, Uint64 jobId);
+typedef MediaDownloadCancelC =
+    Int32 Function(Pointer<Void> client, Uint64 jobId);
 typedef MediaDownloadCancelDart = int Function(Pointer<Void> client, int jobId);
 
 // ---- resumable downloads (W3 / W4) ----------------------------------------
 
 typedef MediaScanResumableJobsC = Pointer<Utf8> Function(Pointer<Utf8> dirPath);
-typedef MediaScanResumableJobsDart = Pointer<Utf8> Function(
-    Pointer<Utf8> dirPath);
+typedef MediaScanResumableJobsDart =
+    Pointer<Utf8> Function(Pointer<Utf8> dirPath);
 
-typedef MediaDownloadResumeC = Int32 Function(
-    Pointer<Void> client,
-    Pointer<Utf8> manifestPath,
-    Pointer<NativeFunction<MediaProgressFnC>> callback,
-    Pointer<Void> userData,
-    Pointer<Uint64> outJobId);
-typedef MediaDownloadResumeDart = int Function(
-    Pointer<Void> client,
-    Pointer<Utf8> manifestPath,
-    Pointer<NativeFunction<MediaProgressFnC>> callback,
-    Pointer<Void> userData,
-    Pointer<Uint64> outJobId);
+typedef MediaDownloadResumeC =
+    Int32 Function(
+      Pointer<Void> client,
+      Pointer<Utf8> manifestPath,
+      Pointer<NativeFunction<MediaProgressFnC>> callback,
+      Pointer<Void> userData,
+      Pointer<Uint64> outJobId,
+    );
+typedef MediaDownloadResumeDart =
+    int Function(
+      Pointer<Void> client,
+      Pointer<Utf8> manifestPath,
+      Pointer<NativeFunction<MediaProgressFnC>> callback,
+      Pointer<Void> userData,
+      Pointer<Uint64> outJobId,
+    );
 
-typedef MediaProgressFnC = Void Function(
-    Pointer<Utf8> jsonEvent, Pointer<Void> userData);
+typedef MediaProgressFnC =
+    Void Function(Pointer<Utf8> jsonEvent, Pointer<Void> userData);
 
-typedef MediaLogFnC = Void Function(
-    Pointer<Utf8> message, Pointer<Void> userData);
+typedef MediaLogFnC =
+    Void Function(Pointer<Utf8> message, Pointer<Void> userData);
 
-typedef MediaSetLogCallbackC = Int32 Function(
-    Pointer<NativeFunction<MediaLogFnC>> callback, Pointer<Void> userData);
-typedef MediaSetLogCallbackDart = int Function(
-    Pointer<NativeFunction<MediaLogFnC>> callback, Pointer<Void> userData);
+typedef MediaSetLogCallbackC =
+    Int32 Function(
+      Pointer<NativeFunction<MediaLogFnC>> callback,
+      Pointer<Void> userData,
+    );
+typedef MediaSetLogCallbackDart =
+    int Function(
+      Pointer<NativeFunction<MediaLogFnC>> callback,
+      Pointer<Void> userData,
+    );
 
 typedef MediaStringFreeC = Void Function(Pointer<Utf8> s);
 typedef MediaStringFreeDart = void Function(Pointer<Utf8> s);
@@ -148,31 +170,41 @@ final _lib = _loadLib();
 
 // ---- Public API -----------------------------------------------------------
 
-final mediaClientNew =
-    _lib.lookupFunction<MediaClientNewC, MediaClientNewDart>('media_client_new');
+final mediaClientNew = _lib.lookupFunction<MediaClientNewC, MediaClientNewDart>(
+  'media_client_new',
+);
 final mediaClientFree = _lib
     .lookupFunction<MediaClientFreeC, MediaClientFreeDart>('media_client_free');
-final mediaExtract =
-    _lib.lookupFunction<MediaExtractC, MediaExtractDart>('media_extract');
-final mediaCapabilityManifestJson = _lib.lookupFunction<
-    MediaCapabilityManifestJsonC,
-    MediaCapabilityManifestJsonDart>('media_capability_manifest_json');
-final mediaDownloadStart =
-    _lib.lookupFunction<MediaDownloadStartC, MediaDownloadStartDart>(
-        'media_download_start');
-final mediaDownloadCancel =
-    _lib.lookupFunction<MediaDownloadCancelC, MediaDownloadCancelDart>(
-        'media_download_cancel');
+final mediaExtract = _lib.lookupFunction<MediaExtractC, MediaExtractDart>(
+  'media_extract',
+);
+final mediaCapabilityManifestJson = _lib
+    .lookupFunction<
+      MediaCapabilityManifestJsonC,
+      MediaCapabilityManifestJsonDart
+    >('media_capability_manifest_json');
+final mediaDownloadStart = _lib
+    .lookupFunction<MediaDownloadStartC, MediaDownloadStartDart>(
+      'media_download_start',
+    );
+final mediaDownloadCancel = _lib
+    .lookupFunction<MediaDownloadCancelC, MediaDownloadCancelDart>(
+      'media_download_cancel',
+    );
 final mediaStringFree = _lib
     .lookupFunction<MediaStringFreeC, MediaStringFreeDart>('media_string_free');
-final mediaLastError = _lib
-    .lookupFunction<MediaLastErrorC, MediaLastErrorDart>('media_last_error_json');
-final mediaSetLogCallback =
-    _lib.lookupFunction<MediaSetLogCallbackC, MediaSetLogCallbackDart>(
-        'media_set_log_callback');
-final mediaScanResumableJobs =
-    _lib.lookupFunction<MediaScanResumableJobsC, MediaScanResumableJobsDart>(
-        'media_scan_resumable_jobs');
-final mediaDownloadResume =
-    _lib.lookupFunction<MediaDownloadResumeC, MediaDownloadResumeDart>(
-        'media_download_resume');
+final mediaLastError = _lib.lookupFunction<MediaLastErrorC, MediaLastErrorDart>(
+  'media_last_error_json',
+);
+final mediaSetLogCallback = _lib
+    .lookupFunction<MediaSetLogCallbackC, MediaSetLogCallbackDart>(
+      'media_set_log_callback',
+    );
+final mediaScanResumableJobs = _lib
+    .lookupFunction<MediaScanResumableJobsC, MediaScanResumableJobsDart>(
+      'media_scan_resumable_jobs',
+    );
+final mediaDownloadResume = _lib
+    .lookupFunction<MediaDownloadResumeC, MediaDownloadResumeDart>(
+      'media_download_resume',
+    );

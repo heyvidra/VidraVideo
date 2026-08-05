@@ -143,10 +143,21 @@ class VideoListNotifier extends Notifier<VideoListState> {
 }
 
 // Providers
+
+/// Deliberately NOT autoDispose.
+///
+/// The rail sets this and then navigates to the catalog. From any screen where
+/// the catalog is not mounted — 追更, 下载, 设置 — an autoDispose provider has
+/// no listeners at that moment, so the write landed on an element that was
+/// disposed before the route arrived and the freshly built one came back at
+/// `categories.first`. Tapping 连续剧 from 追更 opened the home list.
+///
+/// It still resets when it should: [VideoListFilterNotifier.build] watches
+/// `categoriesProvider`, so switching source rebuilds this and drops the old
+/// category with it.
 final videoListFilterProvider =
     NotifierProvider<VideoListFilterNotifier, VideoListFilter>(
       VideoListFilterNotifier.new,
-      isAutoDispose: true,
     );
 
 class VideoListFilterNotifier extends Notifier<VideoListFilter> {
