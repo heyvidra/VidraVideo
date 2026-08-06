@@ -161,9 +161,12 @@ class _DashboardTitleBarState extends ConsumerState<DashboardTitleBar> {
 /// bitsdojo's, so they match the four controls they sit beside instead of
 /// arriving with their own size, colour and hover.
 ///
-/// Close routes through `appWindow.close()`, which is what the native button
-/// did: the app's `onCloseRequested` interceptor still gets to ask before the
-/// window goes.
+/// Close must REQUEST, not act: `appWindow.close()` is the definitive close —
+/// it clears the native close-requested callback before posting SC_CLOSE
+/// (so a confirmed close doesn't re-ask), which meant this button skipped
+/// the exit-confirm dialog entirely and the window just died. Going through
+/// the `onClose` slot runs the same chain a native close request does:
+/// WindowEventListener → the app's `onCloseRequested` interceptor → dialog.
 class _WindowControls extends StatefulWidget {
   const _WindowControls();
 
@@ -196,7 +199,8 @@ class _WindowControlsState extends State<_WindowControls> {
           icon: Icons.close_rounded,
           tooltip: tr('common.close'),
           hoverTone: t.clash,
-          onTap: appWindow.close,
+          // Hard close only as the fallback for a window with no listener.
+          onTap: () => (appWindow.onClose ?? appWindow.close)(),
         ),
       ],
     );
