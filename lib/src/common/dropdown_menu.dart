@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 
@@ -374,9 +375,113 @@ class PlayerMenuDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Inset and token-coloured: a full-bleed hard line cuts the panel in
+    // half, and `white.withValues(0.1)` was invisible on the light theme and
+    // harsh on the dark one.
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Divider(color: Colors.white.withValues(alpha: 0.1), height: 1),
+      padding: const EdgeInsets.fromLTRB(10, 4, 10, 4),
+      child: Divider(
+        color: VidraTokens.of(context).edgeSoft,
+        height: 1,
+        thickness: 1,
+      ),
     );
   }
+}
+
+/// The same panel [DropdownMenu] drops, opened at an arbitrary point instead
+/// of under a trigger.
+///
+/// A right-click menu and a dropdown are the same object with two different
+/// anchors, so they must be the same material. `showMenu` is not: Material's
+/// menu is a square-cornered sheet with edge-to-edge rows and hard full-bleed
+/// dividers, and next to this app's own dropdown it read as a different
+/// application's widget.
+///
+/// Fill it with [PlayerMenuItem]s — the rounded, inset row with its own hover
+/// — and [PlayerMenuDivider]. Completes with the value passed to `select`, or
+/// null if dismissed.
+Future<T?> showVidraMenu<T>({
+  required BuildContext context,
+  required Offset globalPosition,
+  required List<Widget> Function(BuildContext context, ValueChanged<T?> select)
+  builder,
+  double width = 208,
+}) {
+  final overlayState = Overlay.of(context);
+  final overlay = overlayState.context.findRenderObject() as RenderBox?;
+  if (overlay == null) return Future<T?>.value(null);
+
+  final t = VidraTokens.of(context);
+  final completer = Completer<T?>();
+  final size = overlay.size;
+  final local = overlay.globalToLocal(globalPosition);
+
+  // Flip rather than overflow: a menu opened near the right or bottom edge
+  // must stay whole. Height is unknown before layout, so the bottom flip uses
+  // the panel's own max — worst case it opens slightly higher than needed,
+  // which is what every desktop menu does.
+  const maxHeight = 360.0;
+  final left = local.dx + width > size.width
+      ? (local.dx - width).clamp(8.0, size.width - width)
+      : local.dx;
+  final top = local.dy + maxHeight > size.height
+      ? (size.height - maxHeight).clamp(8.0, size.height)
+      : local.dy;
+
+  late OverlayEntry entry;
+  var closed = false;
+  void select(T? value) {
+    if (closed) return;
+    closed = true;
+    entry.remove();
+    completer.complete(value);
+  }
+
+  entry = OverlayEntry(
+    builder: (context) => Stack(
+      children: [
+        Positioned.fill(
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTap: () => select(null),
+            onSecondaryTap: () => select(null),
+          ),
+        ),
+        Positioned(
+          left: left,
+          top: top,
+          width: width,
+          child: Material(
+            type: MaterialType.transparency,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                child: Container(
+                  constraints: const BoxConstraints(maxHeight: maxHeight),
+                  decoration: BoxDecoration(
+                    color: t.barBg,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: t.edgeSoft),
+                    boxShadow: t.drop2,
+                  ),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: builder(context, select),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  overlayState.insert(entry);
+  return completer.future;
 }

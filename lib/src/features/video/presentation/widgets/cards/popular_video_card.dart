@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:vidra/src/common/dropdown_menu.dart';
 import 'package:vidra/src/common/skeleton/skeleton_box.dart';
 import 'package:vidra/src/config/design_tokens.dart';
 import 'package:vidra/src/features/video/data/video_repository.dart';
@@ -181,10 +182,6 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
   /// spends a request on a catalog that bans IPs just for being opened is not
   /// a shortcut, but one the user explicitly picked has earned it.
   Future<void> _openMenu(Offset position) async {
-    final overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox?;
-    if (overlay == null) return;
-
     final video = widget.video;
     final following = isShowSubscribed(
       ref.read(subscriptionsProvider).value ?? const [],
@@ -213,78 +210,78 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
     );
     if (!mounted) return;
 
-    final picked = await showMenu<VoidCallback>(
+    // The app's own menu material, not Material's: showMenu draws a
+    // square-cornered sheet with edge-to-edge rows and hard full-bleed
+    // dividers, which sat next to this app's own dropdown looking like a
+    // different application's widget. Same panel, same rows, opened at the
+    // pointer instead of under a trigger.
+    final picked = await showVidraMenu<VoidCallback>(
       context: context,
-      // globalToLocal, not the raw global point: showMenu positions inside
-      // the enclosing Navigator's overlay, and this app's is the SHELL's —
-      // its origin is the content area, below the toolbar and right of the
-      // rail. Handing it a global offset shifted every menu down-right by
-      // exactly that origin, which is why they opened over the wrong card.
-      position: RelativeRect.fromRect(
-        overlay.globalToLocal(position) & const Size(1, 1),
-        Offset.zero & overlay.size,
-      ),
-      items: [
-        PopupMenuItem(
-          value: () => _playEpisode(latest: true),
-          child: Text(tr('video.menu.play_latest')),
+      globalPosition: position,
+      builder: (context, select) => [
+        PlayerMenuItem(
+          text: tr('video.menu.play_latest'),
+          onTap: () => select(() => _playEpisode(latest: true)),
         ),
         if (history != null)
-          PopupMenuItem(
-            value: () => _playEpisode(index: history.lastEpisodeIndex),
-            child: Text(
-              tr(
-                'video.menu.continue',
-                args: [
-                  episodeLabel(
-                    history.lastEpisodeTitle,
-                    index: history.lastEpisodeIndex,
-                  ),
-                ],
-              ),
+          PlayerMenuItem(
+            text: tr(
+              'video.menu.continue',
+              args: [
+                episodeLabel(
+                  history.lastEpisodeTitle,
+                  index: history.lastEpisodeIndex,
+                ),
+              ],
             ),
+            onTap: () =>
+                select(() => _playEpisode(index: history.lastEpisodeIndex)),
           ),
-        const PopupMenuDivider(),
-        PopupMenuItem(
-          value: () => ref.read(subscriptionsProvider.notifier).toggle(video),
-          child: Text(
-            following ? tr('subscription.unfollow') : tr('video.menu.follow'),
+        const PlayerMenuDivider(),
+        PlayerMenuItem(
+          text: following
+              ? tr('subscription.unfollow')
+              : tr('video.menu.follow'),
+          onTap: () => select(
+            () => ref.read(subscriptionsProvider.notifier).toggle(video),
           ),
         ),
-        PopupMenuItem(
-          value: _downloadSeason,
-          child: Text(tr('video.menu.download_season')),
+        PlayerMenuItem(
+          text: tr('video.menu.download_season'),
+          onTap: () => select(_downloadSeason),
         ),
         // One entry per catalog that also carries this show. Read from the
         // local cache, so an unbrowsed catalog simply does not appear rather
         // than the menu going and looking for one.
         for (final other in elsewhere)
-          PopupMenuItem(
-            value: () => context.push(
-              '/detail/${other.videoId}?sourceId=${other.sourceId}',
+          PlayerMenuItem(
+            text: tr(
+              'video.detail.open_on_source',
+              args: [sourceDisplayName(ref, other.sourceId)],
             ),
-            child: Text(
-              tr(
-                'video.detail.open_on_source',
-                args: [sourceDisplayName(ref, other.sourceId)],
+            onTap: () => select(
+              () => context.push(
+                '/detail/${other.videoId}?sourceId=${other.sourceId}',
               ),
             ),
           ),
-        const PopupMenuDivider(),
-        PopupMenuItem(
-          value: _openDetail,
-          child: Text(tr('common.view_details')),
+        const PlayerMenuDivider(),
+        PlayerMenuItem(
+          text: tr('common.view_details'),
+          onTap: () => select(_openDetail),
         ),
-        PopupMenuItem(
-          value: _markWatched,
-          child: Text(tr('video.menu.mark_watched')),
+        PlayerMenuItem(
+          text: tr('video.menu.mark_watched'),
+          onTap: () => select(_markWatched),
         ),
         if (history != null)
-          PopupMenuItem(
-            value: () => ref
-                .read(playHistoryProvider.notifier)
-                .deleteVideoHistory(history.id),
-            child: Text(tr('video.menu.remove_history')),
+          PlayerMenuItem(
+            text: tr('video.menu.remove_history'),
+            onTap: () => select(
+              () => ref
+                  .read(playHistoryProvider.notifier)
+                  .deleteVideoHistory(history.id),
+            ),
           ),
       ],
     );

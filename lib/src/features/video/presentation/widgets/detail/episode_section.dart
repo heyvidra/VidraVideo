@@ -10,6 +10,7 @@ import 'package:vidra/src/features/video/domain/play_history.dart'
     show EpisodeHistory, isEpisodicType;
 import 'package:vidra/src/features/video/domain/episode_number.dart';
 import 'package:vidra/src/features/video/domain/merged_history.dart';
+import 'package:vidra/src/features/video/domain/source_lead.dart';
 import 'package:vidra/src/features/video/data/cross_source_catalog.dart';
 import 'package:vidra/src/features/download/data/download_provider.dart';
 import 'package:vidra/src/features/video/presentation/widgets/detail/episode_item.dart';
@@ -1213,8 +1214,8 @@ class _SourcePill extends ConsumerWidget {
   final Video? reference;
   final VoidCallback onTap;
 
-  /// "3 小时" / "2 天" — coarse on purpose. The question is which catalog moved
-  /// more recently, and to the minute is precision nobody acts on.
+  /// "3 小时" / "2 天" — coarse on purpose. The question is which catalog got
+  /// to this episode first, and to the minute is precision nobody acts on.
   static String _span(Duration d) {
     final h = d.inHours.abs();
     if (h < 1) {
@@ -1237,26 +1238,31 @@ class _SourcePill extends ConsumerWidget {
     final count = mine?.urls?.length;
 
     // Only against a DIFFERENT catalog, and only when both sides are known.
+    // One claim at most — see [compareSourceRows] for why a count delta and a
+    // time delta must never be shown together.
     final deltas = <({String text, Color? tone})>[];
     if (!selected && mine != null && reference != null) {
-      final ours = mine.urls?.length ?? 0;
-      final theirs = reference!.urls?.length ?? 0;
-      if (ours != theirs) {
-        final diff = ours - theirs;
+      final lead = compareSourceRows(
+        ourEpisodes: mine.urls?.length ?? 0,
+        theirEpisodes: reference!.urls?.length ?? 0,
+        ourVodTime: mine.vodTime,
+        theirVodTime: reference!.vodTime,
+      );
+      final diff = lead.episodeDelta;
+      if (diff != null) {
         deltas.add((
           text: '${diff > 0 ? '+' : '−'}${diff.abs()}',
           tone: diff > 0 ? t.cyan : t.clash,
         ));
       }
-      final a = mine.vodTime, b = reference!.vodTime;
-      if (a != null && b != null && a > 0 && b > 0 && a != b) {
-        final gap = Duration(seconds: (a - b).abs());
+      final earlier = lead.arrivedEarlierBy;
+      if (earlier != null) {
         deltas.add((
           text:
-              (a > b
-                      ? tr('video.detail.newer_by')
-                      : tr('video.detail.older_by'))
-                  .replaceFirst('{}', _span(gap)),
+              (earlier.isNegative
+                      ? tr('video.detail.older_by')
+                      : tr('video.detail.newer_by'))
+                  .replaceFirst('{}', _span(earlier)),
           tone: null,
         ));
       }
