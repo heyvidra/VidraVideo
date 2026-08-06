@@ -929,6 +929,8 @@ class _SourceBar extends ConsumerWidget {
     // are the point of the row — an absolute episode count on four pills makes
     // the reader do the subtraction, which is the one job a UI can do for them.
     final refId = selected;
+    // Same reasoning as `known` below: when this page's source is the one
+    // feeding the grid, the yardstick is the object the page already holds.
     final refVideo = refId == null
         ? video
         : ref
@@ -952,6 +954,13 @@ class _SourceBar extends ConsumerWidget {
             label: source.name,
             videoId: video.apiId,
             sourceId: video.sourceId,
+            // The page's OWN row, freshly fetched — not a second read of the
+            // cache. videoByIdProvider opens this page with forceRefresh, so
+            // the grid showed 16 episodes while this pill, reading the cached
+            // row written before that refresh, still said 15 — and the stale
+            // row's older timestamp made the OTHER catalog look 11 hours
+            // newer when this one was in fact ahead.
+            known: video,
             selected: selected == null,
             reference: refVideo,
             onTap: () => onPick(null),
@@ -1187,12 +1196,17 @@ class _SourcePill extends ConsumerWidget {
     required this.selected,
     required this.reference,
     required this.onTap,
+    this.known,
   });
 
   final String label;
   final int videoId;
   final String? sourceId;
   final bool selected;
+
+  /// This catalog's row when the caller already holds a fresher copy than the
+  /// cache does. Skips the cache read entirely.
+  final Video? known;
 
   /// The catalog currently feeding the grid, which this one is measured
   /// against. Null while its own cache read is still in flight.
@@ -1213,9 +1227,13 @@ class _SourcePill extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = VidraTokens.of(context);
-    final mine = ref
-        .watch(locallyCachedVideoProvider((id: videoId, sourceId: sourceId)))
-        .value;
+    final mine =
+        known ??
+        ref
+            .watch(
+              locallyCachedVideoProvider((id: videoId, sourceId: sourceId)),
+            )
+            .value;
     final count = mine?.urls?.length;
 
     // Only against a DIFFERENT catalog, and only when both sides are known.

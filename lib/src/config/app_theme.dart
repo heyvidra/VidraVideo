@@ -161,6 +161,30 @@ class AppTheme {
         side: BorderSide(color: colorScheme.onSurfaceVariant, width: 1.4),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
       ),
+      // The context menu was inheriting `colorScheme.surface` — which in this
+      // design is TRANSLUCENT white, so a right-click menu was a ghost with
+      // the poster showing through it. Same treatment as the dialogs: token
+      // fill, real outline, one radius.
+      popupMenuTheme: PopupMenuThemeData(
+        color: brightness == Brightness.dark
+            ? const Color(0xFF141F30)
+            : const Color(0xFFF7FAFD),
+        surfaceTintColor: Colors.transparent,
+        elevation: 12,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: brightness == Brightness.dark
+                ? const Color(0x29FFFFFF)
+                : const Color(0x1F0C141E),
+          ),
+        ),
+        textStyle: TextStyle(
+          color: colorScheme.onSurface,
+          fontSize: 13,
+          height: 1.4,
+        ),
+      ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: primaryColor,

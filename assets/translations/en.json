@@ -158,6 +158,13 @@
       "clear_history_title": "Clear all playback history?",
       "clear_history_body": "This deletes every watch record, the cached episode data, and the per-show intro/outro skip points. It cannot be undone.",
       "clear_history_confirm": "Clear all"
+    },
+    "menu": {
+      "play_latest": "Play latest episode",
+      "continue": "Continue {}",
+      "follow": "Follow",
+      "download_season": "Download season",
+      "remove_history": "Remove from history"
     }
   },
   "download": {

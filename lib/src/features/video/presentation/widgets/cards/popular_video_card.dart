@@ -7,6 +7,10 @@ import 'package:vidra/src/common/skeleton/skeleton_box.dart';
 import 'package:vidra/src/config/design_tokens.dart';
 import 'package:vidra/src/features/video/data/video_repository.dart';
 import 'package:vidra/src/features/video/domain/video_collection.dart';
+import 'package:vidra/src/window/player_window_launcher.dart';
+import 'package:vidra/src/features/download/data/download_provider.dart';
+import 'package:vidra/src/features/video/presentation/play_history_provider.dart';
+import 'package:vidra/src/features/video/domain/episode_number.dart';
 import 'package:vidra/src/features/subscription/domain/subscription_identity.dart';
 import 'package:vidra/src/features/subscription/presentation/subscription_provider.dart';
 import 'package:vidra/src/features/video/data/cross_source_catalog.dart';
@@ -170,56 +174,88 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
   /// The desktop path a click cannot offer: things you want to do TO a show
   /// without opening it.
   ///
-  /// Only actions that need nothing the card does not already have. Play and
-  /// download are deliberately absent — a catalog row carries no episode list,
-  /// so either would have to fetch the detail first, and a context menu that
-  /// silently spends a request on a source that bans IPs is not a shortcut.
+  /// Every entry acts on THIS row. The ones that need an episode list — play,
+  /// download — fetch the detail when chosen and not before: a menu that
+  /// spends a request on a catalog that bans IPs just for being opened is not
+  /// a shortcut, but one the user explicitly picked has earned it.
   Future<void> _openMenu(Offset position) async {
     final overlay =
         Overlay.of(context).context.findRenderObject() as RenderBox?;
     if (overlay == null) return;
 
+    final video = widget.video;
     final following = isShowSubscribed(
       ref.read(subscriptionsProvider).value ?? const [],
-      title: widget.video.title,
-      year: widget.video.year,
+      title: video.title,
+      year: video.year,
     );
     final elsewhere =
         ref
             .read(
               crossSourceCounterpartsProvider((
-                title: widget.video.title,
-                year: widget.video.year,
-                sourceId: widget.video.sourceId,
+                title: video.title,
+                year: video.year,
+                sourceId: video.sourceId,
               )),
             )
             .value ??
         const <CrossSourceEntry>[];
 
+    // Local DB read, so the menu can name the episode it would resume at
+    // without waiting on the network.
+    final history = await ref.read(
+      videoHistoryProvider((
+        videoId: video.apiId,
+        sourceId: video.sourceId,
+      )).future,
+    );
+    if (!mounted) return;
+
     final picked = await showMenu<VoidCallback>(
       context: context,
+      // globalToLocal, not the raw global point: showMenu positions inside
+      // the enclosing Navigator's overlay, and this app's is the SHELL's —
+      // its origin is the content area, below the toolbar and right of the
+      // rail. Handing it a global offset shifted every menu down-right by
+      // exactly that origin, which is why they opened over the wrong card.
       position: RelativeRect.fromRect(
-        position & const Size(1, 1),
+        overlay.globalToLocal(position) & const Size(1, 1),
         Offset.zero & overlay.size,
       ),
       items: [
         PopupMenuItem(
-          value: _openDetail,
-          child: Text(tr('common.view_details')),
+          value: () => _playEpisode(latest: true),
+          child: Text(tr('video.menu.play_latest')),
+        ),
+        if (history != null)
+          PopupMenuItem(
+            value: () => _playEpisode(index: history.lastEpisodeIndex),
+            child: Text(
+              tr(
+                'video.menu.continue',
+                args: [
+                  episodeLabel(
+                    history.lastEpisodeTitle,
+                    index: history.lastEpisodeIndex,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          value: () => ref.read(subscriptionsProvider.notifier).toggle(video),
+          child: Text(
+            following ? tr('subscription.unfollow') : tr('video.menu.follow'),
+          ),
         ),
         PopupMenuItem(
-          value: () =>
-              ref.read(subscriptionsProvider.notifier).toggle(widget.video),
-          child: Text(
-            following
-                ? tr('subscription.unfollow')
-                : tr('subscription.subscribe'),
-          ),
+          value: _downloadSeason,
+          child: Text(tr('video.menu.download_season')),
         ),
         // One entry per catalog that also carries this show. Read from the
         // local cache, so an unbrowsed catalog simply does not appear rather
         // than the menu going and looking for one.
-        if (elsewhere.isNotEmpty) const PopupMenuDivider(),
         for (final other in elsewhere)
           PopupMenuItem(
             value: () => context.push(
@@ -232,9 +268,92 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
               ),
             ),
           ),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          value: _openDetail,
+          child: Text(tr('common.view_details')),
+        ),
+        if (history != null)
+          PopupMenuItem(
+            value: () => ref
+                .read(playHistoryProvider.notifier)
+                .deleteVideoHistory(history.id),
+            child: Text(tr('video.menu.remove_history')),
+          ),
       ],
     );
     picked?.call();
+  }
+
+  /// Open the player without going through the detail page.
+  ///
+  /// A catalog row carries no episode list, so this is the one place the menu
+  /// reaches the network — once, on an explicit choice.
+  Future<void> _playEpisode({int? index, bool latest = false}) async {
+    final video = widget.video;
+    var episodeIndex = index ?? 0;
+    if (latest) {
+      final detail = await ref
+          .read(videoRepositoryProvider)
+          .getVideo(video.apiId, sourceId: video.sourceId);
+      final count = detail?.urls?.length ?? 0;
+      if (count == 0) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr('video.detail.no_episodes_play'))),
+        );
+        return;
+      }
+      episodeIndex = count - 1;
+    }
+    await PlayerWindowLauncher.open(
+      videoId: video.apiId,
+      episodeIndex: episodeIndex,
+      sourceId: video.sourceId,
+    );
+  }
+
+  Future<void> _downloadSeason() async {
+    final video = widget.video;
+    final detail = await ref
+        .read(videoRepositoryProvider)
+        .getVideo(video.apiId, sourceId: video.sourceId);
+    final episodes = detail?.urls ?? const <VideoEpisode>[];
+    if (!mounted) return;
+    if (episodes.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(tr('video.detail.no_episodes'))));
+      return;
+    }
+    ref
+        .read(downloadManagerProvider)
+        .addTask(
+          videoId: video.apiId,
+          videoTitle: video.title,
+          coverUrl: video.coverUrl,
+          episodes: episodes
+              .asMap()
+              .entries
+              .map(
+                (e) => {
+                  'index': e.key,
+                  'title': episodeLabel(e.value.title, index: e.key),
+                  'url': e.value.url ?? '',
+                },
+              )
+              .toList(),
+        );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          tr(
+            'video.detail.download_batch_added',
+            args: [episodes.length.toString()],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
