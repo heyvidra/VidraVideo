@@ -164,7 +164,9 @@
       "continue": "Continue {}",
       "follow": "Follow",
       "download_season": "Download season",
-      "remove_history": "Remove from history"
+      "remove_history": "Remove from history",
+      "mark_watched": "Mark as watched",
+      "marked_watched": "Marked {} episodes watched"
     }
   },
   "download": {

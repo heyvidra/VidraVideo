@@ -7,6 +7,8 @@ import 'package:vidra/src/common/skeleton/skeleton_box.dart';
 import 'package:vidra/src/config/design_tokens.dart';
 import 'package:vidra/src/features/video/data/video_repository.dart';
 import 'package:vidra/src/features/video/domain/video_collection.dart';
+import 'package:vidra/src/features/video/domain/play_history.dart';
+import 'package:vidra/src/features/video/data/history_repository.dart';
 import 'package:vidra/src/window/player_window_launcher.dart';
 import 'package:vidra/src/features/download/data/download_provider.dart';
 import 'package:vidra/src/features/video/presentation/play_history_provider.dart';
@@ -273,6 +275,10 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
           value: _openDetail,
           child: Text(tr('common.view_details')),
         ),
+        PopupMenuItem(
+          value: _markWatched,
+          child: Text(tr('video.menu.mark_watched')),
+        ),
         if (history != null)
           PopupMenuItem(
             value: () => ref
@@ -310,6 +316,92 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
       videoId: video.apiId,
       episodeIndex: episodeIndex,
       sourceId: video.sourceId,
+    );
+  }
+
+  /// Mark every episode of this show as finished.
+  ///
+  /// Writes the same shape playback writes — position == duration — rather
+  /// than a separate "watched" flag, so every reader that already knows what
+  /// finished looks like (the tile checkmarks, the resume target, the
+  /// cross-source badge) picks it up with no new concept. Where an episode
+  /// already has a real duration that duration is kept; only the position
+  /// moves to the end. Episodes never opened get a 1/1 pair — equal, so the
+  /// ratio is 1.0, and overwritten with real numbers the moment one is
+  /// actually played.
+  ///
+  /// Undone by 从历史移除, which is why this asks nothing first.
+  Future<void> _markWatched() async {
+    final video = widget.video;
+    final detail = await ref
+        .read(videoRepositoryProvider)
+        .getVideo(video.apiId, sourceId: video.sourceId);
+    final episodes = detail?.urls ?? const <VideoEpisode>[];
+    if (!mounted) return;
+    if (episodes.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(tr('video.detail.no_episodes'))));
+      return;
+    }
+
+    final repository = ref.read(historyRepositoryProvider);
+    for (var i = 0; i < episodes.length; i++) {
+      final existing = await repository.getEpisodeHistory(
+        video.apiId,
+        i,
+        video.sourceId,
+      );
+      final duration = (existing?.durationMillis ?? 0) > 0
+          ? existing!.durationMillis
+          : 1;
+      await repository.saveEpisodeHistory(
+        EpisodeHistory(
+          id: existing?.id ?? 0,
+          sourceId: video.sourceId,
+          videoId: video.apiId,
+          episodeIndex: i,
+          positionMillis: duration,
+          durationMillis: duration,
+        ),
+      );
+    }
+
+    // The show also has to READ as finished where progress is summarised —
+    // the resume target keys off this row, not off the episode map.
+    final last = episodes.length - 1;
+    await repository.saveVideoHistory(
+      VideoHistory(
+        sourceId: video.sourceId,
+        videoId: video.apiId,
+        videoTitle: video.title,
+        coverUrl: video.coverUrl,
+        rating: video.rating > 0 ? '${video.rating}' : null,
+        type: video.type,
+        region: video.region,
+        year: video.year,
+        actor: video.actor,
+        version: video.version,
+        hits: video.hits,
+        remarks: video.remarks,
+        blurb: video.blurb,
+        lastEpisodeIndex: last,
+        lastEpisodeTitle: episodes[last].title,
+      ),
+    );
+
+    ref.invalidate(episodeHistoriesProvider);
+    ref.invalidate(videoHistoryProvider);
+    ref.invalidate(crossSourceWatchesProvider);
+    await ref.read(playHistoryProvider.notifier).manualRefresh();
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          tr('video.menu.marked_watched', args: ['${episodes.length}']),
+        ),
+      ),
     );
   }
 
