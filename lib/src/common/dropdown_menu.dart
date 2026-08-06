@@ -408,7 +408,14 @@ Future<T?> showVidraMenu<T>({
   builder,
   double width = 208,
 }) {
-  final overlayState = Overlay.of(context);
+  // The ROOT overlay, not the nearest one. Inside a ShellRoute the nearest
+  // overlay is the shell's, which covers only the content area — so the
+  // dismiss barrier stopped at the sidebar and the menu could not be closed
+  // by clicking the rail, the toolbar, or anything else outside the grid.
+  // (The same nested overlay is what made the menu open offset before it was
+  // given a local position; rooting it fixes both, and leaves globalToLocal
+  // as the identity it should have been.)
+  final overlayState = Overlay.of(context, rootOverlay: true);
   final overlay = overlayState.context.findRenderObject() as RenderBox?;
   if (overlay == null) return Future<T?>.value(null);
 
