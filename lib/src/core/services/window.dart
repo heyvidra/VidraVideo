@@ -71,6 +71,10 @@ class BitsdojoWindowDelegate implements WindowDelegate {
       // left the screen). A detour through bottom-right reads as the window
       // "flying around".
       final savedPipPosition = await WindowHelper.savedPipPosition();
+      // Stored logical; animateTo/position speak physical pixels on Windows.
+      final pipTarget = savedPipPosition == null
+          ? null
+          : WindowHelper.logicalToPhysical(savedPipPosition);
 
       appWindow.minSize = AppConfig.playerMiniSize;
       appWindow.alwaysOnTop = true;
@@ -79,18 +83,16 @@ class BitsdojoWindowDelegate implements WindowDelegate {
       if (Platform.isWindows) {
         await _animateWindowsPipTransition(
           targetSize: targetSize,
-          targetAlignment: savedPipPosition == null
-              ? Alignment.bottomRight
-              : null,
-          targetPosition: savedPipPosition,
+          targetAlignment: pipTarget == null ? Alignment.bottomRight : null,
+          targetPosition: pipTarget,
         );
         return;
       }
 
       await appWindow.animateTo(
         size: targetSize,
-        alignment: savedPipPosition == null ? Alignment.bottomRight : null,
-        position: savedPipPosition,
+        alignment: pipTarget == null ? Alignment.bottomRight : null,
+        position: pipTarget,
         duration: _resolvedPipTransitionDuration,
       );
     } finally {
@@ -108,6 +110,10 @@ class BitsdojoWindowDelegate implements WindowDelegate {
       // Return to where the window was BEFORE pip (saved by enterPip's
       // snapshot); center only when nothing usable is stored.
       final savedPosition = await WindowHelper.savedPlayerPosition();
+      // Stored logical; animateTo/position speak physical pixels on Windows.
+      final normalTarget = savedPosition == null
+          ? null
+          : WindowHelper.logicalToPhysical(savedPosition);
 
       appWindow.minSize = AppConfig.playerMiniSize;
       WindowHelper.isPip = false;
@@ -115,8 +121,8 @@ class BitsdojoWindowDelegate implements WindowDelegate {
       if (Platform.isWindows) {
         await _animateWindowsPipTransition(
           targetSize: targetSize,
-          targetAlignment: savedPosition == null ? Alignment.center : null,
-          targetPosition: savedPosition,
+          targetAlignment: normalTarget == null ? Alignment.center : null,
+          targetPosition: normalTarget,
         );
         appWindow.alwaysOnTop = false;
         return;
@@ -124,8 +130,8 @@ class BitsdojoWindowDelegate implements WindowDelegate {
 
       await appWindow.animateTo(
         size: targetSize,
-        alignment: savedPosition == null ? Alignment.center : null,
-        position: savedPosition,
+        alignment: normalTarget == null ? Alignment.center : null,
+        position: normalTarget,
         duration: _resolvedPipTransitionDuration,
       );
 
@@ -150,7 +156,20 @@ class BitsdojoWindowDelegate implements WindowDelegate {
     // On Windows, animating size and position together tends to flash a white
     // background during DWM/compositor repaints. Keep the resize immediate and
     // only ease the final repositioning.
-    appWindow.size = targetSize;
+    //
+    // Resize via the rect setter, not the size setter: when no alignment is
+    // anchored (the restored-position paths) the size setter passes logical
+    // pixels to SetWindowPos unscaled, shrinking the window by the DPI factor
+    // — the halved slot values documented in WindowHelper came from exactly
+    // this. The rect setter speaks physical pixels end to end.
+    final scale = WindowHelper.currentScale();
+    final current = appWindow.rect;
+    appWindow.rect = Rect.fromLTWH(
+      current.left,
+      current.top,
+      targetSize.width * scale,
+      targetSize.height * scale,
+    );
     await appWindow.animateTo(
       alignment: targetAlignment,
       position: targetPosition,

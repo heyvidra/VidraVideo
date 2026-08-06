@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:bitsdojo_window/bitsdojo_window.dart';
+import '../../config/app_config.dart';
 import '../../features/settings/data/settings_repository.dart';
 import 'log.dart';
 
@@ -23,9 +24,33 @@ class WindowHelper {
   static Timer? _normalDebounce;
   static Timer? _pipDebounce;
 
+  /// Coordinates at or beyond this band are the CreateWindow int16 clamp
+  /// (±32767), not anything a user parked a window at — see
+  /// [savedPlayerPosition].
+  static const double _insaneCoordinate = 30000;
+
   static void init(SettingsRepository repository) {
     _repository = repository;
   }
+
+  /// Physical-to-logical ratio of the current window, recovered from the two
+  /// getters the platform interface already exposes: on Windows
+  /// `appWindow.rect` is physical pixels while `appWindow.size` is logical,
+  /// so their width ratio is the DPI scale. On macOS/Linux both are points
+  /// and the ratio is 1. Falls back to 1 when the window cannot be measured.
+  static double currentScale() {
+    final logical = appWindow.size;
+    final physical = appWindow.rect;
+    if (logical.width <= 0 || physical.width <= 0) return 1.0;
+    final scale = physical.width / logical.width;
+    if (!scale.isFinite || scale <= 0) return 1.0;
+    return scale;
+  }
+
+  /// Convert a stored LOGICAL point to the physical pixels the in-engine
+  /// window APIs (`position`, `animateTo`) speak on Windows. Identity on
+  /// macOS/Linux.
+  static Offset logicalToPhysical(Offset logical) => logical * currentScale();
 
   static Future<Size> playerSize() async {
     final screenSize = appWindow.workingScreenSize;
@@ -33,34 +58,58 @@ class WindowHelper {
     final playerHeight = playerWidth / (16 / 9);
 
     final savedSize = await getSavedWindowSize(isPipOverride: false);
-    return savedSize ?? Size(playerWidth, playerHeight);
+    if (savedSize == null) return Size(playerWidth, playerHeight);
+
+    // Rows written before the units fix stored PHYSICAL pixels here; on a
+    // scaled display those read as up-to-NxN logical. Clamping into the
+    // working screen keeps a legacy row from producing a window larger than
+    // the display; one resize later the row is logical and exact.
+    if (screenSize.width >= AppConfig.playerMiniSize.width &&
+        screenSize.height >= AppConfig.playerMiniSize.height) {
+      return Size(
+        savedSize.width.clamp(AppConfig.playerMiniSize.width, screenSize.width),
+        savedSize.height.clamp(
+          AppConfig.playerMiniSize.height,
+          screenSize.height,
+        ),
+      );
+    }
+    return savedSize;
   }
 
-  /// Saved top-left for the normal-mode player window (GLOBAL desktop
-  /// coordinates — negative values are legal on multi-display rigs, e.g. a
-  /// monitor above the primary). No geometry check here: only the native
-  /// side can enumerate screens, and openNewWindow centers instead when the
-  /// restored frame intersects no attached screen.
+  /// Saved top-left for the normal-mode player window, in LOGICAL pixels
+  /// (GLOBAL desktop coordinates — negative values are legal on multi-display
+  /// rigs, e.g. a monitor above the primary).
+  ///
+  /// Null — which every caller turns into "center on ready" — when nothing
+  /// usable is stored. "Usable" excludes the CreateWindow clamp band:
+  /// Windows truncates creation coordinates to int16, so a window created
+  /// from an oversized restore parks invisibly at (32767, 32767), and
+  /// closing it there wrote the parking spot back to this slot. Rejecting
+  /// the band both breaks that loop and heals rows already poisoned by the
+  /// 1.7.2-dev builds — the next open centers, the next close saves a real
+  /// position again.
   static Future<Offset?> savedPlayerPosition() async {
     if (_repository == null) return null;
     final settings = await _repository!.getSettings();
-    final x = settings.playerWindowX;
-    final y = settings.playerWindowY;
-    if (x == null || y == null) return null;
-    return Offset(x, y);
+    return _sanePosition(settings.playerWindowX, settings.playerWindowY);
   }
 
-  /// Where the user last parked the pip window (global coordinates), or
-  /// null on first pip — callers fall back to bottom-right. Same reasoning
-  /// as [savedPlayerPosition] for the absence of a geometry check; the pip
-  /// snapshot is at most one session old and animateTo to a detached
-  /// monitor's coordinates is the accepted residual risk.
+  /// Where the user last parked the pip window (LOGICAL, global
+  /// coordinates), or null on first pip — callers fall back to bottom-right.
+  /// Same clamp-band rejection as [savedPlayerPosition]; animateTo to a
+  /// detached monitor's coordinates remains the accepted residual risk.
   static Future<Offset?> savedPipPosition() async {
     if (_repository == null) return null;
     final settings = await _repository!.getSettings();
-    final x = settings.playerPipX;
-    final y = settings.playerPipY;
+    return _sanePosition(settings.playerPipX, settings.playerPipY);
+  }
+
+  static Offset? _sanePosition(double? x, double? y) {
     if (x == null || y == null) return null;
+    if (x.abs() >= _insaneCoordinate || y.abs() >= _insaneCoordinate) {
+      return null;
+    }
     return Offset(x, y);
   }
 
@@ -72,13 +121,36 @@ class WindowHelper {
     return appWindow.rect;
   }
 
+  /// The window frame in LOGICAL pixels, captured now.
+  ///
+  /// This is the unit every consumer of the stored slots speaks:
+  /// `openNewWindow` hands size/position to the native window factory, which
+  /// multiplies by the monitor DPI scale at CreateWindow, and the Dart size
+  /// setter scales by the window DPI itself. Storing `appWindow.rect` raw —
+  /// physical on Windows — fed each restore through one extra multiply, and
+  /// every save/restore cycle DOUBLED the stored position on a 200% display
+  /// until it hit the int16 clamp and the window vanished off-screen.
+  static Rect _logicalRectNow() {
+    final rect = appWindow.rect;
+    final scale = currentScale();
+    if (scale == 1.0) return rect;
+    return Rect.fromLTWH(
+      rect.left / scale,
+      rect.top / scale,
+      rect.width / scale,
+      rect.height / scale,
+    );
+  }
+
   /// Debounced save for metric churn (user drag-resizes). Dropped entirely
   /// during programmatic transitions — see [transitionInProgress].
   static void saveWindowSize({bool? isPipOverride}) {
     if (_repository == null || transitionInProgress) return;
 
     final pip = isPipOverride ?? isPip;
-    final rect = appWindow.rect;
+    // Snapshot rect AND scale now — by the time the debounce fires the
+    // window may sit on another monitor or be mid-close.
+    final rect = _logicalRectNow();
 
     final timer = Timer(const Duration(milliseconds: 500), () {
       _write(pip: pip, rect: rect);
@@ -107,7 +179,7 @@ class WindowHelper {
     } else {
       _normalDebounce?.cancel();
     }
-    await _write(pip: pip, rect: appWindow.rect);
+    await _write(pip: pip, rect: _logicalRectNow());
   }
 
   static Future<void> _write({required bool pip, required Rect rect}) async {

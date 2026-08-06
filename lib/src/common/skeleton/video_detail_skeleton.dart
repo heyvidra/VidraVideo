@@ -14,7 +14,17 @@ import 'skeleton_box.dart';
 /// Only seen on a deep link or a cold restore; a card that was tapped hands
 /// over its cover and gets [VideoDetailScreen]'s own seeded loader instead.
 class VideoDetailSkeleton extends StatelessWidget {
-  const VideoDetailSkeleton({super.key});
+  const VideoDetailSkeleton({super.key, this.hero});
+
+  /// Fills the backdrop slot instead of a shimmering block.
+  ///
+  /// A card that was tapped already has the cover, and the Hero flight needs
+  /// somewhere to land. The seeded loader used to render that cover and then
+  /// stack this whole skeleton — hero block and all — UNDER it, so the page
+  /// showed two backdrops and every row below sat ~210px lower than where the
+  /// loaded page puts it. That drop is the flash. Passing the cover in here
+  /// keeps one layout for both states.
+  final Widget? hero;
 
   /// The grid's `minmax(104px, 1fr)` with an 11px gap, resolved the same way
   /// the real grid resolves it.
@@ -35,12 +45,12 @@ class VideoDetailSkeleton extends StatelessWidget {
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                const Positioned(
+                Positioned(
                   left: 8,
                   right: 8,
                   top: 4,
                   height: 176,
-                  child: SkeletonBox(radius: 18),
+                  child: hero ?? const SkeletonBox(radius: 18),
                 ),
                 Padding(
                   padding: const EdgeInsets.only(top: 64),
@@ -99,6 +109,15 @@ class VideoDetailSkeleton extends StatelessWidget {
           const Padding(
             padding: EdgeInsets.fromLTRB(8, 16, 8, 12),
             child: SkeletonBox(height: 92, radius: 16),
+          ),
+
+          // The cross-source note. Present on the loaded page whenever more
+          // than one catalog is configured — which is the shipping case — so
+          // leaving it out of the skeleton shifted the whole grid up by its
+          // height and back down on arrival.
+          const Padding(
+            padding: EdgeInsets.fromLTRB(12, 0, 12, 12),
+            child: SkeletonBox(width: 420, height: 12, radius: 3),
           ),
 
           // The grid, in the real grid's columns.

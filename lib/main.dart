@@ -139,7 +139,16 @@ List<WindowConfiguration> _buildWindowConfigurations() {
     WindowConfiguration(
       name: 'player',
       title: 'Vidra Player',
-      sizeBuilder: (_) => WindowHelper.playerSize(),
+      // Only re-assert the size on the CENTERED path. With a restored
+      // position the alignment below resolves null, and the size setter's
+      // no-alignment branch passes logical pixels straight to SetWindowPos —
+      // no DPI scaling — so re-applying there halves the window on a scaled
+      // display. The native factory already sized the window at creation;
+      // there is nothing to re-apply.
+      sizeBuilder: (_) async =>
+          await WindowHelper.savedPlayerPosition() == null
+          ? WindowHelper.playerSize()
+          : null,
       minSize: AppConfig.playerMiniSize,
       // Center only when no position survived — a non-null alignment here
       // would re-center the window on ready and discard the restored

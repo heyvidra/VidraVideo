@@ -124,12 +124,16 @@ class VideoDetailScreen extends HookConsumerWidget {
   }
 }
 
-/// The skeleton, but with the real cover already in place at the top.
+/// The skeleton, with the real cover already in the backdrop slot.
 ///
 /// The cover is the Hero's landing pad: it has to exist the instant the route
 /// is pushed, not when the fetch returns, or the flight has no destination and
-/// the card simply blinks out of existence. Everything below it stays a
-/// skeleton until the data arrives.
+/// the card simply blinks out of existence.
+///
+/// It goes INSIDE the skeleton rather than above it. Stacking the two drew two
+/// backdrops and pushed every row below down by a hero's height, so the page
+/// visibly jumped when the data landed — the loading and loaded states must be
+/// the same layout with different contents, or the transition is a flash.
 class _LoadingWithCover extends StatelessWidget {
   const _LoadingWithCover({required this.seed});
 
@@ -141,64 +145,53 @@ class _LoadingWithCover extends StatelessWidget {
     if (video == null) return const VideoDetailSkeleton();
 
     final t = VidraTokens.of(context);
-    return SingleChildScrollView(
-      physics: const NeverScrollableScrollPhysics(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // The same 176px card the loaded page opens with, so nothing jumps
-          // when the fetch lands.
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
-            child: SizedBox(
-              height: 176,
-              width: double.infinity,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(18),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Hero(
-                      tag: videoPosterHeroTag(video),
-                      child: CachedNetworkImage(
-                        imageUrl: video.coverUrl.startsWith('http')
-                            ? video.coverUrl
-                            : ProviderScope.containerOf(context)
-                                  .read(videoRepositoryProvider)
-                                  .resolveUrl(
-                                    video.coverUrl,
-                                    sourceId: video.sourceId,
-                                  ),
-                        fit: BoxFit.cover,
-                        errorWidget: (_, _, _) =>
-                            ColoredBox(color: t.fg.withValues(alpha: 0.08)),
-                      ),
-                    ),
-                    const DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment(-1, -0.2),
-                          end: Alignment(1, 0.2),
-                          stops: [0.06, 0.62, 0.94],
-                          colors: [
-                            Color(0xDB060A12),
-                            Color(0x4D060A12),
-                            Color(0x00060A12),
-                          ],
-                        ),
-                      ),
-                    ),
+    return VideoDetailSkeleton(
+      hero: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Hero(
+              tag: videoPosterHeroTag(video),
+              child: CachedNetworkImage(
+                imageUrl: video.coverUrl.startsWith('http')
+                    ? video.coverUrl
+                    : ProviderScope.containerOf(context)
+                          .read(videoRepositoryProvider)
+                          .resolveUrl(video.coverUrl, sourceId: video.sourceId),
+                fit: BoxFit.cover,
+                errorWidget: (_, _, _) =>
+                    ColoredBox(color: t.fg.withValues(alpha: 0.08)),
+              ),
+            ),
+            // The same two washes the loaded header paints, so the backdrop
+            // does not change tone when the fetch lands.
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment(-1, -0.2),
+                  end: Alignment(1, 0.2),
+                  stops: [0.06, 0.62, 0.94],
+                  colors: [
+                    Color(0xDB060A12),
+                    Color(0x4D060A12),
+                    Color(0x00060A12),
                   ],
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: 24),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20),
-            child: VideoDetailSkeleton(),
-          ),
-        ],
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  stops: [0.0, 0.6],
+                  colors: [Color(0xB8060A12), Color(0x00060A12)],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
