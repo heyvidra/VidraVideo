@@ -39,7 +39,15 @@ final appVersionProvider = FutureProvider<String>((ref) async {
 
 class RailCategoryNotifier extends Notifier<int?> {
   @override
-  int? build() => null;
+  int? build() {
+    // A pick belongs to the catalog that produced it. Switching source keeps
+    // the id but not its meaning: the new catalog either has no such row —
+    // nothing lights up, and 首页 does not light up either — or reuses the id
+    // for a different one, which lights the wrong row. Both disagree with the
+    // grid, which resets to the new catalog's first category.
+    ref.watch(activeDataSourceIdProvider);
+    return null;
+  }
 
   @override
   set state(int? value) => super.state = value;
@@ -65,8 +73,15 @@ class Sidebar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = VidraTokens.of(context);
-    final categories =
-        ref.watch(categoriesProvider).value ?? const <Category>[];
+    // A reload of this provider is a source change, not a refresh of the same
+    // catalog — Riverpod keeps handing back the previous source's rows until
+    // the new ones land, and keeps handing them back forever if the fetch
+    // fails. Rows from a catalog you are no longer browsing read as this
+    // source's rows and open the wrong lists; no rows reads as loading.
+    final categoriesAsync = ref.watch(categoriesProvider);
+    final categories = categoriesAsync.isLoading || categoriesAsync.hasError
+        ? const <Category>[]
+        : categoriesAsync.value ?? const <Category>[];
     final onCatalog = selectedIndex == 0;
     final railPick = ref.watch(railCategoryProvider);
     final unread = ref.watch(unreadSubscriptionCountProvider);
