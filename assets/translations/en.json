@@ -2,6 +2,7 @@
   "navigation": {
     "home": "Home",
     "subscriptions": "Following",
+    "favorites": "Watchlist",
     "downloads": "Downloads",
     "link_download": "Link Download",
     "recent": "Continue",
@@ -16,6 +17,14 @@
     "empty": "No recent playback history",
     "watched_to": "Up to {}",
     "remove": "Remove from history"
+  },
+  "favorites": {
+    "title": "Watchlist",
+    "save": "Watchlist",
+    "saved": "Saved",
+    "empty": "Nothing saved yet",
+    "empty_hint": "Tap \"Watchlist\" on a show's page to save it for later",
+    "remove": "Remove from watchlist"
   },
   "dashboard": {
     "search_hint": "Search",

@@ -9,13 +9,21 @@ enum AppNavigationItem {
     sectionKey: 'navigation.section_menu',
     route: '/',
   ),
-  // Order is the rail's order: 追更 / 继续观看 / 下载 / 链接下载, per the design.
+  // Order is the rail's order: 追更 / 想看 / 继续观看 / 下载 / 链接下载 —
+  // the watching lifecycle, top to bottom: following, saved, started.
   subscriptions(
     labelKey: 'navigation.subscriptions',
     icon: Icons.notifications_none,
     branchIndex: 5,
     sectionKey: 'navigation.section_library',
     route: '/subscriptions',
+  ),
+  favorites(
+    labelKey: 'navigation.favorites',
+    icon: Icons.bookmark_border,
+    branchIndex: 6,
+    sectionKey: 'navigation.section_library',
+    route: '/favorites',
   ),
   recent(
     labelKey: 'navigation.recent',

@@ -2,6 +2,7 @@
   "navigation": {
     "home": "首页",
     "subscriptions": "追更",
+    "favorites": "想看",
     "downloads": "下载",
     "link_download": "链接下载",
     "recent": "继续观看",
@@ -16,6 +17,14 @@
     "empty": "暂无播放历史",
     "watched_to": "看到 {}",
     "remove": "从记录中移除"
+  },
+  "favorites": {
+    "title": "想看",
+    "save": "想看",
+    "saved": "已想看",
+    "empty": "还没有想看的影片",
+    "empty_hint": "在影片详情页点「想看」,存到这里稍后看",
+    "remove": "从想看中移除"
   },
   "dashboard": {
     "search_hint": "搜索",

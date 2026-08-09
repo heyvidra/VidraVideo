@@ -85,6 +85,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     if (location.startsWith('/recent')) return 2;
     if (location.startsWith('/settings')) return 3;
     if (location.startsWith('/subscriptions')) return 5;
+    if (location.startsWith('/favorites')) return 6;
     return 0;
   }
 
