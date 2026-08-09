@@ -87,4 +87,49 @@ void main() {
     final all = await repo.all();
     expect(all.first.title, '后存的');
   });
+
+  // The snapshot must not freeze at save time: a listing browsed past
+  // carries the show's CURRENT progress line, and the saved row rides it.
+  group('noticeFromListing', () {
+    Video listed(int id, {String? remarks, String cover = 'https://x/c2.jpg'}) =>
+        Video(
+          apiId: id,
+          sourceId: 'olevod',
+          title: '想看的剧',
+          coverUrl: cover,
+          type: '陆剧',
+          year: '2026',
+          remarks: remarks,
+        );
+
+    test('a changed progress line updates the saved snapshot', () async {
+      await repo.add(show(id: 1));
+      final changed = await repo.noticeFromListing([
+        listed(1, remarks: '全21集完结'),
+      ]);
+      expect(changed, isTrue);
+      expect((await repo.all()).single.remarks, '全21集完结');
+    });
+
+    test('the same line again is a no-op', () async {
+      await repo.add(show(id: 1));
+      final changed = await repo.noticeFromListing([
+        listed(1, remarks: '更新至第 05 集', cover: 'https://x/cover.jpg'),
+      ]);
+      expect(changed, isFalse);
+    });
+
+    test('a show that is not saved is ignored', () async {
+      await repo.add(show(id: 1));
+      expect(await repo.noticeFromListing([listed(99)]), isFalse);
+    });
+
+    test('a moved cover updates too', () async {
+      await repo.add(show(id: 1));
+      await repo.noticeFromListing([
+        listed(1, remarks: '更新至第 05 集', cover: 'https://x/new.jpg'),
+      ]);
+      expect((await repo.all()).single.coverUrl, 'https://x/new.jpg');
+    });
+  });
 }

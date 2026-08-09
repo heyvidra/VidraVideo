@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../subscription/presentation/subscription_provider.dart';
+import '../../favorites/presentation/favorites_provider.dart';
 import 'package:vidra/src/features/video/domain/video_collection.dart';
 import 'package:vidra/src/features/video/data/video_repository.dart';
 import 'package:vidra/src/features/video/domain/category.dart';
@@ -117,6 +118,11 @@ class VideoListNotifier extends Notifier<VideoListState> {
       // down the catalog the user is actually looking at.
       unawaited(
         ref.read(subscriptionsProvider.notifier).noticeFromListing(newVideos),
+      );
+      // 想看 rides the same free listing: its rows are snapshots of the
+      // catalog's progress line, and this is where the line goes stale-proof.
+      unawaited(
+        ref.read(favoritesProvider.notifier).noticeFromListing(newVideos),
       );
 
       state = state.copyWith(
