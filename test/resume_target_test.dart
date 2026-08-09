@@ -94,4 +94,71 @@ void main() {
       expect(t.episodeIndex, 7);
     },
   );
+
+  // Newest-wins across catalogs: 1-15 watched here, 16-21 continued on the
+  // other source days later. The chip said 看到 第15集 and the button offered
+  // 第16集 because the other catalog was only consulted when this one had
+  // nothing at all.
+  group('crossSourceResumeOverride', () {
+    EpisodeHistory row(int index, DateTime at) => EpisodeHistory(
+      videoId: 1,
+      episodeIndex: index,
+      positionMillis: 100,
+      durationMillis: 1000,
+      updatedAt: at,
+    );
+    CrossSourceWatch watch(DateTime at) => CrossSourceWatch(
+      sourceId: 'olevod',
+      videoId: 2,
+      lastEpisodeIndex: 20,
+      lastEpisodeTitle: '第21集',
+      updatedAt: at,
+    );
+
+    test('a newer viewing elsewhere outranks the local rows', () {
+      final match = watch(DateTime(2026, 8, 9));
+      final got = crossSourceResumeOverride(
+        match: match,
+        histories: {14: row(14, DateTime(2026, 8, 5))},
+      );
+      expect(got, same(match));
+    });
+
+    test('an older viewing elsewhere leaves the local resume alone', () {
+      final got = crossSourceResumeOverride(
+        match: watch(DateTime(2026, 8, 1)),
+        histories: {14: row(14, DateTime(2026, 8, 5))},
+      );
+      expect(got, isNull);
+    });
+
+    test('no local history at all: the other catalog wins by default', () {
+      final match = watch(DateTime(2026, 8, 1));
+      final got = crossSourceResumeOverride(match: match, histories: const {});
+      expect(got, same(match));
+    });
+
+    test('a tie is not newer — the local row stands', () {
+      final at = DateTime(2026, 8, 5);
+      final got = crossSourceResumeOverride(
+        match: watch(at),
+        histories: {14: row(14, at)},
+      );
+      expect(got, isNull);
+    });
+
+    test('lastWriteAt counts even when the episode rows are gone', () {
+      final got = crossSourceResumeOverride(
+        match: watch(DateTime(2026, 8, 1)),
+        histories: const {},
+        lastWriteAt: DateTime(2026, 8, 5),
+      );
+      expect(got, isNull);
+    });
+
+    test('no match, no override', () {
+      final got = crossSourceResumeOverride(match: null, histories: const {});
+      expect(got, isNull);
+    });
+  });
 }

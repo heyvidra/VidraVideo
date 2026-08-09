@@ -10,6 +10,7 @@ import 'package:vidra/src/features/video/domain/play_history.dart'
     show EpisodeHistory, isEpisodicType;
 import 'package:vidra/src/features/video/domain/episode_number.dart';
 import 'package:vidra/src/features/video/domain/merged_history.dart';
+import 'package:vidra/src/features/video/domain/resume_target.dart';
 import 'package:vidra/src/features/video/domain/source_lead.dart';
 import 'package:vidra/src/features/video/data/cross_source_catalog.dart';
 import 'package:vidra/src/features/download/data/download_provider.dart';
@@ -476,6 +477,32 @@ class _WatchChip extends ConsumerWidget {
       if (e.value.positionMillis <= 0) continue;
       if (furthest == null || e.key > furthest) furthest = e.key;
     }
+
+    // Another catalog's newer viewing outranks the local rows (newest-wins,
+    // the rule the grid merges by) — without it the chip stayed on this
+    // source's stale row after the show was continued elsewhere. For films
+    // the other source's index names a different track, so only an otherwise
+    // silent chip borrows one.
+    final newer = isEpisodicType(video.type)
+        ? crossSourceResumeOverride(
+            match: crossSourceWatchFor(ref, video),
+            histories: histories,
+          )
+        : null;
+    final match = newer ?? (furthest == null ? crossSourceWatchFor(ref, video) : null);
+    if (match != null) {
+      return _Chip(
+        label: tr(
+          'video.detail.watched_upto_on',
+          args: [
+            sourceDisplayName(ref, match.sourceId),
+            episodeLabel(match.lastEpisodeTitle, index: match.lastEpisodeIndex),
+          ],
+        ),
+        tone: t.cyan,
+      );
+    }
+
     if (furthest != null) {
       final label = episodeLabel(
         furthest < episodes.length ? episodes[furthest].title : null,
@@ -486,20 +513,7 @@ class _WatchChip extends ConsumerWidget {
         tone: t.cyan,
       );
     }
-
-    // Nothing here, but the same show has been watched on another catalog.
-    final match = crossSourceWatchFor(ref, video);
-    if (match == null) return const SizedBox.shrink();
-    return _Chip(
-      label: tr(
-        'video.detail.watched_upto_on',
-        args: [
-          sourceDisplayName(ref, match.sourceId),
-          episodeLabel(match.lastEpisodeTitle, index: match.lastEpisodeIndex),
-        ],
-      ),
-      tone: t.cyan,
-    );
+    return const SizedBox.shrink();
   }
 }
 

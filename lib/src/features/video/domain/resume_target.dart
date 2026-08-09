@@ -70,3 +70,27 @@ ResumeTarget resolveResumeTarget({
   }
   return ResumeTarget(episodeIndex: base, progress: progress);
 }
+
+/// Newest-wins across catalogs — the same rule the episode grid merges by:
+/// between two viewings of one show, the later `updatedAt` says where the
+/// viewer is now.
+///
+/// Returns [match] when it is newer than every row this source holds, else
+/// null — meaning the local resume stands. Exists because the 看到 chip and
+/// the play button used to consult the other catalog only when this one had
+/// NOTHING: a show continued elsewhere kept resuming from the stale local row
+/// (watched 第21集 there, offered 第16集 here). [lastWriteAt] is the local
+/// `VideoHistory.updatedAt`, folded in because it can outlive the episode rows.
+CrossSourceWatch? crossSourceResumeOverride({
+  required CrossSourceWatch? match,
+  required Map<int, EpisodeHistory> histories,
+  DateTime? lastWriteAt,
+}) {
+  if (match == null) return null;
+  var latest = lastWriteAt;
+  for (final row in histories.values) {
+    if (latest == null || row.updatedAt.isAfter(latest)) latest = row.updatedAt;
+  }
+  if (latest != null && !match.updatedAt.isAfter(latest)) return null;
+  return match;
+}

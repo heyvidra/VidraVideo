@@ -12,6 +12,7 @@ import 'package:vidra/src/features/video/domain/resume_target.dart';
 import 'package:vidra/src/features/video/presentation/widgets/cross_source_watch_badge.dart';
 import 'package:vidra/src/features/video/presentation/play_history_provider.dart';
 import 'package:vidra/src/features/subscription/presentation/subscription_provider.dart';
+import 'package:vidra/src/features/favorites/presentation/favorites_provider.dart';
 import 'package:vidra/src/window/player_window_launcher.dart';
 
 /// `.dhero` + `.dhead`.
@@ -301,6 +302,7 @@ class _Actions extends StatelessWidget {
         _PlayButton(video: video),
         _DownloadButton(video: video, isDownloadMode: isDownloadMode),
         _SubscribeButton(video: video),
+        _FavoriteButton(video: video),
       ],
     );
   }
@@ -399,36 +401,6 @@ class ActionButton extends StatelessWidget {
   }
 }
 
-/// Where the other catalog's progress lands in THIS catalog's episode list, or
-/// null when there is no such progress, no readable episode number on it, or no
-/// row here carrying that number.
-///
-/// Every step can legitimately fail, and each failure means the same thing:
-/// leave the button alone. An episode the other source numbered 15 simply does
-/// not exist on a catalog that stops at 14, and pointing the button at the
-/// nearest row instead would open an episode the viewer has not reached.
-int? _localIndexOfCrossSourceEpisode(
-  WidgetRef ref,
-  Video video,
-  List<VideoEpisode> episodes,
-) {
-  final match = crossSourceWatchFor(ref, video);
-  if (match == null) return null;
-  final number = episodeNumberOf(
-    match.lastEpisodeTitle,
-    index: match.lastEpisodeIndex,
-    episodic: true,
-  );
-  if (number == null) return null;
-  for (var i = 0; i < episodes.length; i++) {
-    if (episodeNumberOf(episodes[i].title, index: i, episodic: true) ==
-        number) {
-      return i;
-    }
-  }
-  return null;
-}
-
 /// The page's primary action. Reads history so a viewer on episode 12 is
 /// offered episode 12 — it used to be hardcoded to `episodeIndex: 0`, which
 /// made the biggest button on the page a one-click trip back to the start.
@@ -448,26 +420,47 @@ class _PlayButton extends ConsumerWidget {
         const <int, EpisodeHistory>{};
     final videoHistory = ref.watch(videoHistoryProvider(key)).value;
 
-    var target = resolveResumeTarget(
+    // A newer viewing of the same show on another catalog outranks every row
+    // this one holds — the newest-wins rule the episode grid merges by. That
+    // viewing may sit PAST this catalog's last episode (watched 第21集 where
+    // this list stops at 20), so the button follows the progress to its own
+    // source — where the index is valid and the position is exact — rather
+    // than mapping the episode number back into this list and starting over.
+    // Films keep their local-only behaviour: their "episodes" are audio
+    // tracks and mirrors, so another source's index names a different thing.
+    final newer = isEpisodicType(video.type)
+        ? crossSourceResumeOverride(
+            match: crossSourceWatchFor(ref, video),
+            histories: histories,
+            lastWriteAt: videoHistory?.updatedAt,
+          )
+        : null;
+    if (newer != null) {
+      return ActionButton(
+        primary: true,
+        icon: Icons.play_circle_outline_rounded,
+        label: tr(
+          'video.detail.continue_watching',
+          args: [
+            episodeLabel(
+              newer.lastEpisodeTitle,
+              index: newer.lastEpisodeIndex,
+            ),
+          ],
+        ),
+        onTap: () => PlayerWindowLauncher.open(
+          videoId: newer.videoId,
+          episodeIndex: newer.lastEpisodeIndex,
+          sourceId: newer.sourceId,
+        ),
+      );
+    }
+
+    final target = resolveResumeTarget(
       histories: histories,
       lastEpisodeIndex: videoHistory?.lastEpisodeIndex,
       episodeCount: episodes.isEmpty ? null : episodes.length,
     );
-
-    // Nothing watched HERE, but the same show was watched on the other
-    // catalog: offer to continue rather than to start over.
-    //
-    // Deliberately NOT done by feeding the merged grid map to
-    // resolveResumeTarget: a borrowed row's `episodeIndex` points into the
-    // OTHER catalog's list, so that would resume at whatever sits at that
-    // position here — a different episode in exactly the case this exists for.
-    // The episode NUMBER is the only shared coordinate.
-    if (target.isFirstTime && isEpisodicType(video.type)) {
-      final local = _localIndexOfCrossSourceEpisode(ref, video, episodes);
-      if (local != null) {
-        target = ResumeTarget(episodeIndex: local);
-      }
-    }
 
     final label = episodeLabel(
       target.episodeIndex < episodes.length
@@ -560,6 +553,27 @@ class _SubscribeButton extends ConsumerWidget {
           ? tr('subscription.subscribed')
           : tr('subscription.subscribe'),
       onTap: () => ref.read(subscriptionsProvider.notifier).toggle(video),
+    );
+  }
+}
+
+/// Save this show to watch later. Same identity rule as the subscribe
+/// button: by show, not by catalog row. Lives in the 想看 tab beside
+/// 继续观看 — the show was found now but is not being started now.
+class _FavoriteButton extends ConsumerWidget {
+  const _FavoriteButton({required this.video});
+
+  final Video video;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final saved = ref.watch(
+      isFavoritedProvider((title: video.title, year: video.year)),
+    );
+    return ActionButton(
+      icon: saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+      label: saved ? tr('favorites.saved') : tr('favorites.save'),
+      onTap: () => ref.read(favoritesProvider.notifier).toggle(video),
     );
   }
 }
