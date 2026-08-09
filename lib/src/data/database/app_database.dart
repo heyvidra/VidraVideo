@@ -357,6 +357,11 @@ class AppSettings extends Table {
   RealColumn get playerPipY => real().nullable()();
 
   TextColumn get locale => text().nullable()();
+
+  /// Recent search keywords, JSON array, newest first and capped — see
+  /// SearchHistoryNotifier. A column rather than a table: it is one small
+  /// ordered list with no queries against it.
+  TextColumn get searchHistory => text().nullable()();
 }
 
 @DriftDatabase(
@@ -379,7 +384,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   /// True when [table] already has a column named [name].
   ///
@@ -490,6 +495,10 @@ class AppDatabase extends _$AppDatabase {
         if (from < 11 && to >= 11 && !await _hasTable('favorites')) {
           await m.createTable(favorites);
           await m.create(favoritesIdx);
+        }
+        // v12: recent search keywords on the settings row.
+        if (from < 12 && to >= 12) {
+          await _addColumnIfAbsent(m, appSettings, appSettings.searchHistory);
         }
       });
     },

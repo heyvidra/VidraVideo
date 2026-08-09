@@ -6064,6 +6064,17 @@ class $AppSettingsTable extends AppSettings
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _searchHistoryMeta = const VerificationMeta(
+    'searchHistory',
+  );
+  @override
+  late final GeneratedColumn<String> searchHistory = GeneratedColumn<String>(
+    'search_history',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -6084,6 +6095,7 @@ class $AppSettingsTable extends AppSettings
     playerPipX,
     playerPipY,
     locale,
+    searchHistory,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -6244,6 +6256,15 @@ class $AppSettingsTable extends AppSettings
         locale.isAcceptableOrUnknown(data['locale']!, _localeMeta),
       );
     }
+    if (data.containsKey('search_history')) {
+      context.handle(
+        _searchHistoryMeta,
+        searchHistory.isAcceptableOrUnknown(
+          data['search_history']!,
+          _searchHistoryMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -6325,6 +6346,10 @@ class $AppSettingsTable extends AppSettings
         DriftSqlType.string,
         data['${effectivePrefix}locale'],
       ),
+      searchHistory: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}search_history'],
+      ),
     );
   }
 
@@ -6365,6 +6390,11 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   final double? playerPipX;
   final double? playerPipY;
   final String? locale;
+
+  /// Recent search keywords, JSON array, newest first and capped — see
+  /// SearchHistoryNotifier. A column rather than a table: it is one small
+  /// ordered list with no queries against it.
+  final String? searchHistory;
   const AppSetting({
     required this.id,
     this.downloadPath,
@@ -6384,6 +6414,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     this.playerPipX,
     this.playerPipY,
     this.locale,
+    this.searchHistory,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -6434,6 +6465,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     if (!nullToAbsent || locale != null) {
       map['locale'] = Variable<String>(locale);
     }
+    if (!nullToAbsent || searchHistory != null) {
+      map['search_history'] = Variable<String>(searchHistory);
+    }
     return map;
   }
 
@@ -6483,6 +6517,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       locale: locale == null && nullToAbsent
           ? const Value.absent()
           : Value(locale),
+      searchHistory: searchHistory == null && nullToAbsent
+          ? const Value.absent()
+          : Value(searchHistory),
     );
   }
 
@@ -6520,6 +6557,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       playerPipX: serializer.fromJson<double?>(json['playerPipX']),
       playerPipY: serializer.fromJson<double?>(json['playerPipY']),
       locale: serializer.fromJson<String?>(json['locale']),
+      searchHistory: serializer.fromJson<String?>(json['searchHistory']),
     );
   }
   @override
@@ -6546,6 +6584,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       'playerPipX': serializer.toJson<double?>(playerPipX),
       'playerPipY': serializer.toJson<double?>(playerPipY),
       'locale': serializer.toJson<String?>(locale),
+      'searchHistory': serializer.toJson<String?>(searchHistory),
     };
   }
 
@@ -6568,6 +6607,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     Value<double?> playerPipX = const Value.absent(),
     Value<double?> playerPipY = const Value.absent(),
     Value<String?> locale = const Value.absent(),
+    Value<String?> searchHistory = const Value.absent(),
   }) => AppSetting(
     id: id ?? this.id,
     downloadPath: downloadPath.present ? downloadPath.value : this.downloadPath,
@@ -6605,6 +6645,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     playerPipX: playerPipX.present ? playerPipX.value : this.playerPipX,
     playerPipY: playerPipY.present ? playerPipY.value : this.playerPipY,
     locale: locale.present ? locale.value : this.locale,
+    searchHistory: searchHistory.present
+        ? searchHistory.value
+        : this.searchHistory,
   );
   AppSetting copyWithCompanion(AppSettingsCompanion data) {
     return AppSetting(
@@ -6656,6 +6699,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           ? data.playerPipY.value
           : this.playerPipY,
       locale: data.locale.present ? data.locale.value : this.locale,
+      searchHistory: data.searchHistory.present
+          ? data.searchHistory.value
+          : this.searchHistory,
     );
   }
 
@@ -6679,7 +6725,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           ..write('playerWindowY: $playerWindowY, ')
           ..write('playerPipX: $playerPipX, ')
           ..write('playerPipY: $playerPipY, ')
-          ..write('locale: $locale')
+          ..write('locale: $locale, ')
+          ..write('searchHistory: $searchHistory')
           ..write(')'))
         .toString();
   }
@@ -6704,6 +6751,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     playerPipX,
     playerPipY,
     locale,
+    searchHistory,
   );
   @override
   bool operator ==(Object other) =>
@@ -6726,7 +6774,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           other.playerWindowY == this.playerWindowY &&
           other.playerPipX == this.playerPipX &&
           other.playerPipY == this.playerPipY &&
-          other.locale == this.locale);
+          other.locale == this.locale &&
+          other.searchHistory == this.searchHistory);
 }
 
 class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
@@ -6748,6 +6797,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<double?> playerPipX;
   final Value<double?> playerPipY;
   final Value<String?> locale;
+  final Value<String?> searchHistory;
   const AppSettingsCompanion({
     this.id = const Value.absent(),
     this.downloadPath = const Value.absent(),
@@ -6767,6 +6817,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.playerPipX = const Value.absent(),
     this.playerPipY = const Value.absent(),
     this.locale = const Value.absent(),
+    this.searchHistory = const Value.absent(),
   });
   AppSettingsCompanion.insert({
     this.id = const Value.absent(),
@@ -6787,6 +6838,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.playerPipX = const Value.absent(),
     this.playerPipY = const Value.absent(),
     this.locale = const Value.absent(),
+    this.searchHistory = const Value.absent(),
   });
   static Insertable<AppSetting> custom({
     Expression<int>? id,
@@ -6807,6 +6859,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Expression<double>? playerPipX,
     Expression<double>? playerPipY,
     Expression<String>? locale,
+    Expression<String>? searchHistory,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -6831,6 +6884,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       if (playerPipX != null) 'player_pip_x': playerPipX,
       if (playerPipY != null) 'player_pip_y': playerPipY,
       if (locale != null) 'locale': locale,
+      if (searchHistory != null) 'search_history': searchHistory,
     });
   }
 
@@ -6853,6 +6907,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Value<double?>? playerPipX,
     Value<double?>? playerPipY,
     Value<String?>? locale,
+    Value<String?>? searchHistory,
   }) {
     return AppSettingsCompanion(
       id: id ?? this.id,
@@ -6876,6 +6931,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       playerPipX: playerPipX ?? this.playerPipX,
       playerPipY: playerPipY ?? this.playerPipY,
       locale: locale ?? this.locale,
+      searchHistory: searchHistory ?? this.searchHistory,
     );
   }
 
@@ -6942,6 +6998,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     if (locale.present) {
       map['locale'] = Variable<String>(locale.value);
     }
+    if (searchHistory.present) {
+      map['search_history'] = Variable<String>(searchHistory.value);
+    }
     return map;
   }
 
@@ -6965,7 +7024,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
           ..write('playerWindowY: $playerWindowY, ')
           ..write('playerPipX: $playerPipX, ')
           ..write('playerPipY: $playerPipY, ')
-          ..write('locale: $locale')
+          ..write('locale: $locale, ')
+          ..write('searchHistory: $searchHistory')
           ..write(')'))
         .toString();
   }
@@ -9793,6 +9853,7 @@ typedef $$AppSettingsTableCreateCompanionBuilder =
       Value<double?> playerPipX,
       Value<double?> playerPipY,
       Value<String?> locale,
+      Value<String?> searchHistory,
     });
 typedef $$AppSettingsTableUpdateCompanionBuilder =
     AppSettingsCompanion Function({
@@ -9814,6 +9875,7 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
       Value<double?> playerPipX,
       Value<double?> playerPipY,
       Value<String?> locale,
+      Value<String?> searchHistory,
     });
 
 class $$AppSettingsTableFilterComposer
@@ -9912,6 +9974,11 @@ class $$AppSettingsTableFilterComposer
 
   ColumnFilters<String> get locale => $composableBuilder(
     column: $table.locale,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get searchHistory => $composableBuilder(
+    column: $table.searchHistory,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -10014,6 +10081,11 @@ class $$AppSettingsTableOrderingComposer
     column: $table.locale,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get searchHistory => $composableBuilder(
+    column: $table.searchHistory,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AppSettingsTableAnnotationComposer
@@ -10108,6 +10180,11 @@ class $$AppSettingsTableAnnotationComposer
 
   GeneratedColumn<String> get locale =>
       $composableBuilder(column: $table.locale, builder: (column) => column);
+
+  GeneratedColumn<String> get searchHistory => $composableBuilder(
+    column: $table.searchHistory,
+    builder: (column) => column,
+  );
 }
 
 class $$AppSettingsTableTableManager
@@ -10159,6 +10236,7 @@ class $$AppSettingsTableTableManager
                 Value<double?> playerPipX = const Value.absent(),
                 Value<double?> playerPipY = const Value.absent(),
                 Value<String?> locale = const Value.absent(),
+                Value<String?> searchHistory = const Value.absent(),
               }) => AppSettingsCompanion(
                 id: id,
                 downloadPath: downloadPath,
@@ -10178,6 +10256,7 @@ class $$AppSettingsTableTableManager
                 playerPipX: playerPipX,
                 playerPipY: playerPipY,
                 locale: locale,
+                searchHistory: searchHistory,
               ),
           createCompanionCallback:
               ({
@@ -10199,6 +10278,7 @@ class $$AppSettingsTableTableManager
                 Value<double?> playerPipX = const Value.absent(),
                 Value<double?> playerPipY = const Value.absent(),
                 Value<String?> locale = const Value.absent(),
+                Value<String?> searchHistory = const Value.absent(),
               }) => AppSettingsCompanion.insert(
                 id: id,
                 downloadPath: downloadPath,
@@ -10218,6 +10298,7 @@ class $$AppSettingsTableTableManager
                 playerPipX: playerPipX,
                 playerPipY: playerPipY,
                 locale: locale,
+                searchHistory: searchHistory,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
