@@ -848,18 +848,21 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
                 ),
                 const SizedBox(height: 4),
 
-                // Date/Add time
-                Text(
-                  tr(
-                    'video.detail.added_date',
-                    args: [
-                      DateTime.fromMillisecondsSinceEpoch(
-                        (widget.video.vodTime ?? 0) * 1000,
-                      ).toString().split(' ')[0],
-                    ],
+                // Date/Add time. Absent on a Video rebuilt from our own rows
+                // (追更 / 想看 / 继续观看 cards) — hidden then, because the
+                // only date `?? 0` can render is 1970-01-01.
+                if ((widget.video.vodTime ?? 0) > 0)
+                  Text(
+                    tr(
+                      'video.detail.added_date',
+                      args: [
+                        DateTime.fromMillisecondsSinceEpoch(
+                          widget.video.vodTime! * 1000,
+                        ).toString().split(' ')[0],
+                      ],
+                    ),
+                    style: const TextStyle(color: Colors.grey, fontSize: 11),
                   ),
-                  style: const TextStyle(color: Colors.grey, fontSize: 11),
-                ),
                 const SizedBox(height: 2),
 
                 // Actor
