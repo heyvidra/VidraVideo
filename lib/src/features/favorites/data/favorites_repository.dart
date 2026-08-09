@@ -60,6 +60,39 @@ class FavoritesRepository {
         .go();
   }
 
+  /// Tier-1 freshness, the same free ride subscriptions take: a listing the
+  /// app fetched for the user's own browsing carries each show's current
+  /// progress line and cover, so a saved show's snapshot updates as a side
+  /// effect of scrolling past it. Returns true when anything changed.
+  ///
+  /// ponytail: no tier-2/3 sweeps — a stale 想看 row costs a wrong subtitle,
+  /// not a missed notification. Add the recent-list sweep only if shows the
+  /// user never browses past prove to matter.
+  Future<bool> noticeFromListing(List<Video> videos) async {
+    if (videos.isEmpty) return false;
+    final rows = await _db.select(_db.favorites).get();
+    if (rows.isEmpty) return false;
+
+    final byKey = {for (final r in rows) '${r.sourceId}|${r.videoId}': r};
+    var changed = false;
+    for (final v in videos) {
+      final row = byKey['${v.sourceId}|${v.apiId}'];
+      if (row == null) continue;
+      final newRemarks = v.remarks != null && v.remarks != row.remarks;
+      final newCover = v.coverUrl.isNotEmpty && v.coverUrl != row.coverUrl;
+      if (!newRemarks && !newCover) continue;
+      await (_db.update(_db.favorites)..where((t) => t.id.equals(row.id)))
+          .write(
+            db.FavoritesCompanion(
+              remarks: newRemarks ? Value(v.remarks) : const Value.absent(),
+              coverUrl: newCover ? Value(v.coverUrl) : const Value.absent(),
+            ),
+          );
+      changed = true;
+    }
+    return changed;
+  }
+
   Video _toVideo(db.Favorite r) => Video(
     sourceId: r.sourceId,
     apiId: r.videoId,

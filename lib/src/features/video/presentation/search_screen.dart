@@ -24,7 +24,7 @@ class SearchScreen extends ConsumerWidget {
       );
     }
 
-    final searchAsync = ref.watch(searchVideosProvider(keyword));
+    final searchAsync = ref.watch(crossSearchProvider(keyword));
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -38,8 +38,8 @@ class SearchScreen extends ConsumerWidget {
           ),
           Expanded(
             child: searchAsync.when(
-              data: (videos) {
-                if (videos.isEmpty) {
+              data: (hits) {
+                if (hits.isEmpty) {
                   return ScreenEmpty(
                     icon: Icons.search_off_rounded,
                     title: tr('search.no_results'),
@@ -53,11 +53,13 @@ class SearchScreen extends ConsumerWidget {
                     kContentGutter,
                     24,
                   ),
-                  itemCount: videos.length,
+                  itemCount: hits.length,
                   separatorBuilder: (c, i) => const SizedBox(height: 12),
                   itemBuilder: (context, index) {
-                    final video = videos[index];
-                    return SearchVideoListTile(video: video, keyword: keyword);
+                    return SearchVideoListTile(
+                      hit: hits[index],
+                      keyword: keyword,
+                    );
                   },
                 );
               },

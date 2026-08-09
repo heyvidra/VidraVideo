@@ -28,6 +28,7 @@
   },
   "dashboard": {
     "search_hint": "Search",
+    "clear_search_history": "Clear search history",
     "pin_to_top": "Pin to Top",
     "unpin_from_top": "Unpin from Top",
     "switch_to_light_mode": "Switch to Light Mode",
@@ -47,7 +48,6 @@
     "prompt": "Please enter search keywords",
     "title": "Search: {}",
     "no_results": "No related videos found",
-    "count_format": "Found {} results related to \"{}\"",
     "error": "Search error: {}"
   },
   "settings": {
@@ -71,6 +71,17 @@
       "cache": "Cache",
       "clear_cache": "Clear Cache",
       "clear_confirm": "Are you sure you want to clear all cached data?"
+    },
+    "backup": {
+      "title": "Backup",
+      "export": "Export data",
+      "export_desc": "Watch progress, skip points, following and watchlist, as one JSON file",
+      "export_action": "Export",
+      "export_done": "Exported to {}",
+      "import": "Import data",
+      "import_desc": "Merges into existing data: what you have stays, only missing records are added",
+      "import_action": "Import",
+      "import_done": "Import finished: {} added, {} already present"
     },
     "action": {
       "open_folder": "Open Folder",
@@ -290,6 +301,16 @@
     "learning": "Learning its schedule",
     "daily": "About daily",
     "weekly": "About weekly",
+    "expected_today": "Next episode expected today",
+    "expected_tomorrow": "Next episode expected tomorrow",
+    "expected_on": "Next episode around {}",
+    "view_calendar": "Calendar",
+    "view_grid": "Posters",
+    "calendar_today": "Today",
+    "calendar_tomorrow": "Tomorrow",
+    "calendar_later": "Next week and beyond",
+    "calendar_undated": "Undated · learning the schedule",
+    "calendar_finished": "Finished",
     "every_days": "About every {} days",
     "every_hours": "About every {} hours",
     "notify_title": "New episodes",

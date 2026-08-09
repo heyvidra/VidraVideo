@@ -51,13 +51,6 @@ class SubscriptionRepository {
     return row == null ? null : _toDomain(row);
   }
 
-  Future<int> unreadCount() async {
-    final rows = await (_db.select(
-      _db.subscriptions,
-    )..where((t) => t.unread.equals(true))).get();
-    return rows.length;
-  }
-
   // --- Writes ---
 
   Future<void> subscribe(Video video) async {

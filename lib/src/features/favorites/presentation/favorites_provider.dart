@@ -57,4 +57,11 @@ class FavoritesNotifier extends AsyncNotifier<List<Video>> {
     await _repo.remove(s, video.apiId);
     await _refresh();
   }
+
+  /// Reconcile saved shows against a listing the app already fetched.
+  /// Only refreshes state on an actual change, or every scroll would
+  /// rebuild the 想看 grid.
+  Future<void> noticeFromListing(List<Video> videos) async {
+    if (await _repo.noticeFromListing(videos)) await _refresh();
+  }
 }

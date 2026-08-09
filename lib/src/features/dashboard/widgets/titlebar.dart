@@ -13,6 +13,7 @@ import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'data_source_switcher.dart';
 import 'language_switcher.dart';
 import '../../subscription/presentation/widgets/subscription_bell.dart';
+import '../../video/presentation/search_history_provider.dart';
 
 /// The window's one toolbar: `.pillbar` in the design.
 ///
@@ -45,6 +46,40 @@ class DashboardTitleBar extends ConsumerStatefulWidget {
 
 class _DashboardTitleBarState extends ConsumerState<DashboardTitleBar> {
   bool isAlwaysOnTop = false;
+
+  final _searchController = TextEditingController();
+  final _searchFocus = FocusNode();
+  final _historyLink = LayerLink();
+  final _historyOverlay = OverlayPortalController();
+
+  @override
+  void initState() {
+    super.initState();
+    // The dropdown exists exactly while the field has focus; what it shows
+    // (filtered by the current text) is the overlay's own business.
+    _searchFocus.addListener(() {
+      if (_searchFocus.hasFocus) {
+        _historyOverlay.show();
+      } else {
+        _historyOverlay.hide();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocus.dispose();
+    super.dispose();
+  }
+
+  void _submit(String value) {
+    final kw = value.trim();
+    if (kw.isEmpty) return;
+    ref.read(searchHistoryProvider.notifier).push(kw);
+    _searchFocus.unfocus();
+    widget.onSearchSubmitted(kw);
+  }
 
   void _toggleAlwaysOnTop() {
     setState(() {
@@ -91,32 +126,43 @@ class _DashboardTitleBarState extends ConsumerState<DashboardTitleBar> {
           // The search field, left-aligned with the rest of the bar rather
           // than centred: centred, it drifted away from the back button it
           // sits next to and left a hole on both sides at wide window sizes.
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 460, minWidth: 180),
-            child: SizedBox(
-              height: 32,
-              child: Row(
-                children: [
-                  Icon(Icons.search, color: t.fg3, size: 17),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      style: TextStyle(color: t.fg, fontSize: 13),
-                      cursorColor: t.cyan,
-                      decoration: InputDecoration(
-                        hintText: tr('dashboard.search_hint'),
-                        hintStyle: TextStyle(color: t.fg3, fontSize: 13),
-                        border: InputBorder.none,
-                        isDense: true,
-                        contentPadding: EdgeInsets.zero,
+          CompositedTransformTarget(
+            link: _historyLink,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 460, minWidth: 180),
+              child: SizedBox(
+                height: 32,
+                child: Row(
+                  children: [
+                    Icon(Icons.search, color: t.fg3, size: 17),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OverlayPortal(
+                        controller: _historyOverlay,
+                        overlayChildBuilder: (context) => _HistoryDropdown(
+                          link: _historyLink,
+                          controller: _searchController,
+                          onPick: _submit,
+                        ),
+                        child: TextField(
+                          controller: _searchController,
+                          focusNode: _searchFocus,
+                          style: TextStyle(color: t.fg, fontSize: 13),
+                          cursorColor: t.cyan,
+                          decoration: InputDecoration(
+                            hintText: tr('dashboard.search_hint'),
+                            hintStyle: TextStyle(color: t.fg3, fontSize: 13),
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                          onSubmitted: _submit,
+                          textInputAction: TextInputAction.search,
+                        ),
                       ),
-                      onSubmitted: (value) {
-                        if (value.isNotEmpty) widget.onSearchSubmitted(value);
-                      },
-                      textInputAction: TextInputAction.search,
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -203,6 +249,123 @@ class _WindowControlsState extends State<_WindowControls> {
           onTap: () => (appWindow.onClose ?? appWindow.close)(),
         ),
       ],
+    );
+  }
+}
+
+/// Recent searches under the field, alive exactly while the field has focus.
+///
+/// [TextFieldTapRegion] keeps a tap on a row from blurring the field before
+/// the row's handler runs; a tap anywhere else still blurs, which is what
+/// dismisses the panel. Rows live-filter against what has been typed, so the
+/// panel doubles as a poor man's autocomplete over past searches.
+class _HistoryDropdown extends ConsumerWidget {
+  const _HistoryDropdown({
+    required this.link,
+    required this.controller,
+    required this.onPick,
+  });
+
+  final LayerLink link;
+  final TextEditingController controller;
+  final void Function(String) onPick;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = VidraTokens.of(context);
+    final history = ref.watch(searchHistoryProvider).value ?? const <String>[];
+
+    return Positioned(
+      width: 320,
+      child: CompositedTransformFollower(
+        link: link,
+        targetAnchor: Alignment.bottomLeft,
+        followerAnchor: Alignment.topLeft,
+        offset: const Offset(0, 8),
+        showWhenUnlinked: false,
+        child: TextFieldTapRegion(
+          child: ValueListenableBuilder<TextEditingValue>(
+            valueListenable: controller,
+            builder: (context, value, _) {
+              final q = value.text.trim().toLowerCase();
+              final matches = [
+                for (final h in history)
+                  if (q.isEmpty || h.toLowerCase().contains(q)) h,
+              ];
+              if (matches.isEmpty) return const SizedBox.shrink();
+
+              return Material(
+                color: Colors.transparent,
+                child: Container(
+                  decoration: BoxDecoration(
+                    // barBg, not glass: the panel floats over whatever the
+                    // page is showing and has to stay readable on top of it.
+                    color: t.barBg,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: t.edge),
+                    boxShadow: t.drop2,
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (final h in matches)
+                        InkWell(
+                          onTap: () {
+                            controller.text = h;
+                            onPick(h);
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 8,
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.history_rounded,
+                                  size: 15,
+                                  color: t.fg3,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    h,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      height: 1.4,
+                                      color: t.fg2,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      Divider(height: 12, thickness: 0.5, color: t.edgeSoft),
+                      InkWell(
+                        onTap: () =>
+                            ref.read(searchHistoryProvider.notifier).clear(),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          child: Text(
+                            tr('dashboard.clear_search_history'),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 12, color: t.fg3),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
     );
   }
 }

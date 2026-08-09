@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -47,14 +48,22 @@ class UpdateBanner extends ConsumerWidget {
         ),
         child: Row(
           children: [
-            Container(
-              width: 7,
-              height: 7,
-              decoration: const BoxDecoration(
-                color: AppTheme.onAir,
-                shape: BoxShape.circle,
-              ),
-            ),
+            // The show's face first — a cover is how a show is recognised
+            // before its title is read. The amber dot stands in only when the
+            // subscription carries no cover (or it fails to load).
+            if ((top.coverUrl ?? '').isNotEmpty)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: CachedNetworkImage(
+                  imageUrl: top.coverUrl!,
+                  width: 34,
+                  height: 46,
+                  fit: BoxFit.cover,
+                  errorWidget: (_, _, _) => const _OnAirDot(),
+                ),
+              )
+            else
+              const _OnAirDot(),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -117,4 +126,18 @@ class UpdateBanner extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _OnAirDot extends StatelessWidget {
+  const _OnAirDot();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 7,
+    height: 7,
+    decoration: const BoxDecoration(
+      color: AppTheme.onAir,
+      shape: BoxShape.circle,
+    ),
+  );
 }

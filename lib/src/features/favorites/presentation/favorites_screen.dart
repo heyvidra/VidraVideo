@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../common/poster_card_action.dart';
 import '../../../common/screen_chrome.dart';
 import 'favorites_provider.dart';
 import '../../video/presentation/widgets/cards/popular_video_card.dart';
@@ -50,7 +51,7 @@ class FavoritesScreen extends ConsumerWidget {
                     return PopularVideoCard(
                       key: ValueKey('favorite_${video.sourceId}_${video.apiId}'),
                       video: video,
-                      trailing: _CardAction(
+                      trailing: PosterCardAction(
                         icon: Icons.close_rounded,
                         tooltip: tr('favorites.remove'),
                         onTap: () =>
@@ -72,33 +73,3 @@ class FavoritesScreen extends ConsumerWidget {
   }
 }
 
-/// A dark round action laid on a poster — same shape as the recent list's
-/// remove and the subscription card's unfollow.
-class _CardAction extends StatelessWidget {
-  const _CardAction({
-    required this.icon,
-    required this.tooltip,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Tooltip(
-    message: tooltip,
-    child: Material(
-      color: Colors.black.withValues(alpha: 0.47),
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(4),
-          child: Icon(icon, size: 14, color: Colors.white),
-        ),
-      ),
-    ),
-  );
-}

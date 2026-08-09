@@ -1,9 +1,12 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vidra/src/config/design_tokens.dart';
+import 'package:vidra/src/features/video/domain/search_hit.dart';
 import 'package:vidra/src/features/video/domain/video_collection.dart';
 import 'package:vidra/src/features/video/presentation/widgets/cards/popular_video_card.dart';
+import 'package:vidra/src/features/video/presentation/widgets/cross_source_watch_badge.dart';
 
 /// Splits [text] into spans, colouring case-insensitive matches of [keyword]
 /// with [color]. Non-matching spans carry no style and inherit the parent's.
@@ -30,42 +33,47 @@ List<TextSpan> highlightKeyword(String text, String keyword, Color color) {
   return spans;
 }
 
-/// One search hit, on the same glass panel every other surface in the app
-/// sits on. The whole card opens the detail page, like every poster card
-/// elsewhere — no dedicated button.
-class SearchVideoListTile extends StatefulWidget {
-  final Video video;
+/// One SHOW in the search results, on the app's glass panel. The card is one
+/// hit across every catalog: the poster and facts come from [SearchHit.primary]
+/// and a chip row names each source that has it, with the catalog's own
+/// progress line. Tapping the card opens the primary source; tapping a chip
+/// opens that source.
+class SearchVideoListTile extends ConsumerStatefulWidget {
+  final SearchHit hit;
   final String keyword;
 
   const SearchVideoListTile({
     super.key,
-    required this.video,
+    required this.hit,
     required this.keyword,
   });
 
   @override
-  State<SearchVideoListTile> createState() => _SearchVideoListTileState();
+  ConsumerState<SearchVideoListTile> createState() =>
+      _SearchVideoListTileState();
 }
 
-class _SearchVideoListTileState extends State<SearchVideoListTile> {
+class _SearchVideoListTileState extends ConsumerState<SearchVideoListTile> {
   bool isHovered = false;
 
   // Same poster size as the detail header — the page this card opens.
   static const _posterW = 100.0;
   static const _posterH = 142.0;
 
-  void _openDetail() {
-    final sid = widget.video.sourceId;
+  Video get video => widget.hit.primary;
+
+  void _openDetail(Video v) {
+    final sid = v.sourceId;
     final path = sid != null
-        ? '/detail/${widget.video.apiId}?sourceId=$sid'
-        : '/detail/${widget.video.apiId}';
+        ? '/detail/${v.apiId}?sourceId=$sid'
+        : '/detail/${v.apiId}';
     context.push(path);
   }
 
   @override
   Widget build(BuildContext context) {
     final t = VidraTokens.of(context);
-    final meta = [widget.video.year, widget.video.region, widget.video.lang]
+    final meta = [video.year, video.region, video.lang]
         .where((s) => s != null && s.isNotEmpty)
         .join(' / ');
 
@@ -74,7 +82,7 @@ class _SearchVideoListTileState extends State<SearchVideoListTile> {
       onEnter: (_) => setState(() => isHovered = true),
       onExit: (_) => setState(() => isHovered = false),
       child: GestureDetector(
-        onTap: _openDetail,
+        onTap: () => _openDetail(video),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 120),
           padding: const EdgeInsets.all(14),
@@ -94,7 +102,7 @@ class _SearchVideoListTileState extends State<SearchVideoListTile> {
                 width: _posterW,
                 height: _posterH,
                 child: PopularVideoCard(
-                  video: widget.video,
+                  video: video,
                   showDetails: false,
                   enableHover: false,
                 ),
@@ -118,7 +126,7 @@ class _SearchVideoListTileState extends State<SearchVideoListTile> {
                                 letterSpacing: -0.3,
                               ),
                               children: highlightKeyword(
-                                widget.video.title,
+                                video.title,
                                 widget.keyword,
                                 t.cyan,
                               ),
@@ -138,7 +146,7 @@ class _SearchVideoListTileState extends State<SearchVideoListTile> {
                             color: t.fg.withValues(alpha: 0.05),
                           ),
                           child: Text(
-                            widget.video.type,
+                            video.type,
                             style: TextStyle(
                               color: t.fg2,
                               fontSize: 11,
@@ -161,30 +169,59 @@ class _SearchVideoListTileState extends State<SearchVideoListTile> {
                       ),
                     ],
                     const SizedBox(height: 10),
-                    if (widget.video.actor != null &&
-                        widget.video.actor!.isNotEmpty)
-                      _buildInfoRow(
-                        tr('video.detail.cast'),
-                        widget.video.actor!,
-                      ),
-                    if (widget.video.director != null &&
-                        widget.video.director!.isNotEmpty)
+                    if (video.actor != null && video.actor!.isNotEmpty)
+                      _buildInfoRow(tr('video.detail.cast'), video.actor!),
+                    if (video.director != null && video.director!.isNotEmpty)
                       _buildInfoRow(
                         tr('video.detail.director'),
-                        widget.video.director!,
+                        video.director!,
                       ),
-                    if (widget.video.blurb != null &&
-                        widget.video.blurb!.isNotEmpty)
+                    if (video.blurb != null && video.blurb!.isNotEmpty)
                       _buildInfoRow(
                         tr('video.detail.storyline'),
-                        widget.video.blurb!,
+                        video.blurb!,
                         maxLines: 2,
                       ),
+                    const SizedBox(height: 10),
+                    // Which source has it, and how far along — the question a
+                    // multi-source search exists to answer. One chip per
+                    // catalog, each opening that catalog's page.
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final v in [video, ...widget.hit.others])
+                          _sourceChip(v),
+                      ],
+                    ),
                   ],
                 ),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _sourceChip(Video v) {
+    final sid = v.sourceId;
+    if (sid == null) return const SizedBox.shrink();
+    final t = VidraTokens.of(context);
+    final remarks = (v.remarks ?? '').trim();
+    final name = sourceDisplayName(ref, sid);
+    return GestureDetector(
+      onTap: () => _openDetail(v),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: t.edgeSoft),
+          color: t.fg.withValues(alpha: 0.05),
+        ),
+        child: Text(
+          remarks.isEmpty ? name : '$name · $remarks',
+          style: TextStyle(fontSize: 11.5, height: 1.4, color: t.fg2),
         ),
       ),
     );

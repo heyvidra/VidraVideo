@@ -138,6 +138,23 @@ bool looksFinished(String? remarks) {
       text.contains('已完成');
 }
 
+/// When the next episode is expected, or null when the cadence cannot say:
+/// a finished show, fewer than two observed updates, or an estimate already
+/// more than a day stale — a show on hiatus must not promise "today" every
+/// day until it resumes.
+///
+/// This is the learned schedule surfaced to the USER; [Subscription.nextCheckAt]
+/// is the same estimate biased early for the checker's own polling.
+DateTime? nextUpdateEstimate(Subscription s, DateTime now) {
+  if (s.finished) return null;
+  final last = s.lastUpdateAt;
+  final interval = UpdateCadence.estimateInterval(s.updateHistory);
+  if (last == null || interval == null) return null;
+  final next = last.add(interval);
+  if (now.difference(next) > const Duration(days: 1)) return null;
+  return next;
+}
+
 /// Infers when a show updates from when it has updated.
 abstract final class UpdateCadence {
   /// Used before anything has been observed. Long enough not to hammer a

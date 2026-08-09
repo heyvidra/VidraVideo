@@ -32,6 +32,10 @@ void main() {
   late AppDatabase db;
   late SubscriptionRepository repo;
 
+  // The badge derives unread from the list; the tests do the same.
+  Future<int> unreadCount() async =>
+      (await repo.all()).where((s) => s.unread).length;
+
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     repo = SubscriptionRepository(db);
@@ -47,7 +51,7 @@ void main() {
         show(id: 1, remarks: '更新至第 05 集'),
       ]);
       expect(changed, isEmpty, reason: 'the same line is not news');
-      expect(await repo.unreadCount(), 0);
+      expect(await unreadCount(), 0);
     },
   );
 
@@ -62,7 +66,7 @@ void main() {
     expect(changed, hasLength(1));
     expect(changed.single.videoId, 1);
     expect(changed.single.unread, isTrue);
-    expect(await repo.unreadCount(), 1);
+    expect(await unreadCount(), 1);
     // And the schedule has been planned from the sighting.
     expect((await repo.find('olevod', 1))!.nextCheckAt, isNotNull);
   });
@@ -78,7 +82,7 @@ void main() {
       ]);
       expect(again, isEmpty);
     }
-    expect(await repo.unreadCount(), 0, reason: 'browsing is not an update');
+    expect(await unreadCount(), 0, reason: 'browsing is not an update');
   });
 
   test('the same show on two sources is two subscriptions', () async {
@@ -136,7 +140,7 @@ void main() {
           show(id: 77, source: 'dbku', remarks: '更新至8集'),
         ]);
         expect(
-          await repo.unreadCount(),
+          await unreadCount(),
           0,
           reason: 'first sighting is a baseline, not news',
         );
@@ -151,7 +155,7 @@ void main() {
           reason: 'the notification belongs to the followed subscription',
         );
         expect(changed.single.crossSeenRemarks, '更新至9集');
-        expect(await repo.unreadCount(), 1);
+        expect(await unreadCount(), 1);
       },
     );
 

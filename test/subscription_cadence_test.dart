@@ -184,4 +184,48 @@ void main() {
       );
     });
   });
+
+  // The user-facing estimate on the 追更 card. Stricter than the checker's
+  // own schedule: it would rather say nothing than promise an episode the
+  // data cannot back.
+  group('nextUpdateEstimate', () {
+    Subscription sub({
+      List<DateTime> history = const [],
+      DateTime? last,
+      bool finished = false,
+    }) => Subscription(
+      sourceId: 'olevod',
+      videoId: 1,
+      title: '追的剧',
+      updateHistory: history,
+      lastUpdateAt: last,
+      finished: finished,
+    );
+
+    test('a daily show expects the next episode a day after the last', () {
+      final s = sub(history: [day(1), day(2), day(3)], last: day(3));
+      expect(nextUpdateEstimate(s, day(3, 22)), day(4));
+    });
+
+    test('a finished show expects nothing', () {
+      final s = sub(
+        history: [day(1), day(2), day(3)],
+        last: day(3),
+        finished: true,
+      );
+      expect(nextUpdateEstimate(s, day(3, 22)), isNull);
+    });
+
+    test('fewer than two observations is no cadence at all', () {
+      expect(nextUpdateEstimate(sub(history: [day(1)], last: day(1)), day(2)),
+          isNull);
+    });
+
+    test('an estimate gone stale by more than a day says nothing', () {
+      // A hiatus: repeating "today" every day until the show resumes would
+      // be a promise, not an estimate.
+      final s = sub(history: [day(1), day(2), day(3)], last: day(3));
+      expect(nextUpdateEstimate(s, day(6)), isNull);
+    });
+  });
 }

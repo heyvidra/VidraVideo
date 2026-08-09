@@ -171,10 +171,10 @@ void main() {
     );
 
     test('a repeated search is served from cache', () async {
-      await repo.searchVideos('foo');
-      await repo.searchVideos('foo');
+      await repo.searchVideosAllSources('foo');
+      await repo.searchVideosAllSources('foo');
       expect(source.searchCalls, 1);
-      await repo.searchVideos('bar');
+      await repo.searchVideosAllSources('bar');
       expect(source.searchCalls, 2);
     });
 

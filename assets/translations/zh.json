@@ -28,6 +28,7 @@
   },
   "dashboard": {
     "search_hint": "搜索",
+    "clear_search_history": "清除搜索记录",
     "pin_to_top": "置顶窗口",
     "unpin_from_top": "取消置顶",
     "switch_to_light_mode": "切换亮色模式",
@@ -47,7 +48,6 @@
     "prompt": "请输入搜索关键词",
     "title": "搜索: {}",
     "no_results": "未找到相关视频",
-    "count_format": "搜索到与 “{}” 相关的 {} 条结果",
     "error": "搜索出错: {}"
   },
   "settings": {
@@ -71,6 +71,17 @@
       "cache": "缓存",
       "clear_cache": "清除缓存",
       "clear_confirm": "确定要清除所有缓存数据吗？"
+    },
+    "backup": {
+      "title": "数据备份",
+      "export": "导出数据",
+      "export_desc": "观看进度、跳过点、追更和想看,导出为一个 JSON 文件",
+      "export_action": "导出",
+      "export_done": "已导出到 {}",
+      "import": "导入数据",
+      "import_desc": "合并进现有数据:已有的记录保持不变,只新增缺少的",
+      "import_action": "导入",
+      "import_done": "导入完成:新增 {} 条,{} 条已存在"
     },
     "action": {
       "open_folder": "打开文件夹",
@@ -290,6 +301,16 @@
     "learning": "正在了解更新规律",
     "daily": "约每天更新",
     "weekly": "约每周更新",
+    "expected_today": "预计今天更新",
+    "expected_tomorrow": "预计明天更新",
+    "expected_on": "预计 {} 更新",
+    "view_calendar": "追剧日历",
+    "view_grid": "海报视图",
+    "calendar_today": "今天",
+    "calendar_tomorrow": "明天",
+    "calendar_later": "下周及以后",
+    "calendar_undated": "待定 · 更新规律学习中",
+    "calendar_finished": "已完结",
     "every_days": "约每 {} 天更新",
     "every_hours": "约每 {} 小时更新",
     "notify_title": "追剧更新",
