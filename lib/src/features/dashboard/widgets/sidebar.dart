@@ -61,14 +61,10 @@ class RailCategoryNotifier extends Notifier<int?> {
 /// grid for the first 60px of every catalog screen. The strip keeps the
 /// sub-filters (type / area / year), which genuinely are filters.
 class Sidebar extends ConsumerWidget {
-  final int selectedIndex;
-  final Function(int) onDestinationSelected;
+  final AppNavigationItem selected;
+  final void Function(AppNavigationItem) onSelect;
 
-  const Sidebar({
-    super.key,
-    required this.selectedIndex,
-    required this.onDestinationSelected,
-  });
+  const Sidebar({super.key, required this.selected, required this.onSelect});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -82,7 +78,7 @@ class Sidebar extends ConsumerWidget {
     final categories = categoriesAsync.isLoading || categoriesAsync.hasError
         ? const <Category>[]
         : categoriesAsync.value ?? const <Category>[];
-    final onCatalog = selectedIndex == 0;
+    final onCatalog = selected == AppNavigationItem.home;
     final railPick = ref.watch(railCategoryProvider);
     final unread = ref.watch(unreadSubscriptionCountProvider);
 
@@ -114,7 +110,7 @@ class Sidebar extends ConsumerWidget {
                             ref.read(videoListFilterProvider.notifier).state =
                                 VideoListFilter(category: categories.first);
                           }
-                          onDestinationSelected(0);
+                          onSelect(AppNavigationItem.home);
                         },
                       ),
                       for (final c in categories)
@@ -126,7 +122,7 @@ class Sidebar extends ConsumerWidget {
                                 c.id;
                             ref.read(videoListFilterProvider.notifier).state =
                                 VideoListFilter(category: c);
-                            onDestinationSelected(0);
+                            onSelect(AppNavigationItem.home);
                           },
                         ),
 
@@ -138,25 +134,20 @@ class Sidebar extends ConsumerWidget {
                             (!item.requiresMediaFfi || _mediaFfiAvailable))
                           _RailRow(
                             label: item.localizedLabel,
-                            selected: selectedIndex == item.branchIndex,
+                            selected: selected == item,
                             badge:
                                 item == AppNavigationItem.subscriptions &&
                                     unread > 0
                                 ? '$unread'
                                 : null,
-                            onTap: () =>
-                                onDestinationSelected(item.branchIndex),
+                            onTap: () => onSelect(item),
                           ),
 
                       const _RailSeparator(),
                       _RailRow(
                         label: AppNavigationItem.settings.localizedLabel,
-                        selected:
-                            selectedIndex ==
-                            AppNavigationItem.settings.branchIndex,
-                        onTap: () => onDestinationSelected(
-                          AppNavigationItem.settings.branchIndex,
-                        ),
+                        selected: selected == AppNavigationItem.settings,
+                        onTap: () => onSelect(AppNavigationItem.settings),
                       ),
                     ],
                   ),

@@ -5,6 +5,8 @@ import 'play_history_provider.dart';
 import '../domain/play_history.dart';
 import '../domain/video_collection.dart';
 import '../../../common/bar_controls.dart';
+import '../../../common/poster_card_action.dart';
+import '../../../core/utils/format.dart';
 import '../../../common/screen_chrome.dart';
 import '../../../common/skeleton/video_card_skeleton.dart';
 import 'widgets/cards/popular_video_card.dart';
@@ -115,7 +117,12 @@ class _RecentListScreenState extends ConsumerState<RecentListScreen> {
                       } else if (entry.position > Duration.zero) {
                         watchLabel = tr(
                           'recent.watched_to',
-                          args: [_formatPosition(entry.position)],
+                          args: [
+                            formatDuration(
+                              entry.position.inSeconds,
+                              clock: true,
+                            ),
+                          ],
                         );
                       } else {
                         watchLabel = null;
@@ -137,7 +144,7 @@ class _RecentListScreenState extends ConsumerState<RecentListScreen> {
                         watchProgress: entry.progress,
                         // Through the card's own slot, so it sits BESIDE
                         // the rating chip instead of on top of it.
-                        trailing: _CardAction(
+                        trailing: PosterCardAction(
                           icon: Icons.close_rounded,
                           tooltip: tr('recent.remove'),
                           onTap: () => ref
@@ -172,13 +179,6 @@ class _RecentListScreenState extends ConsumerState<RecentListScreen> {
     );
   }
 
-  static String _formatPosition(Duration d) {
-    final h = d.inHours;
-    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
-    final sec = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-    return h > 0 ? '$h:$m:$sec' : '${d.inMinutes}:$sec';
-  }
-
   /// "Clear all" wipes far more than the list it sits above — watch positions,
   /// cached episode data, and every show's intro/outro skip points all go with
   /// it, irreversibly. Name what is being destroyed before doing it.
@@ -210,33 +210,3 @@ class _RecentListScreenState extends ConsumerState<RecentListScreen> {
   }
 }
 
-/// A dark round action laid on a poster — the shape the subscription card's
-/// unfollow button uses too.
-class _CardAction extends StatelessWidget {
-  const _CardAction({
-    required this.icon,
-    required this.tooltip,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Tooltip(
-    message: tooltip,
-    child: Material(
-      color: Colors.black.withValues(alpha: 0.47),
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(4),
-          child: Icon(icon, size: 14, color: Colors.white),
-        ),
-      ),
-    ),
-  );
-}

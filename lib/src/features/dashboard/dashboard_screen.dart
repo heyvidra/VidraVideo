@@ -78,24 +78,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     }
   }
 
-  int _getCurrentIndex(BuildContext context) {
-    final location = GoRouterState.of(context).uri.path;
-    if (location.startsWith('/downloads')) return 1;
-    if (location.startsWith('/download-url')) return 4;
-    if (location.startsWith('/recent')) return 2;
-    if (location.startsWith('/settings')) return 3;
-    if (location.startsWith('/subscriptions')) return 5;
-    if (location.startsWith('/favorites')) return 6;
-    return 0;
-  }
-
-  void _onDestinationSelected(BuildContext context, int index) {
-    final item = AppNavigationItem.fromBranchIndex(index);
-    if (item != null) {
-      context.go(item.route);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).uri.path;
@@ -136,9 +118,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Sidebar(
-                        selectedIndex: _getCurrentIndex(context),
-                        onDestinationSelected: (index) =>
-                            _onDestinationSelected(context, index),
+                        selected: AppNavigationItem.forLocation(location),
+                        onSelect: (item) => context.go(item.route),
                       ),
                       Expanded(child: widget.child),
                     ],
