@@ -276,6 +276,28 @@ class Subscriptions extends Table {
   DateTimeColumn get createdAt => dateTime()();
 }
 
+/// Shows saved to watch later — found now, not started yet.
+///
+/// A row is a bookmark plus the snapshot a poster card needs to render
+/// without a network trip. Playback state stays in the history tables; the
+/// list lives as the 想看 tab beside 继续观看 rather than its own rail entry.
+@TableIndex(name: 'favorites_idx', columns: {#videoId, #sourceId}, unique: true)
+class Favorites extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get sourceId => text()();
+  IntColumn get videoId => integer()();
+
+  TextColumn get title => text()();
+  TextColumn get year => text().nullable()();
+  TextColumn get coverUrl => text().nullable()();
+  TextColumn get rating => text().nullable()();
+  TextColumn get type => text().withDefault(const Constant(''))();
+  TextColumn get region => text().nullable()();
+  TextColumn get remarks => text().nullable()();
+
+  DateTimeColumn get createdAt => dateTime()();
+}
+
 class DownloadTasks extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get taskId => text().unique()();
@@ -345,6 +367,7 @@ class AppSettings extends Table {
     EpisodeHistory,
     EpisodeSkipData,
     Subscriptions,
+    Favorites,
     DownloadTasks,
     AppSettings,
   ],
@@ -356,7 +379,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   /// True when [table] already has a column named [name].
   ///
@@ -462,6 +485,11 @@ class AppDatabase extends _$AppDatabase {
         if (from < 10 && to >= 10) {
           await _addColumnIfAbsent(m, appSettings, appSettings.playerPipX);
           await _addColumnIfAbsent(m, appSettings, appSettings.playerPipY);
+        }
+        // v11: shows saved to watch later (想看).
+        if (from < 11 && to >= 11 && !await _hasTable('favorites')) {
+          await m.createTable(favorites);
+          await m.create(favoritesIdx);
         }
       });
     },
