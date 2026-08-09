@@ -10,6 +10,7 @@ import '../../../core/network/dio_provider.dart';
 import '../domain/video_collection.dart';
 import '../domain/episode_number.dart';
 import '../domain/play_history.dart' show isEpisodicType, crossSourceKey;
+import '../domain/search_hit.dart';
 import '../domain/video_settings.dart';
 import '../domain/category.dart'; // Relative to this file
 import '../../settings/presentation/settings_provider.dart';
@@ -319,13 +320,36 @@ class VideoRepository {
 
   // Play history lives in HistoryRepository (history_repository.dart).
 
-  Future<List<Video>> searchVideos(String keyword) async {
-    final key = '${_defaultDataSource.id}|$keyword';
-    final cached = _searchCache.get(key);
-    if (cached != null) return cached;
-    final result = await _defaultDataSource.searchVideos(keyword);
-    _searchCache.set(key, result);
-    return result;
+  /// Searches EVERY configured catalog and folds the answers into one list
+  /// of shows — "which source has it, and how far along" is the question a
+  /// multi-source app's search exists to answer, and the single-source
+  /// version answered it with a manual source switch and a second search.
+  ///
+  /// Sources are queried in parallel; one catalog erroring (or being rate
+  /// limited) costs its own results, never the search. Answers are cached
+  /// per source, so switching the global source and searching again reuses
+  /// what this already fetched.
+  Future<List<SearchHit>> searchVideosAllSources(String keyword) async {
+    final ordered = [
+      _defaultDataSource,
+      ..._allDataSources.where((s) => s.id != _defaultDataSource.id),
+    ];
+    final perSource = await Future.wait(
+      ordered.map((ds) async {
+        final key = '${ds.id}|$keyword';
+        final cached = _searchCache.get(key);
+        if (cached != null) return cached;
+        try {
+          final result = await ds.searchVideos(keyword);
+          _searchCache.set(key, result);
+          return result;
+        } catch (e) {
+          logD('search', 'search on ${ds.id} failed: $e');
+          return const <Video>[];
+        }
+      }),
+    );
+    return groupSearchResults(perSource);
   }
 
   /// Looks for this show on ONE other catalog, and caches it if found.
@@ -370,10 +394,10 @@ class VideoRepository {
       _getDataSource(video.sourceId).getDownloadUrl(video, episode: episode);
 }
 
-final searchVideosProvider = FutureProvider.autoDispose
-    .family<List<Video>, String>((ref, keyword) async {
+final crossSearchProvider = FutureProvider.autoDispose
+    .family<List<SearchHit>, String>((ref, keyword) async {
       final repo = ref.watch(videoRepositoryProvider);
-      return await repo.searchVideos(keyword);
+      return await repo.searchVideosAllSources(keyword);
     });
 
 final categoriesProvider = FutureProvider<List<Category>>((ref) async {
