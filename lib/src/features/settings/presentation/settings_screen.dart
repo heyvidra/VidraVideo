@@ -1,10 +1,17 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:path_provider/path_provider.dart';
+import '../data/backup_service.dart';
 import '../data/settings_repository.dart';
+import '../../favorites/presentation/favorites_provider.dart';
+import '../../subscription/presentation/subscription_provider.dart';
+import '../../video/presentation/play_history_provider.dart';
 import 'settings_provider.dart';
 import '../../../common/screen_chrome.dart';
 import '../domain/app_settings.dart';
@@ -61,12 +68,108 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _buildCacheSetting(context, cacheSizeAsync, settingsRepo),
                 ],
               ),
+              const SizedBox(height: 26),
+              _section(
+                context,
+                title: tr('settings.backup.title'),
+                children: [
+                  _buildExportSetting(context),
+                  _buildImportSetting(context),
+                ],
+              ),
             ],
           ),
         ),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) =>
             Center(child: Text('${tr("common.error")}: $error')),
+      ),
+    );
+  }
+
+  void _snack(BuildContext context, String message) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context)
+      ..removeCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Widget _buildExportSetting(BuildContext context) {
+    return ListTile(
+      title: Text(tr('settings.backup.export')),
+      subtitle: Text(
+        tr('settings.backup.export_desc'),
+        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+      ),
+      trailing: TextButton(
+        onPressed: () async {
+          try {
+            final json = await ref.read(backupServiceProvider).exportJson();
+            final now = DateTime.now();
+            final stamp =
+                '${now.year}-${now.month.toString().padLeft(2, '0')}-'
+                '${now.day.toString().padLeft(2, '0')}';
+            // v12 file_picker writes the bytes itself; null means cancelled.
+            final path = await FilePicker.saveFile(
+              fileName: 'vidra-backup-$stamp.json',
+              bytes: utf8.encode(json),
+            );
+            if (path != null && context.mounted) {
+              _snack(context, tr('settings.backup.export_done', args: [path]));
+            }
+          } catch (e) {
+            if (context.mounted) {
+              _snack(context, '${tr("common.error")}: $e');
+            }
+          }
+        },
+        child: Text(tr('settings.backup.export_action')),
+      ),
+    );
+  }
+
+  Widget _buildImportSetting(BuildContext context) {
+    return ListTile(
+      title: Text(tr('settings.backup.import')),
+      subtitle: Text(
+        // Merge semantics, stated up front: nothing existing is touched.
+        tr('settings.backup.import_desc'),
+        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+      ),
+      trailing: TextButton(
+        onPressed: () async {
+          final result = await FilePicker.pickFiles(type: FileType.any);
+          final picked = result?.files.single.path;
+          if (picked == null) return;
+          try {
+            final raw = await File(picked).readAsString();
+            final summary = await ref
+                .read(backupServiceProvider)
+                .importJson(raw);
+            // Everything the backup feeds reloads from the database it
+            // just grew.
+            ref.invalidate(playHistoryProvider);
+            ref.invalidate(subscriptionsProvider);
+            ref.invalidate(favoritesProvider);
+            if (context.mounted) {
+              _snack(
+                context,
+                tr(
+                  'settings.backup.import_done',
+                  args: [
+                    '${summary.added}',
+                    '${summary.total - summary.added}',
+                  ],
+                ),
+              );
+            }
+          } catch (e) {
+            if (context.mounted) {
+              _snack(context, '${tr("common.error")}: $e');
+            }
+          }
+        },
+        child: Text(tr('settings.backup.import_action')),
       ),
     );
   }
