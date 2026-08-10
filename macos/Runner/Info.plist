@@ -24,6 +24,11 @@
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>$(PRODUCT_COPYRIGHT)</string>
+	<!-- Casting finds televisions by SSDP, which is a multicast on the local
+	     network. Without this string macOS 15 refuses the socket outright and
+	     never prompts, so discovery silently finds nothing. -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Vidra 需要访问本地网络来查找可投屏的电视。</string>
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>

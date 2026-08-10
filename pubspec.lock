@@ -1312,6 +1312,15 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.4.0"
+  vidra_cast:
+    dependency: "direct main"
+    description:
+      path: "."
+      ref: "v0.1.7"
+      resolved-ref: "2783a16590ecd42465a0b0193d0ada33b7176a90"
+      url: "https://github.com/heyvidra/vidra_cast.git"
+    source: git
+    version: "0.0.1"
   vidra_player:
     dependency: "direct main"
     description:
