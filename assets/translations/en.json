@@ -26,6 +26,25 @@
     "empty_hint": "Tap \"Watchlist\" on a show's page to save it for later",
     "remove": "Remove from watchlist"
   },
+  "cast": {
+    "title": "Cast",
+    "casting": "Casting",
+    "pick_device": "Choose a device",
+    "searching": "Looking for devices…",
+    "sent_to": "Sent to {}",
+    "failed": "Cast failed: {}",
+    "nothing_found_hint": "Nothing yet. Check the TV is on and on the same Wi-Fi — the search sweeps the whole subnet and can take a few seconds.",
+    "casting_on": "On {}",
+    "this_tv": "the TV",
+    "connecting_to": "Connecting to {}…",
+    "failed_no_episode": "This show has no episode that can be cast",
+    "failed_no_network": "No local network address — check the connection",
+    "failed_browser": "Could not open the TV's browser — allow this computer on the TV",
+    "failed_unreachable": "Could not reach the TV — check it is on and on the same network",
+    "failed_refused": "The TV refused this video, most likely its format",
+    "failed_no_page": "The TV never opened the page — check this computer's firewall allows Vidra to accept connections, and that both are on the same network",
+    "failed_busy": "Another cast is still connecting"
+  },
   "dashboard": {
     "search_hint": "Search",
     "clear_search_history": "Clear search history",

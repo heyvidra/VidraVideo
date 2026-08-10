@@ -13,6 +13,7 @@ import 'package:vidra/src/features/video/presentation/widgets/cross_source_watch
 import 'package:vidra/src/features/video/presentation/play_history_provider.dart';
 import 'package:vidra/src/features/subscription/presentation/subscription_provider.dart';
 import 'package:vidra/src/features/favorites/presentation/favorites_provider.dart';
+import 'package:vidra/src/features/cast/presentation/cast_button.dart';
 import 'package:vidra/src/window/player_window_launcher.dart';
 
 /// `.dhero` + `.dhead`.
@@ -303,6 +304,7 @@ class _Actions extends StatelessWidget {
         _DownloadButton(video: video, isDownloadMode: isDownloadMode),
         _SubscribeButton(video: video),
         _FavoriteButton(video: video),
+        CastButton(video: video),
       ],
     );
   }
@@ -318,6 +320,7 @@ class ActionButton extends StatelessWidget {
     this.primary = false,
     this.amber = false,
     this.danger = false,
+    this.busy = false,
   });
 
   final String label;
@@ -326,6 +329,13 @@ class ActionButton extends StatelessWidget {
   final bool primary;
   final bool amber;
   final bool danger;
+
+  /// Working on it: the icon becomes a spinner and taps stop landing.
+  ///
+  /// Casting takes seconds — device probe, pairing, connect — and without
+  /// this the page looked untouched the whole time, so the obvious thing to
+  /// do was press it again and start a second one.
+  final bool busy;
 
   @override
   Widget build(BuildContext context) {
@@ -363,10 +373,10 @@ class ActionButton extends StatelessWidget {
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(999),
       child: InkWell(
-        onTap: onTap,
+        onTap: busy ? null : onTap,
         borderRadius: BorderRadius.circular(999),
         child: Container(
-          padding: EdgeInsets.fromLTRB(icon == null ? 17 : 13, 8, 17, 8),
+          padding: EdgeInsets.fromLTRB(icon == null && !busy ? 17 : 13, 8, 17, 8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(999),
             border: Border.all(color: edge),
@@ -380,7 +390,14 @@ class ActionButton extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (icon != null) ...[
+              if (busy) ...[
+                SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: fg),
+                ),
+                const SizedBox(width: 8),
+              ] else if (icon != null) ...[
                 Icon(icon, size: 16, color: fg),
                 const SizedBox(width: 7),
               ],

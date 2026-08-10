@@ -26,6 +26,25 @@
     "empty_hint": "在影片详情页点「想看」,存到这里稍后看",
     "remove": "从想看中移除"
   },
+  "cast": {
+    "title": "投屏",
+    "casting": "投屏中",
+    "pick_device": "选择要投屏的设备",
+    "searching": "正在查找设备…",
+    "sent_to": "已投到 {}",
+    "failed": "投屏失败: {}",
+    "nothing_found_hint": "还没找到设备。请确认电视已开机并和电脑在同一个 Wi-Fi;搜索会扫描整个网段,可能需要十几秒。",
+    "casting_on": "在 {} 投屏中",
+    "this_tv": "电视",
+    "connecting_to": "正在连接 {}…",
+    "failed_no_episode": "这部剧没有可投屏的剧集",
+    "failed_no_network": "找不到本机的局域网地址,请检查网络连接",
+    "failed_browser": "打不开电视浏览器,请确认电视上已允许本机连接",
+    "failed_unreachable": "连不上这台电视,请确认它已开机并和电脑在同一个网络",
+    "failed_refused": "电视拒绝了这个视频,可能是它不支持该格式",
+    "failed_no_page": "电视没有打开这个页面。请检查电脑的防火墙是否允许 Vidra 接受连接,以及电视和电脑是否在同一个网络",
+    "failed_busy": "上一次投屏还在连接中,请稍候"
+  },
   "dashboard": {
     "search_hint": "搜索",
     "clear_search_history": "清除搜索记录",
