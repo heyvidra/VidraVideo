@@ -15,6 +15,7 @@ import '../features/download/presentation/download_list_screen.dart';
 import '../features/download/presentation/download_url_screen.dart';
 import '../features/video/presentation/recent_list_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
+import '../pet/pet_demo_screen.dart';
 
 CustomTransitionPage myTransitionPage(Widget child) {
   return CustomTransitionPage(
@@ -92,6 +93,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/settings',
             pageBuilder: (context, state) => myTransitionPage(SettingsScreen()),
+          ),
+          GoRoute(
+            path: '/pet-demo',
+            pageBuilder: (context, state) =>
+                myTransitionPage(const PetDemoScreen()),
           ),
           GoRoute(
             path: '/search/:keyword',

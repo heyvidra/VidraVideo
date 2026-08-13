@@ -43,11 +43,13 @@
     "failed_unreachable": "Could not reach the TV — check it is on and on the same network",
     "failed_refused": "The TV refused this video, most likely its format",
     "failed_no_page": "The TV never opened the page — check this computer's firewall allows Vidra to accept connections, and that both are on the same network",
-    "failed_busy": "Another cast is still connecting"
+    "failed_busy": "Another cast is still connecting",
+    "pet_bubble": "Casting to {}"
   },
   "dashboard": {
     "search_hint": "Search",
     "clear_search_history": "Clear search history",
+    "show_pet": "Desktop Pet",
     "pin_to_top": "Pin to Top",
     "unpin_from_top": "Unpin from Top",
     "switch_to_light_mode": "Switch to Light Mode",
@@ -110,6 +112,17 @@
     "status": {
       "calculating": "Calculating...",
       "cleared": "Cache cleared successfully"
+    },
+    "pet": {
+      "title": "Desktop Pet",
+      "show": "Show desktop pet",
+      "show_desc": "A small companion that stays on your desktop and speaks up when a followed show updates.",
+      "preview": "Preview",
+      "demo_hint": "Tap the cat: wink → jump",
+      "state_idle": "Idle",
+      "state_walk": "Walk",
+      "state_jump": "Jump",
+      "state_wink": "Wink"
     }
   },
   "video": {
@@ -274,7 +287,8 @@
     "episodes_count": "{} episodes",
     "episode_fallback": "Episode",
     "time_left": "{} left",
-    "active_count": "{} downloading"
+    "active_count": "{} downloading",
+    "pet_bubble": "{} finished downloading"
   },
   "filter": {
     "all_types": "All Types",
@@ -336,6 +350,7 @@
     "notify_body_more": "{} and {} more updated",
     "go_watch": "Watch",
     "dismiss": "Dismiss",
-    "mark_all_read": "Mark all read"
+    "mark_all_read": "Mark all read",
+    "pet_bubble": "{} has new episodes"
   }
 }

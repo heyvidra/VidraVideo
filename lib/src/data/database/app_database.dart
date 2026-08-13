@@ -362,6 +362,17 @@ class AppSettings extends Table {
   /// SearchHistoryNotifier. A column rather than a table: it is one small
   /// ordered list with no queries against it.
   TextColumn get searchHistory => text().nullable()();
+
+  /// Whether the desktop pet window comes up with the app. Off by default:
+  /// an always-on-top window that appears uninvited on first launch is a
+  /// thing to close, not a thing to like.
+  BoolColumn get showPet => boolean().withDefault(const Constant(false))();
+
+  /// Where the user parked the pet: its window's BOTTOM-RIGHT corner. The
+  /// anchor rather than the top-left because the window changes size while
+  /// the pet speaks, and only the bottom-right corner survives that.
+  RealColumn get petWindowX => real().nullable()();
+  RealColumn get petWindowY => real().nullable()();
 }
 
 @DriftDatabase(
@@ -384,7 +395,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 14;
 
   /// True when [table] already has a column named [name].
   ///
@@ -499,6 +510,15 @@ class AppDatabase extends _$AppDatabase {
         // v12: recent search keywords on the settings row.
         if (from < 12 && to >= 12) {
           await _addColumnIfAbsent(m, appSettings, appSettings.searchHistory);
+        }
+        // v13: whether the desktop pet comes up with the app.
+        if (from < 13 && to >= 13) {
+          await _addColumnIfAbsent(m, appSettings, appSettings.showPet);
+        }
+        // v14: where the user parked the pet (bottom-right anchor).
+        if (from < 14 && to >= 14) {
+          await _addColumnIfAbsent(m, appSettings, appSettings.petWindowX);
+          await _addColumnIfAbsent(m, appSettings, appSettings.petWindowY);
         }
       });
     },

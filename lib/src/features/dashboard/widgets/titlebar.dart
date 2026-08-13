@@ -10,6 +10,9 @@ import '../../../core/providers/theme_provider.dart';
 
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 
+import 'package:vidra/src/features/settings/presentation/settings_provider.dart';
+import 'package:vidra/src/window/pet_window.dart';
+
 import 'data_source_switcher.dart';
 import 'language_switcher.dart';
 import '../../subscription/presentation/widgets/subscription_bell.dart';
@@ -79,6 +82,19 @@ class _DashboardTitleBarState extends ConsumerState<DashboardTitleBar> {
     ref.read(searchHistoryProvider.notifier).push(kw);
     _searchFocus.unfocus();
     widget.onSearchSubmitted(kw);
+  }
+
+  /// Opening the pet from here must also RECORD it: showPet is the app's
+  /// only notion of whether the pet is on screen, and a pet opened without
+  /// it gets no subscription bubbles and no restore on next launch.
+  Future<void> _showPet() async {
+    final repo = ref.read(settingsRepositoryProvider);
+    final settings = await repo.getSettings();
+    if (!settings.showPet) {
+      settings.showPet = true;
+      await repo.updateSettings(settings);
+    }
+    await PetWindowLauncher.show();
   }
 
   void _toggleAlwaysOnTop() {
@@ -170,6 +186,17 @@ class _DashboardTitleBarState extends ConsumerState<DashboardTitleBar> {
           DataSourceSwitcher(onDataSourceChanged: widget.onHomeRequested),
           const SizedBox(width: 8),
           const SubscriptionBell(),
+          // macOS only: elsewhere the pet window renders opaque and cannot
+          // be closed by name, so the door stays shut until those platforms
+          // get their own pass.
+          if (Platform.isMacOS)
+            BarIcon(
+              icon: Icons.pets_outlined,
+              tooltip: tr('dashboard.show_pet'),
+              // Opening an already-open pet just brings it forward: the
+              // native side reuses windows by name.
+              onTap: _showPet,
+            ),
           BarIcon(
             // Outlined even when active — the colour says "on", and a filled
             // glyph beside four outlined ones reads as a different family

@@ -171,7 +171,10 @@ extension AppSettingMapper on db.AppSetting {
       ..playerWindowY = playerWindowY
       ..playerPipX = playerPipX
       ..playerPipY = playerPipY
-      ..locale = locale;
+      ..locale = locale
+      ..showPet = showPet
+      ..petWindowX = petWindowX
+      ..petWindowY = petWindowY;
   }
 }
 
@@ -194,6 +197,9 @@ extension AppSettingsCompanionMapper on domain.AppSettings {
       playerPipX: Value(playerPipX),
       playerPipY: Value(playerPipY),
       locale: Value(locale),
+      showPet: Value(showPet),
+      petWindowX: Value(petWindowX),
+      petWindowY: Value(petWindowY),
     );
   }
 }

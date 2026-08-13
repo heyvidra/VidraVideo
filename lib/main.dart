@@ -22,6 +22,7 @@ import 'src/routing/app_router.dart';
 import 'src/features/settings/data/settings_repository.dart';
 import 'src/features/settings/presentation/settings_provider.dart';
 import 'src/features/download/data/download_provider.dart';
+import 'src/window/pet_window.dart';
 import 'src/window/video_player_window.dart';
 import 'src/window/window_title_bar_buttons.dart';
 
@@ -95,6 +96,8 @@ Future<void> _runApp() async {
     routes: {
       'player': (context, arguments) =>
           VideoPlayerWindowApp(arguments: arguments),
+      PetWindowLauncher.windowName: (context, arguments) =>
+          PetWindowApp(arguments: arguments),
     },
     windowConfigurations: _buildWindowConfigurations(),
     app: EasyLocalization(
@@ -161,6 +164,25 @@ List<WindowConfiguration> _buildWindowConfigurations() {
       alwaysOnTop: false,
       buttonVisibilityBuilder: _resolvePlayerButtonVisibility,
       readyAnimation: readyAnimation,
+    ),
+    WindowConfiguration(
+      name: PetWindowLauncher.windowName,
+      title: 'Vidra Pet',
+      // No size and no alignment on purpose. The native factory already
+      // sized and placed the window from openNewWindow; re-applying either
+      // here would discard the position the pet was opened at — and on a
+      // scaled Windows display the size setter's no-alignment branch skips
+      // DPI scaling, which halves the window (see the player config above).
+      backgroundEffect: WindowEffect.transparent,
+      alwaysOnTop: true,
+      hasShadow: false,
+      titleBarHeight: 0,
+      buttonVisibility: const {
+        DesktopWindowButton.close: false,
+        DesktopWindowButton.minimize: false,
+        DesktopWindowButton.zoom: false,
+      },
+      readyAnimation: const WindowReadyAnimation.none(),
     ),
     WindowConfiguration(
       backgroundEffectBuilder: _resolveBackgroundEffect,
@@ -252,6 +274,11 @@ class _MyAppState extends ConsumerState<MyApp> {
     } else {
       _isExitDialogShowing = false;
     }
+
+    // A confirmed exit closes every window; the pet's close broadcast must
+    // not land on the dying main engine and record "the user closed the pet"
+    // — that write would stop the pet auto-restoring next launch.
+    if (shouldClose) onWindowClosed = null;
 
     return shouldClose;
   }
