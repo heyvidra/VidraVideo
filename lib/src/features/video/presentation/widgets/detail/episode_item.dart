@@ -99,7 +99,13 @@ class EpisodeItem extends ConsumerWidget {
         ? sourceDisplayName(ref, h.sourceId!)
         : null;
 
-    return Material(
+    // Hover reveals what the one-line caption had to cut: variety-show
+    // episodes carry date + full segment names ("20260602(先导片:...)") that
+    // no tile width can hold.
+    return Tooltip(
+      message: episodeLabel(episode.title, index: originalIndex),
+      waitDuration: const Duration(milliseconds: 350),
+      child: Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
@@ -225,6 +231,7 @@ class EpisodeItem extends ConsumerWidget {
             ],
           ),
         ),
+      ),
       ),
     );
   }
