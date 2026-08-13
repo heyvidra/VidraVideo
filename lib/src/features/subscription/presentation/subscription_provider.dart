@@ -1,5 +1,11 @@
+import 'dart:io' show Platform;
+
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/log.dart';
+import '../../../window/pet_window.dart';
+import '../../settings/presentation/settings_provider.dart';
 import '../../video/domain/video_collection.dart';
 import '../data/subscription_notifier_service.dart';
 import '../data/subscription_repository.dart';
@@ -85,6 +91,30 @@ class SubscriptionNotifier extends AsyncNotifier<List<Subscription>> {
   Future<void> announceUnread(List<Subscription> updated) async {
     if (updated.isEmpty) return;
     await ref.read(subscriptionNotifierServiceProvider).announce(updated);
+    await _tellPet(updated);
+  }
+
+  /// Lets the desktop pet say the same news, but only when the user already
+  /// has it on screen. Opening the pet to deliver a line would turn a toast
+  /// into a second, louder notification nobody asked for.
+  ///
+  /// Best-effort like the toast itself: this rides on every catalog sweep,
+  /// and a window that cannot open must not break update detection.
+  Future<void> _tellPet(List<Subscription> updated) async {
+    if (!Platform.isMacOS) return;
+    try {
+      final settings = await ref.read(settingsRepositoryProvider).getSettings();
+      if (!settings.showPet) return;
+      await PetWindowLauncher.show(
+        mood: PetMood.happy,
+        message: tr(
+          'subscription.pet_bubble',
+          args: [SubscriptionNotifierService.summarise(updated)],
+        ),
+      );
+    } catch (e) {
+      logR('Subscription', 'pet announcement failed: $e');
+    }
   }
 
   /// Tier 1: reconcile against a listing the app already fetched.

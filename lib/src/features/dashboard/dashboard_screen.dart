@@ -7,11 +7,15 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:vidra/src/config/ambient_background.dart';
 import 'package:vidra/src/config/design_tokens.dart';
+import 'package:vidra/src/core/utils/log.dart';
+import 'package:vidra/src/features/cast/presentation/cast_provider.dart';
 import 'package:vidra/src/features/download/data/download_provider.dart';
 import 'package:vidra/src/features/download/domain/download_task.dart';
 import 'package:vidra/src/features/video/data/video_repository.dart';
+import '../settings/presentation/settings_provider.dart';
 import '../subscription/data/subscription_checker.dart';
 import '../subscription/presentation/subscription_provider.dart';
+import '../../window/pet_window.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../video/presentation/play_history_provider.dart';
@@ -39,6 +43,8 @@ class DashboardScreen extends ConsumerStatefulWidget {
 class _DashboardScreenState extends ConsumerState<DashboardScreen>
     with WidgetsBindingObserver {
   Timer? _subscriptionTimer;
+  ProviderSubscription<AsyncValue<List<DownloadTask>>>? _downloadsSub;
+  ProviderSubscription<CastState>? _castSub;
 
   @override
   void initState() {
@@ -53,6 +59,85 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       const Duration(minutes: 30),
       (_) => _checkSubscriptions(),
     );
+    _restorePet();
+    // The pet can die outside the settings screen — its own right-click
+    // menu. Without this the showPet setting keeps saying "on" and the pet
+    // resurrects on next launch.
+    onWindowClosed = _handleWindowClosed;
+    // The pet reacts to app life beyond subscriptions: a finished download
+    // and a cast going live each earn a bubble. macOS only, like the pet.
+    if (Platform.isMacOS) {
+      _downloadsSub = ref.listenManual(downloadTasksProvider, _onDownloads);
+      _castSub = ref.listenManual(castStateProvider, _onCast);
+    }
+  }
+
+  void _onDownloads(
+    AsyncValue<List<DownloadTask>>? prev,
+    AsyncValue<List<DownloadTask>> next,
+  ) {
+    // No previous DATA means this is the startup snapshot: tasks that
+    // finished in some earlier session must not be re-celebrated.
+    final before = prev?.asData?.value;
+    final after = next.asData?.value;
+    if (before == null || after == null) return;
+    final wasCompleted = {
+      for (final t in before) t.taskId: t.status == DownloadStatus.completed,
+    };
+    for (final task in after) {
+      final justFinished =
+          task.status == DownloadStatus.completed &&
+          wasCompleted[task.taskId] == false;
+      if (justFinished) {
+        _petAnnounce(tr('download.pet_bubble', args: [task.videoTitle]));
+        return; // One bubble per wave; the rest would only shout over it.
+      }
+    }
+  }
+
+  void _onCast(CastState? prev, CastState next) {
+    if ((prev?.isCasting ?? false) || !next.isCasting) return;
+    _petAnnounce(
+      tr('cast.pet_bubble', args: [next.device?.name ?? tr('cast.this_tv')]),
+    );
+  }
+
+  /// Best-effort bubble: only when the pet is on screen, and a window that
+  /// cannot open must never break the flow that earned the announcement.
+  Future<void> _petAnnounce(String message) async {
+    try {
+      final settings = await ref.read(settingsRepositoryProvider).getSettings();
+      if (!settings.showPet) return;
+      await PetWindowLauncher.show(mood: PetMood.happy, message: message);
+    } catch (e) {
+      logR('Pet', 'announcement failed: $e');
+    }
+  }
+
+  Future<void> _handleWindowClosed(String name) async {
+    if (name != PetWindowLauncher.windowName) return;
+    // A rapid off->on flip can land this broadcast AFTER the user already
+    // reopened the pet; a live pet means the close it reports is old news.
+    if (await hasWindow(PetWindowLauncher.windowName)) return;
+    final repo = ref.read(settingsRepositoryProvider);
+    final settings = await repo.getSettings();
+    if (!settings.showPet) return;
+    settings.showPet = false;
+    await repo.updateSettings(settings);
+  }
+
+  /// Brings the desktop pet back if it was on when the app last closed.
+  ///
+  /// Here rather than in main(): this screen exists only in the main window,
+  /// so the player and pet engines — which run the same main() — cannot
+  /// trigger it and spawn a second pet.
+  Future<void> _restorePet() async {
+    // macOS only, like every other pet entry point: elsewhere the window
+    // renders opaque and cannot be closed by name.
+    if (!Platform.isMacOS) return;
+    final settings = await ref.read(settingsProvider.future);
+    if (!mounted || !settings.showPet) return;
+    await PetWindowLauncher.show();
   }
 
   Future<void> _checkSubscriptions() async {
@@ -65,6 +150,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   @override
   void dispose() {
     _subscriptionTimer?.cancel();
+    _downloadsSub?.close();
+    _castSub?.close();
+    if (onWindowClosed == _handleWindowClosed) onWindowClosed = null;
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -84,7 +172,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     // The one toolbar. A detail page used to bring its own, eight pixels below
     // this one and carrying a second search field.
     final canGoBack =
-        location.contains('/detail/') || location.startsWith('/search/');
+        location.contains('/detail/') ||
+        location.startsWith('/search/') ||
+        location == '/pet-demo';
 
     return Scaffold(
       // Painted by AmbientBackground instead: every translucent surface in the

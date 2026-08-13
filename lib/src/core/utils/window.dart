@@ -105,6 +105,29 @@ class WindowHelper {
     return _sanePosition(settings.playerPipX, settings.playerPipY);
   }
 
+  /// Where the user last parked the pet: its window's BOTTOM-RIGHT corner
+  /// (LOGICAL, global). The anchor rather than the top-left because the pet
+  /// window changes size while speaking, and only that corner survives it.
+  static Future<Offset?> savedPetAnchor() async {
+    if (_repository == null) return null;
+    final settings = await _repository!.getSettings();
+    return _sanePosition(settings.petWindowX, settings.petWindowY);
+  }
+
+  /// Persists the pet window's bottom-right corner. Best-effort, like every
+  /// other geometry write here.
+  static Future<void> savePetAnchor(Offset anchor) async {
+    if (_repository == null) return;
+    try {
+      final settings = await _repository!.getSettings();
+      settings.petWindowX = anchor.dx;
+      settings.petWindowY = anchor.dy;
+      await _repository!.updateSettings(settings);
+    } catch (e) {
+      logD('WindowHelper', '保存宠物位置失败: $e');
+    }
+  }
+
   static Offset? _sanePosition(double? x, double? y) {
     if (x == null || y == null) return null;
     if (x.abs() >= _insaneCoordinate || y.abs() >= _insaneCoordinate) {

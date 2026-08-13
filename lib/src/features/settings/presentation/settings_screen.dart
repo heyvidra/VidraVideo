@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:path_provider/path_provider.dart';
 import '../data/backup_service.dart';
@@ -14,6 +15,7 @@ import '../../subscription/presentation/subscription_provider.dart';
 import '../../video/presentation/play_history_provider.dart';
 import 'settings_provider.dart';
 import '../../../common/screen_chrome.dart';
+import '../../../window/pet_window.dart';
 import '../domain/app_settings.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -68,6 +70,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _buildCacheSetting(context, cacheSizeAsync, settingsRepo),
                 ],
               ),
+              // macOS only: elsewhere the pet renders opaque and Linux
+              // cannot even close it by name — offer it where it works.
+              if (Platform.isMacOS) ...[
+                const SizedBox(height: 26),
+                _section(
+                  context,
+                  title: tr('settings.pet.title'),
+                  children: [_buildPetSetting(context, settings, settingsRepo)],
+                ),
+              ],
               const SizedBox(height: 26),
               _section(
                 context,
@@ -184,6 +196,46 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: kContentGutter),
       child: ScreenSection(title: title, children: children),
+    );
+  }
+
+  Widget _buildPetSetting(
+    BuildContext context,
+    AppSettings settings,
+    settingsRepo,
+  ) {
+    return ListTile(
+      title: Text(tr('settings.pet.show')),
+      subtitle: Text(
+        tr('settings.pet.show_desc'),
+        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextButton(
+            // push, not go: the demo needs a way back to settings, and the
+            // titlebar's back affordance keys off the route stack.
+            onPressed: () => context.push('/pet-demo'),
+            child: Text(tr('settings.pet.preview')),
+          ),
+          Switch(
+            value: settings.showPet,
+            onChanged: (value) async {
+              settings.showPet = value;
+              await settingsRepo.updateSettings(settings);
+              // The setting mirrors the screen: closing the pet any other
+              // way (its right-click menu) flips this back off through the
+              // windowClosed broadcast the dashboard listens for.
+              if (value) {
+                await PetWindowLauncher.show();
+              } else {
+                await PetWindowLauncher.dismiss();
+              }
+            },
+          ),
+        ],
+      ),
     );
   }
 

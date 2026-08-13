@@ -6075,6 +6075,43 @@ class $AppSettingsTable extends AppSettings
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _showPetMeta = const VerificationMeta(
+    'showPet',
+  );
+  @override
+  late final GeneratedColumn<bool> showPet = GeneratedColumn<bool>(
+    'show_pet',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("show_pet" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _petWindowXMeta = const VerificationMeta(
+    'petWindowX',
+  );
+  @override
+  late final GeneratedColumn<double> petWindowX = GeneratedColumn<double>(
+    'pet_window_x',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _petWindowYMeta = const VerificationMeta(
+    'petWindowY',
+  );
+  @override
+  late final GeneratedColumn<double> petWindowY = GeneratedColumn<double>(
+    'pet_window_y',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -6096,6 +6133,9 @@ class $AppSettingsTable extends AppSettings
     playerPipY,
     locale,
     searchHistory,
+    showPet,
+    petWindowX,
+    petWindowY,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -6265,6 +6305,30 @@ class $AppSettingsTable extends AppSettings
         ),
       );
     }
+    if (data.containsKey('show_pet')) {
+      context.handle(
+        _showPetMeta,
+        showPet.isAcceptableOrUnknown(data['show_pet']!, _showPetMeta),
+      );
+    }
+    if (data.containsKey('pet_window_x')) {
+      context.handle(
+        _petWindowXMeta,
+        petWindowX.isAcceptableOrUnknown(
+          data['pet_window_x']!,
+          _petWindowXMeta,
+        ),
+      );
+    }
+    if (data.containsKey('pet_window_y')) {
+      context.handle(
+        _petWindowYMeta,
+        petWindowY.isAcceptableOrUnknown(
+          data['pet_window_y']!,
+          _petWindowYMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -6350,6 +6414,18 @@ class $AppSettingsTable extends AppSettings
         DriftSqlType.string,
         data['${effectivePrefix}search_history'],
       ),
+      showPet: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}show_pet'],
+      )!,
+      petWindowX: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}pet_window_x'],
+      ),
+      petWindowY: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}pet_window_y'],
+      ),
     );
   }
 
@@ -6395,6 +6471,17 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   /// SearchHistoryNotifier. A column rather than a table: it is one small
   /// ordered list with no queries against it.
   final String? searchHistory;
+
+  /// Whether the desktop pet window comes up with the app. Off by default:
+  /// an always-on-top window that appears uninvited on first launch is a
+  /// thing to close, not a thing to like.
+  final bool showPet;
+
+  /// Where the user parked the pet: its window's BOTTOM-RIGHT corner. The
+  /// anchor rather than the top-left because the window changes size while
+  /// the pet speaks, and only the bottom-right corner survives that.
+  final double? petWindowX;
+  final double? petWindowY;
   const AppSetting({
     required this.id,
     this.downloadPath,
@@ -6415,6 +6502,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     this.playerPipY,
     this.locale,
     this.searchHistory,
+    required this.showPet,
+    this.petWindowX,
+    this.petWindowY,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -6468,6 +6558,13 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     if (!nullToAbsent || searchHistory != null) {
       map['search_history'] = Variable<String>(searchHistory);
     }
+    map['show_pet'] = Variable<bool>(showPet);
+    if (!nullToAbsent || petWindowX != null) {
+      map['pet_window_x'] = Variable<double>(petWindowX);
+    }
+    if (!nullToAbsent || petWindowY != null) {
+      map['pet_window_y'] = Variable<double>(petWindowY);
+    }
     return map;
   }
 
@@ -6520,6 +6617,13 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       searchHistory: searchHistory == null && nullToAbsent
           ? const Value.absent()
           : Value(searchHistory),
+      showPet: Value(showPet),
+      petWindowX: petWindowX == null && nullToAbsent
+          ? const Value.absent()
+          : Value(petWindowX),
+      petWindowY: petWindowY == null && nullToAbsent
+          ? const Value.absent()
+          : Value(petWindowY),
     );
   }
 
@@ -6558,6 +6662,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       playerPipY: serializer.fromJson<double?>(json['playerPipY']),
       locale: serializer.fromJson<String?>(json['locale']),
       searchHistory: serializer.fromJson<String?>(json['searchHistory']),
+      showPet: serializer.fromJson<bool>(json['showPet']),
+      petWindowX: serializer.fromJson<double?>(json['petWindowX']),
+      petWindowY: serializer.fromJson<double?>(json['petWindowY']),
     );
   }
   @override
@@ -6585,6 +6692,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       'playerPipY': serializer.toJson<double?>(playerPipY),
       'locale': serializer.toJson<String?>(locale),
       'searchHistory': serializer.toJson<String?>(searchHistory),
+      'showPet': serializer.toJson<bool>(showPet),
+      'petWindowX': serializer.toJson<double?>(petWindowX),
+      'petWindowY': serializer.toJson<double?>(petWindowY),
     };
   }
 
@@ -6608,6 +6718,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     Value<double?> playerPipY = const Value.absent(),
     Value<String?> locale = const Value.absent(),
     Value<String?> searchHistory = const Value.absent(),
+    bool? showPet,
+    Value<double?> petWindowX = const Value.absent(),
+    Value<double?> petWindowY = const Value.absent(),
   }) => AppSetting(
     id: id ?? this.id,
     downloadPath: downloadPath.present ? downloadPath.value : this.downloadPath,
@@ -6648,6 +6761,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     searchHistory: searchHistory.present
         ? searchHistory.value
         : this.searchHistory,
+    showPet: showPet ?? this.showPet,
+    petWindowX: petWindowX.present ? petWindowX.value : this.petWindowX,
+    petWindowY: petWindowY.present ? petWindowY.value : this.petWindowY,
   );
   AppSetting copyWithCompanion(AppSettingsCompanion data) {
     return AppSetting(
@@ -6702,6 +6818,13 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       searchHistory: data.searchHistory.present
           ? data.searchHistory.value
           : this.searchHistory,
+      showPet: data.showPet.present ? data.showPet.value : this.showPet,
+      petWindowX: data.petWindowX.present
+          ? data.petWindowX.value
+          : this.petWindowX,
+      petWindowY: data.petWindowY.present
+          ? data.petWindowY.value
+          : this.petWindowY,
     );
   }
 
@@ -6726,13 +6849,16 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           ..write('playerPipX: $playerPipX, ')
           ..write('playerPipY: $playerPipY, ')
           ..write('locale: $locale, ')
-          ..write('searchHistory: $searchHistory')
+          ..write('searchHistory: $searchHistory, ')
+          ..write('showPet: $showPet, ')
+          ..write('petWindowX: $petWindowX, ')
+          ..write('petWindowY: $petWindowY')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     downloadPath,
     enableThumbnailPreview,
@@ -6752,7 +6878,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     playerPipY,
     locale,
     searchHistory,
-  );
+    showPet,
+    petWindowX,
+    petWindowY,
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -6775,7 +6904,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           other.playerPipX == this.playerPipX &&
           other.playerPipY == this.playerPipY &&
           other.locale == this.locale &&
-          other.searchHistory == this.searchHistory);
+          other.searchHistory == this.searchHistory &&
+          other.showPet == this.showPet &&
+          other.petWindowX == this.petWindowX &&
+          other.petWindowY == this.petWindowY);
 }
 
 class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
@@ -6798,6 +6930,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<double?> playerPipY;
   final Value<String?> locale;
   final Value<String?> searchHistory;
+  final Value<bool> showPet;
+  final Value<double?> petWindowX;
+  final Value<double?> petWindowY;
   const AppSettingsCompanion({
     this.id = const Value.absent(),
     this.downloadPath = const Value.absent(),
@@ -6818,6 +6953,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.playerPipY = const Value.absent(),
     this.locale = const Value.absent(),
     this.searchHistory = const Value.absent(),
+    this.showPet = const Value.absent(),
+    this.petWindowX = const Value.absent(),
+    this.petWindowY = const Value.absent(),
   });
   AppSettingsCompanion.insert({
     this.id = const Value.absent(),
@@ -6839,6 +6977,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.playerPipY = const Value.absent(),
     this.locale = const Value.absent(),
     this.searchHistory = const Value.absent(),
+    this.showPet = const Value.absent(),
+    this.petWindowX = const Value.absent(),
+    this.petWindowY = const Value.absent(),
   });
   static Insertable<AppSetting> custom({
     Expression<int>? id,
@@ -6860,6 +7001,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Expression<double>? playerPipY,
     Expression<String>? locale,
     Expression<String>? searchHistory,
+    Expression<bool>? showPet,
+    Expression<double>? petWindowX,
+    Expression<double>? petWindowY,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -6885,6 +7029,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       if (playerPipY != null) 'player_pip_y': playerPipY,
       if (locale != null) 'locale': locale,
       if (searchHistory != null) 'search_history': searchHistory,
+      if (showPet != null) 'show_pet': showPet,
+      if (petWindowX != null) 'pet_window_x': petWindowX,
+      if (petWindowY != null) 'pet_window_y': petWindowY,
     });
   }
 
@@ -6908,6 +7055,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Value<double?>? playerPipY,
     Value<String?>? locale,
     Value<String?>? searchHistory,
+    Value<bool>? showPet,
+    Value<double?>? petWindowX,
+    Value<double?>? petWindowY,
   }) {
     return AppSettingsCompanion(
       id: id ?? this.id,
@@ -6932,6 +7082,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       playerPipY: playerPipY ?? this.playerPipY,
       locale: locale ?? this.locale,
       searchHistory: searchHistory ?? this.searchHistory,
+      showPet: showPet ?? this.showPet,
+      petWindowX: petWindowX ?? this.petWindowX,
+      petWindowY: petWindowY ?? this.petWindowY,
     );
   }
 
@@ -7001,6 +7154,15 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     if (searchHistory.present) {
       map['search_history'] = Variable<String>(searchHistory.value);
     }
+    if (showPet.present) {
+      map['show_pet'] = Variable<bool>(showPet.value);
+    }
+    if (petWindowX.present) {
+      map['pet_window_x'] = Variable<double>(petWindowX.value);
+    }
+    if (petWindowY.present) {
+      map['pet_window_y'] = Variable<double>(petWindowY.value);
+    }
     return map;
   }
 
@@ -7025,7 +7187,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
           ..write('playerPipX: $playerPipX, ')
           ..write('playerPipY: $playerPipY, ')
           ..write('locale: $locale, ')
-          ..write('searchHistory: $searchHistory')
+          ..write('searchHistory: $searchHistory, ')
+          ..write('showPet: $showPet, ')
+          ..write('petWindowX: $petWindowX, ')
+          ..write('petWindowY: $petWindowY')
           ..write(')'))
         .toString();
   }
@@ -9854,6 +10019,9 @@ typedef $$AppSettingsTableCreateCompanionBuilder =
       Value<double?> playerPipY,
       Value<String?> locale,
       Value<String?> searchHistory,
+      Value<bool> showPet,
+      Value<double?> petWindowX,
+      Value<double?> petWindowY,
     });
 typedef $$AppSettingsTableUpdateCompanionBuilder =
     AppSettingsCompanion Function({
@@ -9876,6 +10044,9 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
       Value<double?> playerPipY,
       Value<String?> locale,
       Value<String?> searchHistory,
+      Value<bool> showPet,
+      Value<double?> petWindowX,
+      Value<double?> petWindowY,
     });
 
 class $$AppSettingsTableFilterComposer
@@ -9979,6 +10150,21 @@ class $$AppSettingsTableFilterComposer
 
   ColumnFilters<String> get searchHistory => $composableBuilder(
     column: $table.searchHistory,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get showPet => $composableBuilder(
+    column: $table.showPet,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get petWindowX => $composableBuilder(
+    column: $table.petWindowX,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get petWindowY => $composableBuilder(
+    column: $table.petWindowY,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -10086,6 +10272,21 @@ class $$AppSettingsTableOrderingComposer
     column: $table.searchHistory,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get showPet => $composableBuilder(
+    column: $table.showPet,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get petWindowX => $composableBuilder(
+    column: $table.petWindowX,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get petWindowY => $composableBuilder(
+    column: $table.petWindowY,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AppSettingsTableAnnotationComposer
@@ -10185,6 +10386,19 @@ class $$AppSettingsTableAnnotationComposer
     column: $table.searchHistory,
     builder: (column) => column,
   );
+
+  GeneratedColumn<bool> get showPet =>
+      $composableBuilder(column: $table.showPet, builder: (column) => column);
+
+  GeneratedColumn<double> get petWindowX => $composableBuilder(
+    column: $table.petWindowX,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get petWindowY => $composableBuilder(
+    column: $table.petWindowY,
+    builder: (column) => column,
+  );
 }
 
 class $$AppSettingsTableTableManager
@@ -10237,6 +10451,9 @@ class $$AppSettingsTableTableManager
                 Value<double?> playerPipY = const Value.absent(),
                 Value<String?> locale = const Value.absent(),
                 Value<String?> searchHistory = const Value.absent(),
+                Value<bool> showPet = const Value.absent(),
+                Value<double?> petWindowX = const Value.absent(),
+                Value<double?> petWindowY = const Value.absent(),
               }) => AppSettingsCompanion(
                 id: id,
                 downloadPath: downloadPath,
@@ -10257,6 +10474,9 @@ class $$AppSettingsTableTableManager
                 playerPipY: playerPipY,
                 locale: locale,
                 searchHistory: searchHistory,
+                showPet: showPet,
+                petWindowX: petWindowX,
+                petWindowY: petWindowY,
               ),
           createCompanionCallback:
               ({
@@ -10279,6 +10499,9 @@ class $$AppSettingsTableTableManager
                 Value<double?> playerPipY = const Value.absent(),
                 Value<String?> locale = const Value.absent(),
                 Value<String?> searchHistory = const Value.absent(),
+                Value<bool> showPet = const Value.absent(),
+                Value<double?> petWindowX = const Value.absent(),
+                Value<double?> petWindowY = const Value.absent(),
               }) => AppSettingsCompanion.insert(
                 id: id,
                 downloadPath: downloadPath,
@@ -10299,6 +10522,9 @@ class $$AppSettingsTableTableManager
                 playerPipY: playerPipY,
                 locale: locale,
                 searchHistory: searchHistory,
+                showPet: showPet,
+                petWindowX: petWindowX,
+                petWindowY: petWindowY,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

@@ -44,7 +44,9 @@ dependencies:
     git:
       url: https://github.com/heyvidra/bitsdojo_window_plus.git
       path: bitsdojo_window
-      ref: v1.2.2
+      # v0.4.0: window lifecycle by name — closeWindow/hasWindow +
+      # the windowClosed broadcast the pet's settings sync rides on.
+      ref: v0.4.0
 
   # git, not path: this repo is developed from worktrees as well as from its
   # own checkout, and a relative path resolves differently in each.
@@ -85,3 +87,8 @@ flutter:
     - assets/images/
     - assets/translations/
     - assets/certs/
+    # Desktop pet spritesheet: a 288x64 horizontal strip of six 48x64 cells
+    # (idle | walk1 | walk2 | jump | wink | blink), sliced from the character
+    # design sheet by test/spritesheet_extractor_test.dart (PET_SHEET=... to
+    # regenerate; blink is derived from the idle cell).
+    - assets/pixel_cat_spritesheet.png

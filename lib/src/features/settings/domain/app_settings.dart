@@ -37,6 +37,13 @@ class AppSettings {
 
   String? locale;
 
+  /// Whether the desktop pet window opens with the app.
+  bool showPet;
+
+  /// The pet window's bottom-right corner as last parked by the user.
+  double? petWindowX;
+  double? petWindowY;
+
   AppSettings({
     this.downloadPath,
     this.maxConcurrentDownloads = 3,
@@ -51,5 +58,6 @@ class AppSettings {
     this.playerPipX,
     this.playerPipY,
     this.locale,
+    this.showPet = false,
   });
 }

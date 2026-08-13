@@ -21,16 +21,23 @@ class SubscriptionNotifierService {
   /// names still read as news; a list of nine reads as a wall.
   static const maxNamed = 2;
 
+  /// The one line that says what changed. Shared, because the desktop pet
+  /// says the same news in its speech bubble and the two must not drift into
+  /// describing the same batch differently.
+  static String summarise(List<Subscription> updated) {
+    final names = updated.take(maxNamed).map((s) => s.title).join('、');
+    return updated.length <= maxNamed
+        ? names
+        : tr(
+            'subscription.notify_body_more',
+            args: [names, '${updated.length - maxNamed}'],
+          );
+  }
+
   Future<void> announce(List<Subscription> updated) async {
     if (updated.isEmpty) return;
     try {
-      final names = updated.take(maxNamed).map((s) => s.title).join('、');
-      final body = updated.length <= maxNamed
-          ? names
-          : tr(
-              'subscription.notify_body_more',
-              args: [names, '${updated.length - maxNamed}'],
-            );
+      final body = summarise(updated);
 
       final notification = LocalNotification(
         title: tr('subscription.notify_title'),
