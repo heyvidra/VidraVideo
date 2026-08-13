@@ -14,14 +14,21 @@ on:
         description: "MSI ProductVersion to build with (x.y.z)"
         default: "0.0.0"
 
-# One place for the toolchain version. It used to be written twice per job —
-# once for the cache key, once for the install — and the two drifted: every
-# build installed 3.44.4 while keying its cache on 3.38.5, so the cache could
-# never hit on the version it was actually caching.
+# One place for the toolchain version.
 # Must match the SDK the app is developed and tested on. 1.11.0 shipped a
 # macOS build whose desktop pet window stayed invisible (window created,
 # alpha never restored) — built by CI on 3.44.4 while every dev test ran on
 # 3.47.0. The same code built locally on 3.47.0 releases correctly.
+#
+# NO actions/cache STEPS IN THIS FILE, deliberately. This workflow runs on
+# tag pushes, and a cache saved under one tag's ref is invisible to every
+# other tag (restore scope = current ref + default branch). Each release
+# therefore ran cold while dutifully saving ~4.5 GiB per platform it could
+# never read back — duplicated once more by flutter-action's cache:true —
+# churning the 10 GiB quota for zero hits. Removing them changes build time
+# not at all; it merely stops pretending. If release time ever matters,
+# warm caches from a job on main (that scope IS readable from tags), don't
+# re-add caching here.
 env:
   FLUTTER_VERSION: "3.47.0"
 
@@ -34,30 +41,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ============ Flutter 缓存 ============
-      - name: Cache Flutter SDK
-        uses: actions/cache@v4
-        with:
-          path: C:\hostedtoolcache\windows\flutter
-          key: flutter-windows-${{ runner.os }}-${{ env.FLUTTER_VERSION }}
-          restore-keys: flutter-windows-${{ runner.os }}-
-
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
-          cache: true
-
-      - name: Cache Pub Dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~\AppData\Local\Pub\Cache
-            .dart_tool
-            .packages
-          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: pub-${{ runner.os }}-
 
       - name: Enable Windows Desktop
         run: flutter config --enable-windows-desktop
@@ -70,20 +58,6 @@ jobs:
 
       - name: Test
         run: flutter test
-
-      - name: Cache Build Output
-        uses: actions/cache@v4
-        with:
-          path: build\windows\x64\runner\Release
-          # assets/** and pubspec_fonts.yaml belong in the key: they are what
-          # ends up in flutter_assets, so a font or image change has to miss.
-          # pubspec.lock and the SDK version too: a dependency or toolchain
-          # bump must not build on top of the previous release's objects.
-          # No restore-keys on purpose — a partial hit restores the PREVIOUS
-          # release's build tree, and an incremental build over stale foreign
-          # products is exactly how 1.11.0 shipped broken (see FLUTTER_VERSION
-          # note above). Exact hit or clean build; nothing in between.
-          key: build-windows-${{ runner.os }}-${{ env.FLUTTER_VERSION }}-${{ hashFiles('lib/**', 'windows/**', 'assets/**', 'pubspec.yaml', 'pubspec.lock', 'pubspec_fonts.yaml', 'tool/**') }}
 
       - name: Fetch vidraDlp native lib (media_ffi.dll)
         shell: bash
@@ -153,15 +127,7 @@ jobs:
             throw "FontManifest.json is missing the HarmonyOSSans_SC family"
           }
 
-      - name: Cache WiX Toolset
-        id: cache-wix
-        uses: actions/cache@v4
-        with:
-          path: C:\ProgramData\chocolatey\lib\wixtoolset
-          key: wix-toolset-3.14
-
       - name: Install WiX Toolset
-        if: steps.cache-wix.outputs.cache-hit != 'true'
         run: choco install wixtoolset -y
 
       - name: Generate WiX files with heat
@@ -239,29 +205,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Cache Flutter SDK
-        uses: actions/cache@v4
-        with:
-          path: /Users/runner/hostedtoolcache/flutter
-          key: flutter-macos-${{ runner.os }}-${{ env.FLUTTER_VERSION }}
-          restore-keys: flutter-macos-${{ runner.os }}-
-
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
-          cache: true
-
-      - name: Cache Pub Dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.pub-cache
-            .dart_tool
-            .packages
-          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: pub-${{ runner.os }}-
 
       - name: Enable macOS Desktop
         run: flutter config --enable-macos-desktop
@@ -287,20 +235,6 @@ jobs:
       - name: Test
         run: flutter test
 
-      - name: Cache Build Output
-        uses: actions/cache@v4
-        with:
-          path: build/macos/Build/Products/Release
-          # Same key discipline as the Windows job, for the same reason it
-          # gained it: this cache used to key on only lib/macos/pubspec.yaml
-          # and then restore-keys'd the previous release's whole Products
-          # tree on every miss. xcodebuild over those stale products is the
-          # prime suspect in 1.11.0's invisible-pet macOS build. Exact hit
-          # or clean build; nothing in between.
-          # "pods" salt: the plugin-integration mode (CocoaPods vs SwiftPM)
-          # shapes every build product but appears in no hashed file.
-          key: build-macos-pods-${{ runner.os }}-${{ env.FLUTTER_VERSION }}-${{ hashFiles('lib/**', 'macos/**', 'assets/**', 'pubspec.yaml', 'pubspec.lock') }}
-
       - name: Fetch vidraDlp native lib (libmedia_ffi.dylib)
         env:
           GH_TOKEN: ${{ secrets.VIDRADLP_TOKEN }}
@@ -319,15 +253,6 @@ jobs:
 
       - name: Flutter Build (macOS Release)
         run: flutter build macos --release --split-debug-info=debug-info
-
-      - name: Cache Homebrew
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/Library/Caches/Homebrew
-            /usr/local/Cellar/create-dmg
-          key: brew-${{ runner.os }}-create-dmg
-          restore-keys: brew-${{ runner.os }}-
 
       - name: Install create-dmg
         run: brew install create-dmg
