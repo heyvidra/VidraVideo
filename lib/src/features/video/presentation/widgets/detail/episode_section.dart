@@ -207,75 +207,74 @@ class EpisodeSection extends ConsumerWidget {
           ),
         ),
 
+      // The grid rides the page's own CustomScrollView as a real sliver —
+      // no SliverToBoxAdapter. Boxed in an adapter, a 150-episode show
+      // built all 150 tiles on arrival and re-laid them all out on every
+      // rebuild; as a sliver only the tiles in the viewport exist.
       SliverPadding(
         padding: const EdgeInsets.fromLTRB(_gutter, 0, _gutter, 24),
-        sliver: SliverToBoxAdapter(
-          child: picked == null
-              ? _MergedGrid(
-                  gridVideo: video,
-                  others: [
-                    for (final c in counterparts)
-                      (videoId: c.videoId, sourceId: c.sourceId),
-                  ],
-                  buildGrid: _episodeGrid,
-                )
-              : _AltEpisodes(
-                  video: video,
-                  pick: counterparts.firstWhere((c) => c.sourceId == picked),
-                  counterparts: counterparts,
-                  buildGrid: _episodeGrid,
-                ),
-        ),
+        sliver: picked == null
+            ? _MergedGrid(
+                gridVideo: video,
+                others: [
+                  for (final c in counterparts)
+                    (videoId: c.videoId, sourceId: c.sourceId),
+                ],
+                buildGrid: _episodeGrid,
+              )
+            : _AltEpisodes(
+                video: video,
+                pick: counterparts.firstWhere((c) => c.sourceId == picked),
+                counterparts: counterparts,
+                buildGrid: _episodeGrid,
+              ),
       ),
     ];
   }
 
-  /// One grid for either source. [gridVideo] decides whose ids, whose
-  /// sourceId and therefore whose playback and progress the tiles carry.
+  /// One grid for either source, as a SLIVER. [gridVideo] decides whose ids,
+  /// whose sourceId and therefore whose playback and progress the tiles carry.
   ///
-  /// `repeat(auto-fill, minmax(104px, 1fr))`: as many columns of at least
-  /// 104px as fit, then every column stretches to share the remainder. A wrap
-  /// of fixed-width tiles leaves a ragged margin down the right of the page,
-  /// which is what this looked like before.
+  /// SliverGrid with a builder delegate, not a Wrap: a Wrap builds and lays
+  /// out every episode at once, and on a 150-episode variety show that was
+  /// the scroll jank itself. The max-extent delegate is the sliver's own
+  /// `repeat(auto-fill, minmax(...))` — as many columns as fit, all
+  /// stretched to share the remainder — so the LayoutBuilder column math
+  /// went with the Wrap.
   Widget _episodeGrid({
     required Video gridVideo,
     required Map<int, EpisodeHistory> histories,
   }) {
-    const min = 104.0, gap = 11.0;
     return ValueListenableBuilder2<bool, bool>(
       first: isAscending,
       second: isDownloadMode,
       builder: (context, ascending, downloadMode, _) {
         final urls = gridVideo.urls ?? const <VideoEpisode>[];
-        final episodes = ascending ? urls : urls.reversed.toList();
-        return LayoutBuilder(
-          builder: (context, c) {
-            final columns = ((c.maxWidth + gap) / (min + gap)).floor().clamp(
-              1,
-              99,
+        return SliverGrid(
+          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+            // minmax(104, 1fr) in max-extent terms: a tile may stretch to
+            // just under double its 104px floor before a column splits off.
+            maxCrossAxisExtent: 208,
+            // Thumb (58) + caption row; the extra over the measured 86.4
+            // absorbs CJK fallback metrics instead of clipping descenders.
+            mainAxisExtent: 88,
+            crossAxisSpacing: 11,
+            mainAxisSpacing: 11,
+          ),
+          delegate: SliverChildBuilderDelegate(childCount: urls.length, (
+            context,
+            i,
+          ) {
+            final originalIndex = ascending ? i : urls.length - 1 - i;
+            return EpisodeItem(
+              videoId: gridVideo.apiId,
+              video: gridVideo,
+              originalIndex: originalIndex,
+              episode: urls[originalIndex],
+              isDownloadMode: downloadMode,
+              history: histories[originalIndex],
             );
-            final width = (c.maxWidth - (columns - 1) * gap) / columns;
-            return Wrap(
-              spacing: gap,
-              runSpacing: gap,
-              children: episodes.asMap().entries.map((entry) {
-                final originalIndex = ascending
-                    ? entry.key
-                    : urls.length - 1 - entry.key;
-                return SizedBox(
-                  width: width,
-                  child: EpisodeItem(
-                    videoId: gridVideo.apiId,
-                    video: gridVideo,
-                    originalIndex: originalIndex,
-                    episode: entry.value,
-                    isDownloadMode: downloadMode,
-                    history: histories[originalIndex],
-                  ),
-                );
-              }).toList(),
-            );
-          },
+          }),
         );
       },
     );
@@ -1362,9 +1361,12 @@ class _MergedGrid extends ConsumerWidget {
         sourceId: gridVideo.sourceId,
       )),
     );
+    // Every branch is a sliver now — buildGrid returns a SliverGrid, and
+    // the placeholders ride adapters.
     return ownAsync.when(
-      loading: () => const _EpisodeGridSkeleton(),
-      error: (error, _) => Text('Error: $error'),
+      loading: () =>
+          const SliverToBoxAdapter(child: _EpisodeGridSkeleton()),
+      error: (error, _) => SliverToBoxAdapter(child: Text('Error: $error')),
       data: (own) {
         final borrowFrom = <CatalogProgress>[];
         for (final o in others) {
@@ -1485,13 +1487,16 @@ class _AltEpisodes extends ConsumerWidget {
       videoByIdProvider((id: pick.videoId, sourceId: pick.sourceId)),
     );
     return altAsync.when(
-      loading: () => const _EpisodeGridSkeleton(),
-      error: (e, _) => Text('$e'),
+      loading: () =>
+          const SliverToBoxAdapter(child: _EpisodeGridSkeleton()),
+      error: (e, _) => SliverToBoxAdapter(child: Text('$e')),
       data: (alt) {
         if (alt == null || alt.urls == null || alt.urls!.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 24),
-            child: Text(tr('video.player.no_episodes')),
+          return SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Text(tr('video.player.no_episodes')),
+            ),
           );
         }
         // Symmetric with the own-source grid: over here it is this page's

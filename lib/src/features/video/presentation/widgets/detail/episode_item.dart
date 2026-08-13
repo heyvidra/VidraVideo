@@ -2,7 +2,6 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:vidra/src/config/design_tokens.dart';
-import 'package:vidra/src/features/video/data/history_repository.dart';
 import 'package:vidra/src/features/video/domain/video_collection.dart';
 import 'package:vidra/src/features/video/presentation/widgets/cross_source_watch_badge.dart'
     show sourceDisplayName;
@@ -47,14 +46,12 @@ class EpisodeItem extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (history != null) return _content(context, ref, history);
-
-    return FutureBuilder<EpisodeHistory?>(
-      future: ref
-          .read(historyRepositoryProvider)
-          .getEpisodeHistory(videoId, originalIndex, video.sourceId),
-      builder: (context, snapshot) => _content(context, ref, snapshot.data),
-    );
+    // [history] is authoritative: the grid hands every tile the video's
+    // complete history map, so absence means unwatched. The per-tile
+    // FutureBuilder this replaces re-queried the database on EVERY rebuild
+    // of every tile — 150 episodes × every download-progress tick was most
+    // of what "scrolling feels janky" was made of.
+    return _content(context, ref, history);
   }
 
   Widget _content(BuildContext context, WidgetRef ref, EpisodeHistory? h) {
@@ -69,20 +66,15 @@ class EpisodeItem extends ConsumerWidget {
     // green "download_done" for anything merely present in the task list, so a
     // queued, still-downloading or outright failed episode all claimed to be
     // saved offline — the one state the badge exists to communicate.
-    final downloadStatus = ref
-        .watch(downloadTasksProvider)
-        .maybeWhen(
-          data: (tasks) {
-            for (final task in tasks) {
-              if (task.videoId != videoId) continue;
-              for (final e in task.episodes) {
-                if (e.index == originalIndex) return e.status;
-              }
-            }
-            return null;
-          },
-          orElse: () => null,
-        );
+    //
+    // select, not a bare watch: the task list updates on every progress tick
+    // of every active download, and an unselected watch rebuilt the whole
+    // grid for each one. This tile only re-renders when ITS status changes.
+    final downloadStatus = ref.watch(
+      downloadTasksProvider.select(
+        (tasks) => _statusOf(tasks.asData?.value, videoId, originalIndex),
+      ),
+    );
 
     final number = episodeNumberOf(
       episode.title,
@@ -234,6 +226,21 @@ class EpisodeItem extends ConsumerWidget {
       ),
       ),
     );
+  }
+
+  static DownloadStatus? _statusOf(
+    List<DownloadTask>? tasks,
+    int videoId,
+    int index,
+  ) {
+    if (tasks == null) return null;
+    for (final task in tasks) {
+      if (task.videoId != videoId) continue;
+      for (final e in task.episodes) {
+        if (e.index == index) return e.status;
+      }
+    }
+    return null;
   }
 
   Future<void> _handleTap(BuildContext context, WidgetRef ref) async {
