@@ -18,8 +18,12 @@ on:
 # once for the cache key, once for the install — and the two drifted: every
 # build installed 3.44.4 while keying its cache on 3.38.5, so the cache could
 # never hit on the version it was actually caching.
+# Must match the SDK the app is developed and tested on. 1.11.0 shipped a
+# macOS build whose desktop pet window stayed invisible (window created,
+# alpha never restored) — built by CI on 3.44.4 while every dev test ran on
+# 3.47.0. The same code built locally on 3.47.0 releases correctly.
 env:
-  FLUTTER_VERSION: "3.44.4"
+  FLUTTER_VERSION: "3.47.0"
 
 jobs:
   windows:
@@ -73,8 +77,13 @@ jobs:
           path: build\windows\x64\runner\Release
           # assets/** and pubspec_fonts.yaml belong in the key: they are what
           # ends up in flutter_assets, so a font or image change has to miss.
-          key: build-windows-${{ runner.os }}-${{ hashFiles('lib/**', 'windows/**', 'assets/**', 'pubspec.yaml', 'pubspec_fonts.yaml', 'tool/**') }}
-          restore-keys: build-windows-${{ runner.os }}-
+          # pubspec.lock and the SDK version too: a dependency or toolchain
+          # bump must not build on top of the previous release's objects.
+          # No restore-keys on purpose — a partial hit restores the PREVIOUS
+          # release's build tree, and an incremental build over stale foreign
+          # products is exactly how 1.11.0 shipped broken (see FLUTTER_VERSION
+          # note above). Exact hit or clean build; nothing in between.
+          key: build-windows-${{ runner.os }}-${{ env.FLUTTER_VERSION }}-${{ hashFiles('lib/**', 'windows/**', 'assets/**', 'pubspec.yaml', 'pubspec.lock', 'pubspec_fonts.yaml', 'tool/**') }}
 
       - name: Fetch vidraDlp native lib (media_ffi.dll)
         shell: bash
@@ -270,8 +279,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build/macos/Build/Products/Release
-          key: build-macos-${{ runner.os }}-${{ hashFiles('lib/**', 'macos/**', 'pubspec.yaml') }}
-          restore-keys: build-macos-${{ runner.os }}-
+          # Same key discipline as the Windows job, for the same reason it
+          # gained it: this cache used to key on only lib/macos/pubspec.yaml
+          # and then restore-keys'd the previous release's whole Products
+          # tree on every miss. xcodebuild over those stale products is the
+          # prime suspect in 1.11.0's invisible-pet macOS build. Exact hit
+          # or clean build; nothing in between.
+          key: build-macos-${{ runner.os }}-${{ env.FLUTTER_VERSION }}-${{ hashFiles('lib/**', 'macos/**', 'assets/**', 'pubspec.yaml', 'pubspec.lock') }}
 
       - name: Fetch vidraDlp native lib (libmedia_ffi.dylib)
         env:

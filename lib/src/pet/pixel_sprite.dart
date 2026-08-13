@@ -37,7 +37,9 @@ class PixelCatSprites {
       final data = await rootBundle.load(assetPath);
       final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
       final sheet = (await codec.getNextFrame()).image;
-      return _slice(sheet);
+      // await, not return: an async failure inside _slice must land in this
+      // catch and fall back, not escape past it.
+      return await _slice(sheet);
     } catch (_) {
       // No spritesheet in the bundle (yet): build placeholder pixels from
       // the vector cat.
