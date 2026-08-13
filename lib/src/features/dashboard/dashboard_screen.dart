@@ -135,9 +135,24 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     // macOS only, like every other pet entry point: elsewhere the window
     // renders opaque and cannot be closed by name.
     if (!Platform.isMacOS) return;
-    final settings = await ref.read(settingsProvider.future);
-    if (!mounted || !settings.showPet) return;
-    await PetWindowLauncher.show();
+    try {
+      final settings = await ref.read(settingsProvider.future);
+      if (!mounted || !settings.showPet) return;
+      await PetWindowLauncher.show();
+      logR('Pet', 'restore: pet window requested');
+      // The 1.11.x CI binaries sometimes lost the request itself to a
+      // startup race — no window, no error. Verify and re-ask once; the
+      // native side reuses by name, so a retry can never spawn a second pet.
+      await Future<void>.delayed(const Duration(seconds: 2));
+      if (!await hasWindow(PetWindowLauncher.windowName)) {
+        logR('Pet', 'restore: window missing after 2s — retrying once');
+        await PetWindowLauncher.show();
+      }
+    } catch (e) {
+      // An error here used to vanish into the release zone handler — which
+      // is how an invisible pet shipped twice. Say it, always.
+      logR('Pet', 'restore failed: $e');
+    }
   }
 
   Future<void> _checkSubscriptions() async {

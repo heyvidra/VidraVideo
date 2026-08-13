@@ -266,6 +266,18 @@ jobs:
       - name: Enable macOS Desktop
         run: flutter config --enable-macos-desktop
 
+      # The dev machine builds with SwiftPM OFF (CocoaPods integration) —
+      # `flutter config --list` there says enable-swift-package-manager:
+      # false — so that is the only plugin-linking model any dev build or
+      # test has ever exercised. Flutter defaults SwiftPM ON since 3.44,
+      # so CI silently shipped a different binary shape: plugins in one
+      # aggregate SwiftPM dylib, bitsdojo statically inside the main
+      # executable. Those binaries lose the pet window's startup race that
+      # CocoaPods-shaped binaries never lose (1.11.0-1.11.2 all invisible).
+      # Match the tested configuration. Revisit when dev moves to SwiftPM.
+      - name: Match dev plugin integration (CocoaPods, not SwiftPM)
+        run: flutter config --no-enable-swift-package-manager
+
       - name: Get Dependencies
         run: flutter pub get
 
@@ -285,7 +297,9 @@ jobs:
           # tree on every miss. xcodebuild over those stale products is the
           # prime suspect in 1.11.0's invisible-pet macOS build. Exact hit
           # or clean build; nothing in between.
-          key: build-macos-${{ runner.os }}-${{ env.FLUTTER_VERSION }}-${{ hashFiles('lib/**', 'macos/**', 'assets/**', 'pubspec.yaml', 'pubspec.lock') }}
+          # "pods" salt: the plugin-integration mode (CocoaPods vs SwiftPM)
+          # shapes every build product but appears in no hashed file.
+          key: build-macos-pods-${{ runner.os }}-${{ env.FLUTTER_VERSION }}-${{ hashFiles('lib/**', 'macos/**', 'assets/**', 'pubspec.yaml', 'pubspec.lock') }}
 
       - name: Fetch vidraDlp native lib (libmedia_ffi.dylib)
         env:

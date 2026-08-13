@@ -183,6 +183,12 @@ List<WindowConfiguration> _buildWindowConfigurations() {
         DesktopWindowButton.zoom: false,
       },
       readyAnimation: const WindowReadyAnimation.none(),
+      // These two prints bracket the whole native-handle dance: between
+      // "engine up" and "config applied" sits windowReady delivery,
+      // every geometry/effect setter and the show() call. The 1.11.x
+      // invisible pet was diagnosed by which bracket was missing.
+      beforeApply: (_) => logR('Pet', 'config apply begins (handle ready)'),
+      afterApply: (_) => logR('Pet', 'config applied — window shown'),
     ),
     WindowConfiguration(
       backgroundEffectBuilder: _resolveBackgroundEffect,

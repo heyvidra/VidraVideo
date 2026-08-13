@@ -6,6 +6,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/gestures.dart' show kSecondaryMouseButton;
 import 'package:flutter/material.dart';
 
+import '../core/utils/log.dart';
 import '../core/utils/window.dart';
 import '../pet/pet_animation.dart';
 import '../pet/pet_controller.dart';
@@ -61,12 +62,17 @@ class PetWindowLauncher {
             screen.right - petSize.width - 32,
             screen.bottom - petSize.height - 32,
           );
-    return appWindow.openNewWindow(
+    // Breadcrumbs on both banks of the channel hop: the 1.11.x invisible
+    // pet failed at a different link on different launches of the same
+    // binary, and only these prints said which.
+    logR('Pet', 'openNewWindow -> pos=$position screen=$screen');
+    await appWindow.openNewWindow(
       name: windowName,
       size: petSize,
       position: position,
       arguments: {...arguments, nonceKey: ++_nonce},
     );
+    logR('Pet', 'openNewWindow returned');
   }
 }
 
@@ -109,6 +115,7 @@ class _PetWindowAppState extends State<PetWindowApp> {
   @override
   void initState() {
     super.initState();
+    logR('Pet', 'engine up: window built, args=$_initialArguments');
     // Deferred: the window is still being configured while this frame is
     // built, and resizing into that would race the config's own geometry.
     WidgetsBinding.instance.addPostFrameCallback((_) {
