@@ -65,7 +65,13 @@ class PetWindowLauncher {
     // Breadcrumbs on both banks of the channel hop: the 1.11.x invisible
     // pet failed at a different link on different launches of the same
     // binary, and only these prints said which.
-    logR('Pet', 'openNewWindow -> pos=$position screen=$screen');
+    // Spelled-out numbers: release builds strip Offset/Rect.toString down
+    // to "Instance of 'Offset'", which is what these prints exist to avoid.
+    logR(
+      'Pet',
+      'openNewWindow -> pos=${position.dx.round()},${position.dy.round()} '
+      'screen=${screen.right.round()}x${screen.bottom.round()}',
+    );
     await appWindow.openNewWindow(
       name: windowName,
       size: petSize,
