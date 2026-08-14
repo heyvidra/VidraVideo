@@ -277,6 +277,14 @@ jobs:
           fi
           for l in "${libs[@]}"; do echo "  $l: $(lipo -info "$l")"; done
           lipo -create "${libs[@]}" -output macos/libmedia_ffi.dylib
+          # lipo writes a fresh Mach-O and the code signature does not come
+          # with it. The slices arrive `adhoc, linker-signed` — the arm64
+          # linker signs automatically — so before this merge the dylib was
+          # always signed by accident, and after it Xcode's own CodeSign
+          # phase refused the whole app with "code object is not signed at
+          # all". Sign it here, where the merge happened.
+          codesign --force --sign - macos/libmedia_ffi.dylib
+          codesign --verify macos/libmedia_ffi.dylib
           # The app is universal, so this must be too. Failing here is the
           # point: a missing slice is invisible until an Intel user opens the
           # app and the download engine is simply gone.
