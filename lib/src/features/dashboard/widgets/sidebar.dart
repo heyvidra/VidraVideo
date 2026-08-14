@@ -5,6 +5,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import 'package:vidra/src/config/ambient_background.dart';
 import 'package:vidra/src/config/design_tokens.dart';
+import 'package:vidra/src/config/reduce_effects.dart';
 import 'package:vidra/src/features/subscription/presentation/subscription_provider.dart';
 import 'package:vidra/src/features/video/data/video_repository.dart';
 import 'package:vidra/src/features/video/domain/category.dart';
@@ -81,6 +82,7 @@ class Sidebar extends ConsumerWidget {
     final onCatalog = selected == AppNavigationItem.home;
     final railPick = ref.watch(railCategoryProvider);
     final unread = ref.watch(unreadSubscriptionCountProvider);
+    final reduce = ref.watch(reduceEffectsProvider);
 
     return Padding(
       padding: const EdgeInsets.only(right: 12),
@@ -91,6 +93,13 @@ class Sidebar extends ConsumerWidget {
           blur: 11,
           saturation: 1.5,
           border: t.edgeSoft,
+          // The rail and the content are Row siblings — the catalog scrolls
+          // beside the rail, never under it — so the only thing this backdrop
+          // ever samples is the static ambient gradient, and blurring an
+          // already-smooth gradient changes nothing the eye can see. Keep the
+          // saturation, skip the Gaussian; 减少特效 drops the readback too.
+          staticBackdrop: true,
+          flat: reduce,
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

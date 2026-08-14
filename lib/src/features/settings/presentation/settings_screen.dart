@@ -247,11 +247,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ],
         selected: {mode},
         onSelectionChanged: (selection) async {
-          settings.reduceEffects = selection.first.stored;
-          await settingsRepo.updateSettings(settings);
-          // Widgets follow the settings stream on their own; the seeded
-          // mirror and the native window effect need an explicit push.
-          ReduceEffects.seed(settings);
+          // The notifier persists the choice and republishes it to every
+          // widget that degrades; the native window effect is outside Flutter
+          // and needs its own push.
+          await ref.read(reduceEffectsProvider.notifier).set(selection.first);
           if (Platform.isMacOS) {
             appWindow.backgroundEffect = ReduceEffects.current
                 ? WindowEffect.disabled

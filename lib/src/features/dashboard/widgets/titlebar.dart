@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:vidra/src/config/ambient_background.dart';
 import 'package:vidra/src/common/bar_controls.dart';
 import 'package:vidra/src/config/design_tokens.dart';
+import 'package:vidra/src/config/reduce_effects.dart';
 import '../../../core/providers/theme_provider.dart';
 
 import 'package:bitsdojo_window/bitsdojo_window.dart';
@@ -109,12 +110,20 @@ class _DashboardTitleBarState extends ConsumerState<DashboardTitleBar> {
     final theme = Theme.of(context);
     final t = VidraTokens.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final reduce = ref.watch(reduceEffectsProvider);
 
     return GlassPanel(
       radius: 999,
       blur: 12,
       border: t.edgeSoft,
       shadow: t.drop1,
+      // The pill has its own row of the shell Column — nothing ever scrolls
+      // or animates beneath it, only the static ambient washes, over which
+      // the blur is visually the identity. So the pill keeps the saturation
+      // that makes it glass and skips the Gaussian that Skia would otherwise
+      // re-run on every rasterized frame; 减少特效 drops the readback too.
+      staticBackdrop: true,
+      flat: reduce,
       padding: const EdgeInsets.fromLTRB(0, 6, 8, 6),
       child: Row(
         children: [

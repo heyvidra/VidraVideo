@@ -57,8 +57,19 @@ class DownloadManager {
 
   bool _isInitialized = false;
 
-  /// Initialize manager and load persisted tasks
-  Future<void> initialize({bool startProcessing = false}) async {
+  /// Initialize manager and load persisted tasks.
+  ///
+  /// [watchDb] controls the standing drift watch that mirrors row changes
+  /// into [_tasks]. Drift's stream invalidation is per database connection,
+  /// and every engine opens its own background isolate — so in a secondary
+  /// engine that watch could never see the main engine's writes and only ever
+  /// delivered its initial snapshot, which [_loadTasks] already provides.
+  /// Secondary engines pass false and live off the one-shot snapshot; the
+  /// default keeps the watch for single-engine callers and tests.
+  Future<void> initialize({
+    bool startProcessing = false,
+    bool watchDb = true,
+  }) async {
     if (_isInitialized) {
       if (startProcessing && !_isProcessing) {
         _startProcessing();
@@ -72,7 +83,7 @@ class DownloadManager {
 
     if (startProcessing) {
       _startProcessing();
-    } else {
+    } else if (watchDb) {
       _listenToDbChanges();
     }
   }

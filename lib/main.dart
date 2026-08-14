@@ -56,17 +56,43 @@ Future<void> main(List<String> args) async {
 
 Future<void> _runApp() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await EasyLocalization.ensureInitialized();
-  await installBundledRoots();
-  await _setupNotifications();
 
-  try {
-    VidraPlayerKit.ensureInitialized();
-  } catch (e) {
-    logR('Main', 'Error initializing VidraPlayerKit: $e');
+  // Window identity was seeded synchronously from the entrypoint args in
+  // main(), so it is already trustworthy here — and it decides how much of
+  // this boot the engine actually runs. Only a POSITIVELY identified pet
+  // gets the trimmed boot: a secondary window that arrives nameless (an
+  // un-updated runner, where identity only lands with the native windowReady
+  // message) is booted like a player, because over-booting a window wastes a
+  // few hundred milliseconds while under-booting one is a broken player.
+  final isMainWindow = appWindow.isMainWindow;
+  final isPetWindow =
+      !isMainWindow && appWindow.name == PetWindowLauncher.windowName;
+
+  await EasyLocalization.ensureInitialized();
+  // The pet does no Dart-side HTTP — the sprite is painted locally and the
+  // bubble text arrives through window arguments — so the Windows root-CA
+  // seeding has nothing there to protect.
+  if (!isPetWindow) {
+    await installBundledRoots();
+  }
+  // Toasts are only ever sent by the subscription refresh, which lives in
+  // the main engine; secondary engines were paying this setup for nothing.
+  if (isMainWindow) {
+    await _setupNotifications();
   }
 
-  // 2. Data layers
+  // The pet never hosts playback; every other window may.
+  if (!isPetWindow) {
+    try {
+      VidraPlayerKit.ensureInitialized();
+    } catch (e) {
+      logR('Main', 'Error initializing VidraPlayerKit: $e');
+    }
+  }
+
+  // 2. Data layers — every engine, the pet included: MyApp's provider shell
+  // (theme, router) reads the database provider unconditionally, and the pet
+  // itself writes its parked position through the settings repository.
   final database = AppDatabase();
   final settingsRepository = SettingsRepository(database);
   final appSettings = await settingsRepository.getSettings();
@@ -92,9 +118,17 @@ Future<void> _runApp() async {
   );
 
   // 3. Services initialization
-  await container
-      .read(downloadManagerProvider)
-      .initialize(startProcessing: appWindow.isMainWindow);
+  //
+  // The pet's tree never touches download state, so its engine does not even
+  // construct the manager — and a stray future read would still be safe, just
+  // empty. A player engine reads the persisted tasks synchronously (allTasks,
+  // to map completed downloads onto their on-disk files), so secondary
+  // engines still load the list once but skip the drift watch and the queue.
+  if (!isPetWindow) {
+    await container
+        .read(downloadManagerProvider)
+        .initialize(startProcessing: isMainWindow, watchDb: isMainWindow);
+  }
 
   WindowHelper.init(container.read(settingsRepositoryProvider));
 

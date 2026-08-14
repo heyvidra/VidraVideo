@@ -73,13 +73,27 @@ class ReduceEffects {
 
 /// Whether the running UI should degrade its effects, live.
 ///
-/// Falls back to the seeded value while the settings stream is still
-/// connecting, which is exact: main() seeded it from the same row.
-final reduceEffectsProvider = Provider<bool>((ref) {
-  final stored = ref.watch(
-    settingsProvider.select((s) => s.value?.reduceEffects),
-  );
-  final hasValue = ref.watch(settingsProvider.select((s) => s.hasValue));
-  if (!hasValue) return ReduceEffects.current;
-  return ReduceEffects.resolve(ReduceEffectsMode.fromStored(stored));
-});
+/// Reads the value main() already seeded rather than watching the settings
+/// stream, and the settings screen pushes changes through [set]. That
+/// direction matters: this is watched by glass panels, skeletons and every
+/// card in a grid, and hanging all of them off a drift query stream would
+/// subscribe the whole UI to the database to learn one boolean that changes
+/// only when a person opens Settings and taps.
+class ReduceEffectsNotifier extends Notifier<bool> {
+  @override
+  bool build() => ReduceEffects.current;
+
+  /// Persists [mode] and republishes the resolved value.
+  Future<void> set(ReduceEffectsMode mode) async {
+    final repo = ref.read(settingsRepositoryProvider);
+    final settings = await repo.getSettings();
+    settings.reduceEffects = mode.stored;
+    await repo.updateSettings(settings);
+    ReduceEffects.seed(settings);
+    state = ReduceEffects.current;
+  }
+}
+
+final reduceEffectsProvider = NotifierProvider<ReduceEffectsNotifier, bool>(
+  ReduceEffectsNotifier.new,
+);
