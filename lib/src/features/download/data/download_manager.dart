@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:dio/dio.dart' show DioException;
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 import '../../../core/services/m3u8_downloader.dart'
     show DownloadCancelledException;
+import '../../../core/telemetry/telemetry.dart';
 import '../../../core/utils/log.dart';
 import '../../../data/database/app_database.dart' as db;
 import '../../../data/database/mappers.dart';
@@ -57,8 +59,19 @@ class DownloadManager {
 
   bool _isInitialized = false;
 
-  /// Initialize manager and load persisted tasks
-  Future<void> initialize({bool startProcessing = false}) async {
+  /// Initialize manager and load persisted tasks.
+  ///
+  /// [watchDb] controls the standing drift watch that mirrors row changes
+  /// into [_tasks]. Drift's stream invalidation is per database connection,
+  /// and every engine opens its own background isolate — so in a secondary
+  /// engine that watch could never see the main engine's writes and only ever
+  /// delivered its initial snapshot, which [_loadTasks] already provides.
+  /// Secondary engines pass false and live off the one-shot snapshot; the
+  /// default keeps the watch for single-engine callers and tests.
+  Future<void> initialize({
+    bool startProcessing = false,
+    bool watchDb = true,
+  }) async {
     if (_isInitialized) {
       if (startProcessing && !_isProcessing) {
         _startProcessing();
@@ -72,7 +85,7 @@ class DownloadManager {
 
     if (startProcessing) {
       _startProcessing();
-    } else {
+    } else if (watchDb) {
       _listenToDbChanges();
     }
   }
@@ -552,6 +565,22 @@ class DownloadManager {
           'DownloadManager',
           'episode failed after $_maxAttempts attempts: $e',
         );
+        // Terminal only: an attempt that retried and then succeeded is not
+        // news, and an abort is the user's own doing and returned above. The
+        // error's TYPE, never the error — its message carries the stream URL
+        // it died on.
+        Telemetry.report(
+          'download.failed',
+          data: {
+            'error': e.runtimeType.toString(),
+            'attempts': attempt,
+            // Which downloader gave up: the vidraDlp extractor path (a format
+            // was selected at add time) or the plain HLS path.
+            'extractor': formatId != null,
+            if (e is DioException) 'type': e.type.name,
+            if (e is DioException) 'status': e.response?.statusCode,
+          },
+        );
         final i = _indexOfUrl(taskId, url);
         final ep = _episodeAt(taskId, i);
         if (ep != null && ep.status == DownloadStatus.downloading) {
@@ -603,6 +632,11 @@ class DownloadManager {
   // Throttling map for save operations
   final _saveThrottler = <String, Timer>{};
 
+  // Pending trailing-edge notification for progress-only updates. One global
+  // timer, not per-task: a notification carries allTasks, so one fire serves
+  // every task's accumulated progress at once.
+  Timer? _notifyThrottle;
+
   /// Update a specific episode in a task
   void _updateEpisode(
     String taskId,
@@ -617,23 +651,43 @@ class DownloadManager {
     updatedEpisodes[episodeIndex] = newEpisode;
 
     _tasks[taskId] = task.copyWith(episodes: updatedEpisodes);
-    _notifyUpdate();
 
-    // Persist changes
-    // If status changed or completed, save immediately
+    // A status transition is news the UI must not sit on — an episode
+    // finishing, pausing, or failing changes what actions the screen offers —
+    // so it notifies and saves immediately. Pure progress ticks arrive many
+    // times per second per episode, multiplied by the slot-pool concurrency,
+    // and every notification rebuilds every downloads listener; those are
+    // throttled the same way their save already is.
     if (oldStatus != newEpisode.status ||
         newEpisode.status == DownloadStatus.completed ||
         newEpisode.status == DownloadStatus.failed) {
+      _notifyUpdate();
       _saveTask(_tasks[taskId]!);
     } else {
-      // Otherwise (progress updates), throttle saving
+      _notifyProgressThrottled();
       _throttledSave(taskId);
     }
   }
 
   /// Notify listeners of task updates
   void _notifyUpdate() {
+    // An immediate notification already carries the full current state, so a
+    // pending throttled one would only repeat it.
+    _notifyThrottle?.cancel();
+    _notifyThrottle = null;
     _taskController.add(allTasks);
+  }
+
+  /// Trailing-edge throttle for progress-only notifications, capping listeners
+  /// at ~4 updates/sec. The timer reads live state when it fires, so the final
+  /// progress value of a burst always reaches listeners; status transitions
+  /// bypass this entirely via [_notifyUpdate].
+  void _notifyProgressThrottled() {
+    if (_notifyThrottle != null) return;
+    _notifyThrottle = Timer(const Duration(milliseconds: 250), () {
+      _notifyThrottle = null;
+      _taskController.add(allTasks);
+    });
   }
 
   /// Throttled save for progress updates
@@ -728,6 +782,9 @@ class DownloadManager {
   void dispose() {
     _settingsSub?.cancel();
     _dbSub?.cancel();
+    // Cancelled before the controller closes, or a trailing notify could fire
+    // into a closed StreamController.
+    _notifyThrottle?.cancel();
     for (final t in _saveThrottler.values) {
       t.cancel();
     }

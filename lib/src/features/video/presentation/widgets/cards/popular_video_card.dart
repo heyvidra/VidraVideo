@@ -4,8 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vidra/src/common/dropdown_menu.dart';
-import 'package:vidra/src/common/skeleton/skeleton_box.dart';
+import 'package:vidra/src/common/screen_chrome.dart';
 import 'package:vidra/src/config/design_tokens.dart';
+import 'package:vidra/src/config/reduce_effects.dart';
 import 'package:vidra/src/features/video/data/video_repository.dart';
 import 'package:vidra/src/features/video/domain/video_collection.dart';
 import 'package:vidra/src/features/video/domain/play_history.dart';
@@ -97,8 +98,23 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
   static const _onFresh = Color(0xFF38270A);
 
   bool isHovered = false;
+
+  /// True only while the hover animation is parked at its end. The two-shadow
+  /// hover set waits for this instead of following [isHovered]: the resting
+  /// shadow is cheap to drag through the scale flight, while a 28px blur under
+  /// a card re-rasterizing at a changing scale every frame is not.
+  bool _hoverShadowSettled = false;
+
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
+
+  /// Fades in everything only a hovered card shows; [_restingFade] is its
+  /// reverse and fades out the resting bits the hover panel replaces. Both
+  /// hang off the one 200ms controller, so a pointer crossing is a repaint of
+  /// two opacity layers — not, as it used to be, a teardown and rebuild of the
+  /// card's entire element tree on every enter AND exit.
+  late CurvedAnimation _hoverFade;
+  late Animation<double> _restingFade;
 
   @override
   void initState() {
@@ -111,10 +127,24 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
       begin: 1.0,
       end: 1.05,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    _hoverFade = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
+    _restingFade = ReverseAnimation(_hoverFade);
+    _controller.addStatusListener(_onHoverStatus);
+  }
+
+  void _onHoverStatus(AnimationStatus status) {
+    final settled = status == AnimationStatus.completed;
+    if (settled != _hoverShadowSettled) {
+      setState(() => _hoverShadowSettled = settled);
+    }
   }
 
   @override
   void dispose() {
+    // The curve holds a listener on the controller and must go first: a grid
+    // scroll disposes cards by the dozen, and a leaked CurvedAnimation per card
+    // is exactly the kind of drip nobody notices until a long session.
+    _hoverFade.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -448,6 +478,12 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    // 减少特效: the hover overlay still appears (it carries the actions), but
+    // it snaps in instead of fading, and the card neither scales nor swaps
+    // shadows — ~12 frames each way of re-rasterizing a Retina poster under a
+    // 28px-blur shadow at a changing scale, per card the pointer crosses. The
+    // strengthened border is the remaining hover cue.
+    final reduced = ref.watch(reduceEffectsProvider);
     return GestureDetector(
       onSecondaryTapUp: (d) => _openMenu(d.globalPosition),
       // Trackpads and touch report a long press where a mouse reports a right
@@ -456,23 +492,40 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
       child: InkWell(
         onTap: widget.onTap ?? _openDetail,
         child: MouseRegion(
+          // Crossings drive the controller; [isHovered] exists only for what
+          // an animation cannot express — the reduced-mode border colour and
+          // the overlay's hit-testing.
           onEnter: widget.enableHover
               ? (_) {
                   setState(() => isHovered = true);
-                  _controller.forward();
+                  if (reduced) {
+                    // Jumping the controller keeps reduced mode's instant
+                    // swap: the overlay lands fully visible with no scale
+                    // flight and no fade.
+                    _controller.value = 1.0;
+                  } else {
+                    _controller.forward();
+                  }
                 }
               : null,
           onExit: widget.enableHover
               ? (_) {
                   setState(() => isHovered = false);
-                  _controller.reverse();
+                  if (reduced) {
+                    _controller.value = 0.0;
+                  } else {
+                    _controller.reverse();
+                  }
                 }
               : null,
           child: AnimatedBuilder(
             animation: _scaleAnimation,
             builder: (context, child) {
               return Transform.scale(
-                scale: _scaleAnimation.value,
+                // The controller runs even in reduced mode — it carries the
+                // overlay's visibility — so the no-scale rule is enforced here
+                // rather than by never starting the animation.
+                scale: reduced ? 1.0 : _scaleAnimation.value,
                 child: child,
               );
             },
@@ -486,12 +539,20 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
                   colors: VidraTokens.of(context).glass2,
                 ),
                 borderRadius: BorderRadius.circular(_radius),
-                border: Border.all(color: VidraTokens.of(context).edgeSoft),
+                border: Border.all(
+                  color: reduced && isHovered
+                      ? VidraTokens.of(context).edge
+                      : VidraTokens.of(context).edgeSoft,
+                ),
                 // Two shadows rather than one: a tight contact shadow keeps the
                 // card attached to the page while a wide, soft one carries the
                 // lift. A single blur does one job or the other, and hover with
                 // only the wide shadow reads as the card floating off.
-                boxShadow: isHovered
+                //
+                // The pair waits for [_hoverShadowSettled] rather than for the
+                // pointer: the lift lands after the scale flight, so the card
+                // never re-rasterizes with a 28px blur mid-animation.
+                boxShadow: _hoverShadowSettled && !reduced
                     ? [
                         BoxShadow(
                           color: Colors.black.withAlpha(isDark ? 130 : 40),
@@ -513,7 +574,19 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
                       ],
               ),
               clipBehavior: Clip.antiAlias,
-              child: isHovered ? _buildHoverContent() : _buildNormalContent(),
+              // One shared element tree for both pointer states. The resting
+              // layer is always there; the hover layer fades over it; the
+              // corner chrome both states show is pinned above the hover scrim
+              // so it neither fades nor dims.
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  _buildRestingLayer(),
+                  _buildHoverOverlay(),
+                  Positioned(top: 8, left: 8, child: _buildBadgeRow()),
+                  Positioned(top: 8, right: 8, child: _buildCornerRow()),
+                ],
+              ),
             ),
           ),
         ),
@@ -521,7 +594,22 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
     );
   }
 
-  Widget _buildNormalContent() {
+  /// Decode covers at the size the grid can actually show: [kPosterGrid] caps
+  /// a cell at 168 logical points and hover scales the card by 1.05, so any
+  /// wider decode is memory the screen never displays. The card holds exactly
+  /// ONE cover — hover dims and annotates it in an overlay instead of swapping
+  /// in a second image — so this is also the only decode it ever requests.
+  int _coverDecodeWidth(BuildContext context) =>
+      (kPosterGrid.maxCrossAxisExtent *
+              MediaQuery.devicePixelRatioOf(context) *
+              1.05)
+          .round();
+
+  /// Everything the resting card shows, minus the corner chrome [build] pins
+  /// above the hover overlay. Built once and kept for the life of the card:
+  /// pointer crossings repaint the fading pieces, they no longer rebuild this
+  /// tree.
+  Widget _buildRestingLayer() {
     final theme = Theme.of(context);
     // Resolved here rather than at every call site: cards are built by the
     // catalog, search and category screens, and threading a lookup through all
@@ -536,7 +624,13 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // Cover Image
+              // The one cover both pointer states share. Hover used to swap in
+              // a second CachedNetworkImage of the same URL and decode width;
+              // the overlay now dims and annotates this one, so there is no
+              // second subtree to keep in sync and nothing to refetch or
+              // re-decode when the pointer arrives. The sourceId must still
+              // ride along: without it a non-active source's cover resolves
+              // against the wrong base URL entirely.
               Hero(
                 tag: videoPosterHeroTag(widget.video),
                 child: CachedNetworkImage(
@@ -547,119 +641,53 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
                         sourceId: widget.video.sourceId,
                       ),
                   fit: BoxFit.cover,
-                  // The same block the skeleton grid draws, so a card whose
-                  // cover is still loading matches the cards that have not
-                  // arrived at all. The greys it used were off-palette on both
-                  // themes.
-                  placeholder: (context, url) => const SkeletonBox(radius: 0),
+                  memCacheWidth: _coverDecodeWidth(context),
+                  // The skeleton grid's fill, minus its shimmer: each Shimmer
+                  // is its own AnimationController repainting every vsync, and
+                  // a scroll puts dozens of loading covers on screen at once.
+                  placeholder: (context, url) => ColoredBox(
+                    color: VidraTokens.of(context).fg.withValues(alpha: 0.07),
+                  ),
                   errorWidget: (context, url, err) => ColoredBox(
                     color: VidraTokens.of(context).fg.withValues(alpha: 0.09),
                   ),
                 ),
               ),
 
-              // Badges (Top Left)
-              Positioned(
-                top: 8,
-                left: 8,
-                child: Row(
-                  children: [
-                    if (widget.video.version != null &&
-                        widget.video.version!.isNotEmpty)
-                      _buildBadge(widget.video.version!),
-                    if (widget.video.version != null) const SizedBox(width: 5),
-                    if (_isFresh)
-                      _buildBadge(
-                        tr('video.detail.new_badge'),
-                        fill: _freshColor,
-                      ),
-                  ],
-                ),
-              ),
-
-              // Score and the card's action share the top-right corner, in a
-              // row. The recent list used to Position its delete button at the
-              // same 8,8 as the rating chip, so the two were drawn on top of
-              // each other and neither could be read.
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // On its own chip, not bare text: an orange number sat
-                    // directly on the poster, and half the covers in a catalog
-                    // are bright enough to swallow it whole — a shadow only
-                    // smears it.
-                    if (widget.video.rating > 0)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 7,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withAlpha(120),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.star_rounded,
-                              size: 12,
-                              color: _freshColor,
-                            ),
-                            const SizedBox(width: 3),
-                            Text(
-                              '${widget.video.rating}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w600,
-                                fontFeatures: [FontFeature.tabularFigures()],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    if (widget.trailing != null) ...[
-                      const SizedBox(width: 5),
-                      widget.trailing!,
-                    ],
-                  ],
-                ),
-              ),
-
               // Bottom overlay carries YOUR progress and nothing else. The
               // catalog's own "更新至第 N 集" moved below the poster, where the
               // date that qualifies it can sit beside it — the two were saying
-              // the same thing in two places, and neither said when.
+              // the same thing in two places, and neither said when. Fades out
+              // under the hover panel, which replaces it.
               if (label != null)
                 Positioned(
                   bottom: 0,
                   left: 0,
                   right: 0,
-                  child: Container(
-                    padding: const EdgeInsets.fromLTRB(9, 14, 9, 7),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.bottomCenter,
-                        end: Alignment.topCenter,
-                        colors: [
-                          Colors.black.withAlpha(190),
-                          Colors.transparent,
-                        ],
+                  child: FadeTransition(
+                    opacity: _restingFade,
+                    child: Container(
+                      padding: const EdgeInsets.fromLTRB(9, 14, 9, 7),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                          colors: [
+                            Colors.black.withAlpha(190),
+                            Colors.transparent,
+                          ],
+                        ),
                       ),
-                    ),
-                    child: Text(
-                      label,
-                      style: const TextStyle(
-                        color: _progressColor,
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w500,
+                      child: Text(
+                        label,
+                        style: const TextStyle(
+                          color: _progressColor,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
                       ),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
                     ),
                   ),
                 ),
@@ -671,13 +699,18 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
                   bottom: 6,
                   left: 9,
                   right: 9,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(999),
-                    child: LinearProgressIndicator(
-                      value: widget.watchProgress!.clamp(0.0, 1.0),
-                      minHeight: 3,
-                      backgroundColor: Colors.white.withAlpha(64),
-                      valueColor: const AlwaysStoppedAnimation(_progressColor),
+                  child: FadeTransition(
+                    opacity: _restingFade,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(999),
+                      child: LinearProgressIndicator(
+                        value: widget.watchProgress!.clamp(0.0, 1.0),
+                        minHeight: 3,
+                        backgroundColor: Colors.white.withAlpha(64),
+                        valueColor: const AlwaysStoppedAnimation(
+                          _progressColor,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -687,268 +720,347 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
 
         // Items below image (Image 1 style)
         if (widget.showDetails)
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.video.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: theme.colorScheme.onSurface,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
+          // The hover panel that lands on this region is translucent, so these
+          // rows fade out with the rest of the resting chrome — left opaque,
+          // the title would ghost through the panel at full hover.
+          FadeTransition(
+            opacity: _restingFade,
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.video.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: theme.colorScheme.onSurface,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 3),
-                // When it last moved, and how far it has got. The cast used to
-                // be here; it is in the hover panel now, because a name you do
-                // not recognise answers nothing while a date answers "is this
-                // still running" at a glance.
-                Text(
-                  _subtitle(),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontSize: 11.5,
-                    fontFeatures: const [FontFeature.tabularFigures()],
+                  const SizedBox(height: 3),
+                  // When it last moved, and how far it has got. The cast used
+                  // to be here; it is in the hover panel now, because a name
+                  // you do not recognise answers nothing while a date answers
+                  // "is this still running" at a glance.
+                  Text(
+                    _subtitle(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontSize: 11.5,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
       ],
     );
   }
 
-  Widget _buildHoverContent() {
-    final theme = Theme.of(context);
-
-    return Stack(
-      fit: StackFit.expand,
+  /// Version and "new" badges, top-left. They read the same in both pointer
+  /// states, so [build] pins them above the hover scrim instead of fading them
+  /// with either layer — hover must not dim them.
+  Widget _buildBadgeRow() {
+    return Row(
       children: [
-        // Background image, then the darkening SEPARATELY on top.
-        //
-        // The dimming used to be a blend mode on the image itself, which put it
-        // inside the Hero — so the cover flew to the detail page dark and
-        // snapped bright on arrival. As an overlay it stays behind on the card
-        // where it belongs, and the flight carries the picture unchanged.
-        Hero(
-          tag: videoPosterHeroTag(widget.video),
-          child: CachedNetworkImage(
-            imageUrl: ref
-                .read(videoRepositoryProvider)
-                .resolveUrl(widget.video.coverUrl),
-            fit: BoxFit.cover,
-            placeholder: (context, url) => const SkeletonBox(radius: 0),
-          ),
-        ),
-        Container(color: Colors.black.withAlpha(100)),
+        if (widget.video.version != null && widget.video.version!.isNotEmpty)
+          _buildBadge(widget.video.version!),
+        if (widget.video.version != null) const SizedBox(width: 5),
+        if (_isFresh)
+          _buildBadge(tr('video.detail.new_badge'), fill: _freshColor),
+      ],
+    );
+  }
 
-        // Badges & Rating (Keep them visible)
-        Positioned(
-          top: 8,
-          left: 8,
-          child: Row(
+  /// Score and the card's action share the top-right corner, in a row. The
+  /// recent list used to Position its delete button at the same 8,8 as the
+  /// rating chip, so the two were drawn on top of each other and neither could
+  /// be read.
+  ///
+  /// Pinned above the hover overlay and never swapped: hovering is the only
+  /// moment anyone reaches for [PopularVideoCard.trailing], and the old
+  /// swap-in hover subtree forgot to render it — the delete button and the
+  /// unfollow bell vanished the moment the pointer arrived. A single shared
+  /// row makes that impossible by construction.
+  Widget _buildCornerRow() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // The rating is the one thing the two states draw differently — a chip
+        // at rest, bare glyphs once the hover scrim supplies the contrast — so
+        // only the rating cross-fades in place while `trailing` holds still.
+        if (widget.video.rating > 0)
+          Stack(
+            alignment: Alignment.topRight,
             children: [
-              if (widget.video.version != null &&
-                  widget.video.version!.isNotEmpty)
-                _buildBadge(widget.video.version!),
-              if (_isFresh)
-                Padding(
-                  padding: const EdgeInsets.only(left: 5),
-                  child: _buildBadge(
-                    tr('video.detail.new_badge'),
-                    fill: _freshColor,
+              // On its own chip, not bare text: an orange number sat directly
+              // on the poster, and half the covers in a catalog are bright
+              // enough to swallow it whole — a shadow only smears it.
+              FadeTransition(
+                opacity: _restingFade,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
                   ),
-                ),
-            ],
-          ),
-        ),
-        // The action has to be here TOO, in the same corner at the same size.
-        // Hovering swaps this whole subtree in, and it did not render
-        // `trailing` — so the delete button and the unfollow bell vanished the
-        // moment the pointer arrived, which is the only moment anyone reaches
-        // for them.
-        Positioned(
-          top: 8,
-          right: 8,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (widget.video.rating > 0) ...[
-                const Icon(Icons.star_rounded, size: 13, color: _freshColor),
-                const SizedBox(width: 3),
-                Text(
-                  '${widget.video.rating}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                    fontFeatures: [FontFeature.tabularFigures()],
+                  decoration: BoxDecoration(
+                    color: Colors.black.withAlpha(120),
+                    borderRadius: BorderRadius.circular(999),
                   ),
-                ),
-              ],
-              if (widget.trailing != null) ...[
-                const SizedBox(width: 5),
-                widget.trailing!,
-              ],
-            ],
-          ),
-        ),
-
-        // Info Overlay (Bottom)
-        Positioned(
-          bottom: 0,
-          left: 0,
-          right: 0,
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            color: Colors.black.withAlpha(120),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Title
-                Text(
-                  widget.video.title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-
-                // Tags (Type, Region, Year), plus the play count that used to
-                // lead the resting card. It compares shows against each other,
-                // which is a question for the moment you are weighing one — not
-                // for every card in a scrolling grid.
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  children: [
-                    for (final t in [
-                      widget.video.type,
-                      widget.video.region ?? '',
-                      widget.video.year ?? '',
-                      if ((widget.video.hits ?? 0) > 0)
-                        tr(
-                          'video.detail.play_count',
-                          args: [_formatHits(widget.video.hits)],
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.star_rounded,
+                        size: 12,
+                        color: _freshColor,
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        '${widget.video.rating}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          fontFeatures: [FontFeature.tabularFigures()],
                         ),
-                    ])
-                      if (t.isNotEmpty) _buildTag(theme, t),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              FadeTransition(
+                opacity: _hoverFade,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.star_rounded,
+                      size: 13,
+                      color: _freshColor,
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      '${widget.video.rating}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 4),
-
-                // Date/Add time. Absent on a Video rebuilt from our own rows
-                // (追更 / 想看 / 继续观看 cards) — hidden then, because the
-                // only date `?? 0` can render is 1970-01-01.
-                if ((widget.video.vodTime ?? 0) > 0)
-                  Text(
-                    tr(
-                      'video.detail.added_date',
-                      args: [
-                        DateTime.fromMillisecondsSinceEpoch(
-                          widget.video.vodTime! * 1000,
-                        ).toString().split(' ')[0],
-                      ],
-                    ),
-                    style: const TextStyle(color: Colors.grey, fontSize: 11),
-                  ),
-                const SizedBox(height: 2),
-
-                // Actor
-                if (widget.video.actor != null)
-                  Text(
-                    tr('video.detail.cast_info', args: [widget.video.actor!]),
-                    style: const TextStyle(color: Colors.grey, fontSize: 11),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                const SizedBox(height: 2),
-
-                // Simple Blurb/Summary
-                if (widget.video.blurb != null)
-                  Text(
-                    "${tr('video.detail.storyline')}: ${widget.video.blurb}",
-                    style: const TextStyle(color: Colors.grey, fontSize: 11),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ),
-        // Centred in the cover rather than parked at a hardcoded offset: the
-        // grid sizes cards to the window, so `top: 70` put the play ring
-        // anywhere from mid-poster to behind the info panel. Aligned slightly
-        // above centre so it clears that panel at every card height.
-        Align(
-          alignment: const Alignment(0, -0.35),
-          child: Container(
-            padding: const EdgeInsets.all(11),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.black.withAlpha(70),
-              border: Border.all(color: Colors.white70, width: 3),
-            ),
-            child: const Icon(
-              Icons.play_arrow_rounded,
-              color: Colors.white,
-              size: 30,
-            ),
-          ),
-        ),
+        if (widget.trailing != null) ...[
+          const SizedBox(width: 5),
+          widget.trailing!,
+        ],
+      ],
+    );
+  }
 
-        // Secondary way in, shown only when tapping the card does something
-        // OTHER than open the detail page. Without it, giving the recent-play
-        // cards a straight-to-playback tap left the episode list unreachable
-        // from the one screen a viewer returns to.
-        if (widget.onTap != null)
-          Align(
-            alignment: const Alignment(0, 0.15),
-            child: Center(
-              child: Material(
-                color: Colors.black45,
-                borderRadius: BorderRadius.circular(999),
-                child: InkWell(
-                  // Its own tap target: the card's InkWell sits underneath and
-                  // would otherwise start playback instead.
-                  onTap: _openDetail,
-                  borderRadius: BorderRadius.circular(16),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
+  /// Everything only a hovered card shows, over the shared resting layer.
+  ///
+  /// The cover, the badges and the corner row are NOT here: they are the same
+  /// picture in both states, so hover fades this panel over them instead of
+  /// rebuilding them. What remains is the darkening scrim, the detail panel,
+  /// and the two ways in.
+  ///
+  /// [IgnorePointer] while the pointer is away, because a fully transparent
+  /// overlay still hit-tests: the "view details" button would otherwise swallow
+  /// taps meant for the card underneath it.
+  Widget _buildHoverOverlay() {
+    final theme = Theme.of(context);
+
+    return IgnorePointer(
+      ignoring: !isHovered,
+      child: FadeTransition(
+        opacity: _hoverFade,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // The darkening is its own layer rather than a blend mode on the
+            // image: on the image it sat INSIDE the Hero, so the cover flew to
+            // the detail page dark and snapped bright on arrival. Here it stays
+            // behind on the card and the flight carries the picture unchanged.
+            Container(color: Colors.black.withAlpha(100)),
+
+            // Info Overlay (Bottom)
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                color: Colors.black.withAlpha(120),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Title
+                    Text(
+                      widget.video.title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
+                    const SizedBox(height: 4),
+
+                    // Tags (Type, Region, Year), plus the play count that used to
+                    // lead the resting card. It compares shows against each other,
+                    // which is a question for the moment you are weighing one — not
+                    // for every card in a scrolling grid.
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
                       children: [
-                        const Icon(Icons.list, color: Colors.white, size: 14),
-                        const SizedBox(width: 5),
-                        Text(
-                          tr('common.view_details'),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                          ),
-                        ),
+                        for (final t in [
+                          widget.video.type,
+                          widget.video.region ?? '',
+                          widget.video.year ?? '',
+                          if ((widget.video.hits ?? 0) > 0)
+                            tr(
+                              'video.detail.play_count',
+                              args: [_formatHits(widget.video.hits)],
+                            ),
+                        ])
+                          if (t.isNotEmpty) _buildTag(theme, t),
                       ],
+                    ),
+                    const SizedBox(height: 4),
+
+                    // Date/Add time. Absent on a Video rebuilt from our own rows
+                    // (追更 / 想看 / 继续观看 cards) — hidden then, because the
+                    // only date `?? 0` can render is 1970-01-01.
+                    if ((widget.video.vodTime ?? 0) > 0)
+                      Text(
+                        tr(
+                          'video.detail.added_date',
+                          args: [
+                            DateTime.fromMillisecondsSinceEpoch(
+                              widget.video.vodTime! * 1000,
+                            ).toString().split(' ')[0],
+                          ],
+                        ),
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 11,
+                        ),
+                      ),
+                    const SizedBox(height: 2),
+
+                    // Actor
+                    if (widget.video.actor != null)
+                      Text(
+                        tr(
+                          'video.detail.cast_info',
+                          args: [widget.video.actor!],
+                        ),
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 11,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    const SizedBox(height: 2),
+
+                    // Simple Blurb/Summary
+                    if (widget.video.blurb != null)
+                      Text(
+                        "${tr('video.detail.storyline')}: ${widget.video.blurb}",
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 11,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            // Centred in the cover rather than parked at a hardcoded offset: the
+            // grid sizes cards to the window, so `top: 70` put the play ring
+            // anywhere from mid-poster to behind the info panel. Aligned slightly
+            // above centre so it clears that panel at every card height.
+            Align(
+              alignment: const Alignment(0, -0.35),
+              child: Container(
+                padding: const EdgeInsets.all(11),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.black.withAlpha(70),
+                  border: Border.all(color: Colors.white70, width: 3),
+                ),
+                child: const Icon(
+                  Icons.play_arrow_rounded,
+                  color: Colors.white,
+                  size: 30,
+                ),
+              ),
+            ),
+
+            // Secondary way in, shown only when tapping the card does something
+            // OTHER than open the detail page. Without it, giving the recent-play
+            // cards a straight-to-playback tap left the episode list unreachable
+            // from the one screen a viewer returns to.
+            if (widget.onTap != null)
+              Align(
+                alignment: const Alignment(0, 0.15),
+                child: Center(
+                  child: Material(
+                    color: Colors.black45,
+                    borderRadius: BorderRadius.circular(999),
+                    child: InkWell(
+                      // Its own tap target: the card's InkWell sits underneath and
+                      // would otherwise start playback instead.
+                      onTap: _openDetail,
+                      borderRadius: BorderRadius.circular(16),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.list,
+                              color: Colors.white,
+                              size: 14,
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              tr('common.view_details'),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ),
-      ],
+          ],
+        ),
+      ),
     );
   }
 

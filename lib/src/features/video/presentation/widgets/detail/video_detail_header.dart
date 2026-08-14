@@ -132,6 +132,11 @@ class _Backdrop extends StatelessWidget {
                   ? art
                   : repository.resolveUrl(art, sourceId: video.sourceId),
               fit: BoxFit.cover,
+              // Cover fit in a strip this wide scales the art by width, not
+              // by the fixed 176px height, and the width tracks the window —
+              // so the decode must be capped at a typical maximized window's
+              // physical width, the one axis bound the layout cannot give.
+              memCacheWidth: 1600,
               placeholder: (_, _) => ColoredBox(
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.06),
               ),
@@ -196,6 +201,10 @@ class _Poster extends StatelessWidget {
               ? video.coverUrl
               : repository.resolveUrl(video.coverUrl, sourceId: video.sourceId),
           fit: BoxFit.cover,
+          memCacheWidth:
+              (VideoDetailHeader._posterW *
+                      MediaQuery.devicePixelRatioOf(context))
+                  .round(),
           placeholder: (_, _) => const ColoredBox(color: Color(0x33000000)),
           errorWidget: (_, _, _) => const ColoredBox(color: Color(0x33000000)),
         ),

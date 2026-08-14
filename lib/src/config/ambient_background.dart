@@ -85,6 +85,8 @@ class GlassPanel extends StatelessWidget {
     this.tint,
     this.shadow,
     this.border,
+    this.flat = false,
+    this.staticBackdrop = false,
   });
 
   final Widget child;
@@ -105,6 +107,23 @@ class GlassPanel extends StatelessWidget {
 
   final List<BoxShadow>? shadow;
   final Color? border;
+
+  /// 减少特效: same fill, border and specular, no backdrop filter. For panels
+  /// whose tint is already 72–80% opaque the blur contributes only the last
+  /// fifth of the pixels, and on a low-power GPU that fifth costs a full
+  /// readback + Gaussian of everything beneath, every repainted frame.
+  final bool flat;
+
+  /// Keeps the backdrop readback but composes only the saturation matrix,
+  /// dropping the Gaussian. A Gaussian blur of an already-smooth gradient is
+  /// visually the identity — over the static [AmbientBackground] washes, what
+  /// the eye takes from the full filter is the saturation lift, while the
+  /// two-axis blur is most of what the filter costs Skia per frame (and Skia
+  /// never caches BackdropFilterLayers, so permanent chrome pays it on every
+  /// rasterized frame). Legal ONLY over backdrops with no high-frequency
+  /// content: a blur-less readback of text or images would show them sharp
+  /// through the panel. [flat] wins when both are set.
+  final bool staticBackdrop;
 
   /// The standard saturation matrix, rather than a hand-tuned diagonal: the
   /// design asks for `saturate(160%)` and this is what that means.
@@ -130,13 +149,7 @@ class GlassPanel extends StatelessWidget {
 
     final pane = ClipRRect(
       borderRadius: rr,
-      child: BackdropFilter(
-        // Saturation before blur: blurring alone averages the wash behind the
-        // panel toward grey, and grey is exactly what a pane of glass is not.
-        filter: ImageFilter.compose(
-          outer: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-          inner: _saturate(saturation),
-        ),
+      child: _maybeBackdrop(
         child: Stack(
           children: [
             Container(
@@ -173,6 +186,24 @@ class GlassPanel extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(borderRadius: rr, boxShadow: shadow),
       child: pane,
+    );
+  }
+
+  Widget _maybeBackdrop({required Widget child}) {
+    if (flat) return child;
+    if (staticBackdrop) {
+      // ColorFilter implements ImageFilter, so the matrix alone is a legal
+      // backdrop: one readback and a per-pixel multiply, no Gaussian passes.
+      return BackdropFilter(filter: _saturate(saturation), child: child);
+    }
+    return BackdropFilter(
+      // Saturation before blur: blurring alone averages the wash behind the
+      // panel toward grey, and grey is exactly what a pane of glass is not.
+      filter: ImageFilter.compose(
+        outer: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+        inner: _saturate(saturation),
+      ),
+      child: child,
     );
   }
 }

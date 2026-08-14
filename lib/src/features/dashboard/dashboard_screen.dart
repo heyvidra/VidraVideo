@@ -7,6 +7,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:vidra/src/config/ambient_background.dart';
 import 'package:vidra/src/config/design_tokens.dart';
+import 'package:vidra/src/core/telemetry/frame_metrics.dart';
 import 'package:vidra/src/core/utils/log.dart';
 import 'package:vidra/src/features/cast/presentation/cast_provider.dart';
 import 'package:vidra/src/features/download/data/download_provider.dart';
@@ -45,11 +46,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   Timer? _subscriptionTimer;
   ProviderSubscription<AsyncValue<List<DownloadTask>>>? _downloadsSub;
   ProviderSubscription<CastState>? _castSub;
+  String? _lastLocation;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Frame timings for this window. Here rather than in main(): the shell
+    // exists once, in the main window, and it is the only place that knows
+    // which screen the frames belong to.
+    FrameMetrics.instance.start();
     // Followed shows: one sweep now, then occasionally while the window is
     // open. No background service — a desktop app that is not running has
     // nobody to tell, and the checker's own floor keeps repeated triggers from
@@ -164,6 +170,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
   @override
   void dispose() {
+    FrameMetrics.instance.stop();
     _subscriptionTimer?.cancel();
     _downloadsSub?.close();
     _castSub?.close();
@@ -179,11 +186,43 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       ref.read(playHistoryProvider.notifier).manualRefresh();
       _checkSubscriptions();
     }
+    // A put-away app draws nothing, so no later frame batch would arrive to
+    // close the window that just ended.
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      FrameMetrics.instance.flush();
+    }
+  }
+
+  /// Which screen the frames being drawn belong to, as one of a fixed set of
+  /// literals.
+  ///
+  /// The location itself must never reach diagnostics: '/detail/83579' and
+  /// '/search/<term>' are exactly the viewing history this app does not
+  /// collect. Every value returned here is written in this file, and anything
+  /// unrecognised becomes 'other' rather than something derived from the URI.
+  static String _screenLabel(String location) {
+    if (location == '/') return 'catalog';
+    if (location.startsWith('/detail/')) return 'detail';
+    if (location.startsWith('/search/')) return 'search';
+    if (location.startsWith('/downloads')) return 'downloads';
+    if (location.startsWith('/download-url')) return 'download_url';
+    if (location.startsWith('/recent')) return 'recent';
+    if (location.startsWith('/subscriptions')) return 'subscriptions';
+    if (location.startsWith('/favorites')) return 'favorites';
+    if (location.startsWith('/settings')) return 'settings';
+    return 'other';
   }
 
   @override
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).uri.path;
+    if (location != _lastLocation) {
+      _lastLocation = location;
+      // A field on the collector: nothing is notified and nothing rebuilds.
+      FrameMetrics.instance.setScreen(_screenLabel(location));
+    }
     // The one toolbar. A detail page used to bring its own, eight pixels below
     // this one and carrying a second search field.
     final canGoBack =
@@ -304,13 +343,20 @@ class AppStatusBar extends ConsumerWidget {
     final t = VidraTokens.of(context);
     final source = ref.watch(activeDataSourceProvider);
     final subs = ref.watch(unreadSubscriptionCountProvider);
-    final active = ref
-        .watch(downloadTasksProvider)
-        .maybeWhen(
-          data: (tasks) =>
-              tasks.where((t) => t.status == DownloadStatus.downloading).length,
+    // This bar sits on every shell screen and downloadTasksProvider emits on
+    // every progress notification, so the watch is narrowed to the one number
+    // the bar renders — an emission that leaves the count unchanged must
+    // rebuild nothing.
+    final active = ref.watch(
+      downloadTasksProvider.select(
+        (tasks) => tasks.maybeWhen(
+          data: (list) => list
+              .where((t) => t.status == DownloadStatus.downloading)
+              .length,
           orElse: () => 0,
-        );
+        ),
+      ),
+    );
 
     final style = TextStyle(
       fontSize: 10.5,

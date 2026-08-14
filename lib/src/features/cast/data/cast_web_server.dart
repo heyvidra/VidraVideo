@@ -48,6 +48,19 @@ class CastWebServer {
   static const _connectTimeout = Duration(seconds: 10);
   static const _upstreamTimeout = Duration(seconds: 20);
 
+  /// How long a renderer may take nothing at all before the transfer is
+  /// dropped. Deliberately far longer than [_upstreamTimeout]: a paused
+  /// television reads nothing for as long as someone is away from the sofa,
+  /// and killing that is the freeze this file exists to stop. It is here only
+  /// so a renderer that walked off without closing — a graceful half-close is
+  /// invisible from this side — cannot pin an upstream socket forever.
+  static const _writeDeadline = Duration(minutes: 5);
+
+  /// Resume attempts per proxied body. A CDN that drops us twice in a row is
+  /// not going to serve this segment, and an unbounded retry would hold the
+  /// renderer on a connection that is never going to complete.
+  static const _maxResumes = 3;
+
   /// A playlist has to be read whole to be rewritten. Anything bigger than
   /// this is not a playlist, and buffering it would cost the whole heap.
   static const _maxPlaylistBytes = 4 * 1024 * 1024;
@@ -287,9 +300,18 @@ class CastWebServer {
       return;
     }
 
+    // A playlist is rewritten whole, so a Range on it can only produce a
+    // fragment presented as a complete document: the branch below forces 200,
+    // and a renderer that probes with `Range: bytes=0-20` — which one
+    // expecting MP4 does, looking for a moov atom — got `#EXTM3U\n#EXT-X-TARG`
+    // under a 200 OK. With no #EXT-X-ENDLIST in what survived the cut, the
+    // player treats it as a live playlist, reaches the last surviving segment
+    // and waits for a continuation that never comes. Decide by extension
+    // BEFORE fetching, because the content type only arrives with the body.
+    final wantsPlaylist = looksLikePlaylist(null, target);
     final res = await _fetch(
       target,
-      req.headers.value(HttpHeaders.rangeHeader),
+      wantsPlaylist ? null : req.headers.value(HttpHeaders.rangeHeader),
     );
     if (res == null) {
       req.response.statusCode = HttpStatus.badGateway;
@@ -298,7 +320,10 @@ class CastWebServer {
     }
     final upstreamType = res.headers.contentType?.mimeType;
 
-    if (res.statusCode < 400 && looksLikePlaylist(upstreamType, target)) {
+    // 200 only: a 206 here would mean the CDN ranged us anyway, and half a
+    // playlist must never be dressed up as a whole one.
+    if (res.statusCode == HttpStatus.ok &&
+        looksLikePlaylist(upstreamType, target)) {
       final bytes = await _readCapped(res);
       if (bytes == null) {
         req.response.statusCode = HttpStatus.badGateway;
@@ -345,16 +370,126 @@ class CastWebServer {
       final v = res.headers.value(h);
       if (v != null) req.response.headers.set(h, v);
     }
-    // Idle timeout, not a deadline: an episode legitimately takes minutes to
-    // stream, but a CDN that sends headers and then stops sending anything
-    // would otherwise leave the renderer waiting on a socket forever.
+    await _streamBody(req, target, res);
+  }
+
+  /// Copies the upstream body to the renderer, re-fetching where it left off
+  /// if the CDN lets go early.
+  ///
+  /// Not `pipe`. A television fills its decode buffer and STOPS READING for a
+  /// while — routine, several times a minute — and that back-pressure travels
+  /// all the way through to the upstream socket, where we then advertise a
+  /// zero window for as long as the TV stays quiet. Two things follow, both
+  /// measured against a real socket rather than reasoned about:
+  ///
+  /// * `Stream.timeout` cancels its timer while its subscription is paused, so
+  ///   the old idle timeout was disarmed at precisely the moment a transfer
+  ///   was stuck — it could never fire on a wedge, only on a CDN that went
+  ///   quiet while we were still reading;
+  /// * the CDN's own write timeout (nginx `send_timeout`, 60s by default) is
+  ///   measured between successive writes, so a blocked write is exactly what
+  ///   trips it. It closes, we forward the truncated body under the
+  ///   Content-Length we already promised, and the renderer treats the close
+  ///   as end-of-stream: picture frozen on the last frame, transport still
+  ///   reporting PLAYING, no error anywhere.
+  ///
+  /// So: count what has actually been written, await each flush — which is
+  /// also how we learn the TV started reading again — and when the upstream
+  /// dies owing us bytes, ask for the rest with a Range and keep writing into
+  /// the same response. The renderer never learns any of it happened.
+  Future<void> _streamBody(
+    HttpRequest req,
+    Uri target,
+    HttpClientResponse first,
+  ) async {
+    // Every byte the renderer has actually taken. The resume offset is
+    // relative to the body we are serving, so a ranged request that started
+    // at 500 resumes at 500 + written — see [_resumeRange].
+    var written = 0;
+    final total = first.contentLength;
+    final startedAt = _rangeStart(req.headers.value(HttpHeaders.rangeHeader));
+
+    var res = first;
+    for (var attempt = 0; ; attempt++) {
+      final ended = await _pumpBody(req, res, (n) => written += n);
+      if (ended == _BodyEnd.complete) break;
+      // Nothing promised, nothing owed: without a Content-Length we cannot
+      // tell a short close from a legitimate end of stream, so a close is
+      // taken at its word rather than resumed into a duplicate tail.
+      if (total < 0 || written >= total) break;
+      if (attempt >= _maxResumes) {
+        logD('cast', 'gave up resuming ${target.host} at $written/$total');
+        break;
+      }
+      logD('cast', 'resuming ${target.host} at $written/$total');
+      final next = await _fetch(target, _resumeRange(startedAt, written));
+      // A CDN that will not range us cannot be resumed; leaving the response
+      // short is no worse than the truncation we were already sending.
+      if (next == null || next.statusCode != HttpStatus.partialContent) {
+        await next?.detachSocket().then((s) => s.destroy()).catchError((_) {});
+        break;
+      }
+      res = next;
+    }
+    await req.response.close().catchError((_) {});
+  }
+
+  /// Writes one upstream body out, reporting how it ended.
+  ///
+  /// The flush after each chunk is load-bearing twice over: it is the
+  /// back-pressure (without it the whole segment buffers in this process), and
+  /// awaiting it is the only signal that the renderer has resumed reading.
+  /// [_writeDeadline] is generous on purpose — a paused television is not a
+  /// dead one — and exists only so a renderer that walked away without closing
+  /// cannot hold an upstream socket open forever.
+  Future<_BodyEnd> _pumpBody(
+    HttpRequest req,
+    HttpClientResponse res,
+    void Function(int) count,
+  ) async {
+    final chunks = StreamIterator<List<int>>(res);
     try {
-      await res.timeout(_upstreamTimeout).pipe(req.response);
-    } on TimeoutException {
-      logD('cast', 'upstream stalled, hanging up on ${target.host}');
-      await req.response.close().catchError((_) {});
+      while (true) {
+        final bool has;
+        try {
+          has = await chunks.moveNext().timeout(_upstreamTimeout);
+        } on TimeoutException {
+          logD('cast', 'upstream went quiet');
+          return _BodyEnd.broken;
+        } on Object {
+          // A reset mid-body: the resume path decides whether anything is owed.
+          return _BodyEnd.broken;
+        }
+        if (!has) return _BodyEnd.complete;
+
+        final chunk = chunks.current;
+        req.response.add(chunk);
+        count(chunk.length);
+        try {
+          await req.response.flush().timeout(_writeDeadline);
+        } on TimeoutException {
+          logD('cast', 'renderer stopped reading, dropping the transfer');
+          return _BodyEnd.rendererGone;
+        } on Object {
+          // The renderer hung up. Nothing to resume into.
+          return _BodyEnd.rendererGone;
+        }
+      }
+    } finally {
+      await chunks.cancel().catchError((_) {});
     }
   }
+
+  /// The byte offset a client Range asked us to start at, or 0.
+  static int _rangeStart(String? range) {
+    final m = RegExp(r'bytes=(\d+)-').firstMatch(range ?? '');
+    return m == null ? 0 : int.parse(m.group(1)!);
+  }
+
+  /// Where to resume in the ORIGINAL resource: what the renderer asked us to
+  /// start at, plus what it has already been given.
+  static String _resumeRange(int start, int written) =>
+      'bytes=${start + written}-';
 
   /// Fetches [target], following redirects by hand.
   ///
@@ -647,6 +782,18 @@ showBar();
   /// time, comment and all.
   static String jsonForScript(Object value) =>
       jsonEncode(value).replaceAll('<', r'\u003c');
+}
+
+/// How one upstream body ended, which decides whether to resume.
+enum _BodyEnd {
+  /// The upstream said it was done.
+  complete,
+
+  /// The upstream stopped early — the case worth resuming.
+  broken,
+
+  /// The renderer stopped taking bytes; there is nothing to resume into.
+  rendererGone,
 }
 
 class CastServerException implements Exception {

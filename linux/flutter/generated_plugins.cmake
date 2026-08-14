@@ -6,6 +6,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   bitsdojo_window_linux
   fvp
   local_notifier
+  sentry_flutter
   url_launcher_linux
   vidra_player
 )

@@ -58,7 +58,18 @@ class PlayHistoryNotifier extends AsyncNotifier<List<RecentPlayback>> {
     // No AsyncValue.loading() first: this runs on every window-resumed event,
     // and dropping to loading makes the whole list blink through its skeleton
     // each time the user comes back from the player.
-    state = await AsyncValue.guard(() => build());
+    final next = await AsyncValue.guard(() => build());
+    // A fresh AsyncData is a new state even when its contents are identical,
+    // and crossSourceWatchesProvider re-queries on top of it — so assigning an
+    // unchanged reload rebuilds every visible card twice per cmd-tab back.
+    // Content is compared by value (identity never matches: the repository
+    // builds new objects per load); errors and first data always land.
+    final current = state.asData?.value;
+    final fresh = next.asData?.value;
+    if (current != null && fresh != null && _samePlaybacks(current, fresh)) {
+      return;
+    }
+    state = next;
   }
 
   Future<void> saveVideoHistory(VideoHistory history) async {
@@ -86,4 +97,47 @@ class PlayHistoryNotifier extends AsyncNotifier<List<RecentPlayback>> {
       logR('PlayHistory', 'Error clearing history: $e');
     }
   }
+}
+
+/// Deep equality for [PlayHistoryNotifier.manualRefresh]'s no-op check. The
+/// domain classes carry no operator== and that refresh is the only caller that
+/// needs one, so the comparison lives here, field by field, instead of on the
+/// models.
+bool _samePlaybacks(List<RecentPlayback> a, List<RecentPlayback> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (!_sameVideoHistory(a[i].video, b[i].video)) return false;
+    if (!_sameEpisodeHistory(a[i].lastEpisode, b[i].lastEpisode)) return false;
+  }
+  return true;
+}
+
+bool _sameVideoHistory(VideoHistory a, VideoHistory b) =>
+    a.id == b.id &&
+    a.sourceId == b.sourceId &&
+    a.videoId == b.videoId &&
+    a.videoTitle == b.videoTitle &&
+    a.coverUrl == b.coverUrl &&
+    a.rating == b.rating &&
+    a.type == b.type &&
+    a.region == b.region &&
+    a.year == b.year &&
+    a.actor == b.actor &&
+    a.version == b.version &&
+    a.hits == b.hits &&
+    a.remarks == b.remarks &&
+    a.blurb == b.blurb &&
+    a.lastEpisodeIndex == b.lastEpisodeIndex &&
+    a.lastEpisodeTitle == b.lastEpisodeTitle &&
+    a.updatedAt == b.updatedAt;
+
+bool _sameEpisodeHistory(EpisodeHistory? a, EpisodeHistory? b) {
+  if (a == null || b == null) return identical(a, b);
+  return a.id == b.id &&
+      a.sourceId == b.sourceId &&
+      a.videoId == b.videoId &&
+      a.episodeIndex == b.episodeIndex &&
+      a.positionMillis == b.positionMillis &&
+      a.durationMillis == b.durationMillis &&
+      a.updatedAt == b.updatedAt;
 }

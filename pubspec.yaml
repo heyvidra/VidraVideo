@@ -23,15 +23,22 @@ dependencies:
   vidra_player:
     git:
       url: https://github.com/heyvidra/VidraPlayer.git
-      # v1.4.6; pinned to the commit so it unifies with vidra_player_kit's
-      # internal `vidra_player: path: ../../` dep (pub won't match a tag to a commit).
-      ref: 7f04513ad07bf2e59a54f613585b520c519f0802
+      # v1.4.8 (the sweep changes from 1.4.7, on a commit whose CI is green);
+      # pinned to the commit so it unifies with vidra_player_kit's internal
+      # `vidra_player: path: ../../` dep (pub won't match a tag to a commit).
+      # This SHA and the tag below MUST name the same commit.
+      ref: f204aa875a0a87b397faaa274afe73907ad3f26e
 
   vidra_player_kit:
     git:
       url: https://github.com/heyvidra/VidraPlayer.git
       path: packages/vidra_player_fvp
-      ref: v1.4.6
+      ref: v1.4.8
+
+  # Diagnostics. The DSN is never in this repo — it arrives as a
+  # --dart-define, and an empty one makes every call here a no-op, so a dev
+  # build reports nothing and a fork of this repo cannot report to us.
+  sentry_flutter: ^9.27.0
 
   dio: ^5.9.2
   ffi: ^2.1.0
@@ -44,16 +51,19 @@ dependencies:
     git:
       url: https://github.com/heyvidra/bitsdojo_window_plus.git
       path: bitsdojo_window
-      # v0.4.1: window lifecycle by name (0.4.0) + the hide-on-startup latch
-      # that keeps a shown window from being re-hidden by a lost race.
-      ref: v0.4.1
+      # v0.4.2: traffic lights are no longer clipped to half their height on
+      # macOS 13 and older — the taller-than-standard titlebar centres them
+      # past NSTitlebarView's bounds, and only macOS 14+ leaves overflow
+      # unclipped. (0.4.1: the hide-on-startup latch; 0.4.0: window
+      # lifecycle by name.)
+      ref: v0.4.2
 
   # git, not path: this repo is developed from worktrees as well as from its
   # own checkout, and a relative path resolves differently in each.
   vidra_cast:
     git:
       url: https://github.com/heyvidra/vidra_cast.git
-      ref: v0.1.7
+      ref: v0.1.8
 
   path: ^1.9.1
   easy_localization: ^3.0.8
@@ -74,6 +84,11 @@ dependency_overrides:
 dev_dependencies:
   flutter_lints: ^6.0.0
 
+  # Uploads the debug symbols that --split-debug-info strips out of the
+  # release build. Without it every reported stack trace is a list of
+  # addresses. CI-only: run by the release workflow, never at build time.
+  sentry_dart_plugin: ^3.3.0
+
   build_runner: ^2.12.2
   drift_dev: ^2.30.1
 
@@ -92,3 +107,23 @@ flutter:
     # design sheet by test/spritesheet_extractor_test.dart (PET_SHEET=... to
     # regenerate; blink is derived from the idle cell).
     - assets/pixel_cat_spritesheet.png
+
+# Debug-symbol upload for release builds (see sentry_dart_plugin in
+# dev_dependencies). Reads SENTRY_AUTH_TOKEN from the environment; the release
+# workflow skips the whole step when that secret is absent.
+sentry:
+  upload_debug_symbols: true
+  upload_source_maps: false
+  project: flutter
+  org: vidra
+  # Must match --split-debug-info in the release workflow. The plugin defaults
+  # this to '.', which finds nothing and uploads nothing — a green CI step
+  # that shipped no symbols is worse than a failed one.
+  symbols_path: debug-info
+  # EU-region org: sentry-cli defaults to the US endpoint and the upload would
+  # 404 against it. The DSN carries its own region, so only this side needs it.
+  url: https://de.sentry.io
+  # No `release:` on purpose. The plugin derives `name@version+buildNumber`
+  # from the pubspec above, which is exactly what Telemetry sends at runtime —
+  # pinning it here would be a second copy of the version to forget to bump,
+  # and symbols under the wrong release symbolicate nothing.

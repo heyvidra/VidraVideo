@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:bitsdojo_window/bitsdojo_window.dart';
@@ -7,6 +8,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:vidra_player/vidra_player.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../../core/services/window.dart';
+import '../../../core/telemetry/telemetry.dart';
 import '../../../core/utils/log.dart';
 import '../../../core/services/vidra_media_repository.dart';
 import '../../download/data/download_provider.dart';
@@ -54,6 +56,10 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
   PlayerController? _controller;
   VidraMediaRepository? _mediaRepository;
   bool _isClosing = false;
+
+  /// Constructed with the State, which is the moment the screen opened — the
+  /// startup clock has to start before initState, not after the player exists.
+  final _PlaybackHealth _health = _PlaybackHealth();
 
   // Memoize episode mapping: build() runs on every locale/setting change, but
   // the mapped list only changes when the underlying Video does.
@@ -176,6 +182,9 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
   }
 
   void _cleanup() {
+    // Before the controller goes: the session's numbers come off its streams.
+    _health.dispose();
+
     WakelockPlus.disable();
 
     final ctrl = _controller;
@@ -197,6 +206,11 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
     if (_isClosing) return;
     _isClosing = true;
 
+    // First, while the engine is still alive to queue the send on. Deliberately
+    // not awaited: nothing on this path may push the close past the grace
+    // window below.
+    _health.finish(_PlaybackEnd.windowClosed);
+
     try {
       if (_controller != null) {
         await _controller!.dispose();
@@ -209,8 +223,17 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
       );
     }
 
-    // Give native texture threads time to spin down before killing the engine
-    await Future.delayed(const Duration(milliseconds: 200));
+    // Give native texture threads time to spin down before killing the
+    // engine. This must outlast the sprite sweeper's 300ms teardown settle —
+    // closing inside that window strands a parked native player that nothing
+    // can reclaim afterwards.
+    await Future.delayed(const Duration(milliseconds: 600));
+
+    // The wakelock must be released here, not in dispose: closing the window
+    // kills the engine, so State.dispose never runs, and the controller path
+    // only disables it when playback actually started. Without this, a window
+    // opened and closed without ever playing leaves the display awake.
+    await WakelockPlus.disable();
 
     // Immediately close the window. Native side handles the rest.
     appWindow.close();
@@ -292,13 +315,19 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
       ref.read(historyRepositoryProvider),
     );
 
-    return PlayerController(
+    final controller = PlayerController(
       config: config,
       video: metadata,
       episodes: episodes,
       windowDelegate: BitsdojoWindowDelegate(),
       mediaRepository: _mediaRepository,
     );
+
+    // Health binds here rather than in initState: the controller is what
+    // exposes buffering and lifecycle, and a video switch builds a new one.
+    _health.attach(controller);
+
+    return controller;
   }
 
   /// A message screen (not found / no episodes / error) that still carries a
@@ -423,4 +452,243 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
       ),
     );
   }
+}
+
+/// Why a playback session stopped.
+///
+/// A closed vocabulary, and it must stay closed: these names ship as
+/// diagnostics, so nothing derived from the media may ever join them.
+enum _PlaybackEnd {
+  loadFailed,
+  episodeEnded,
+  playlistEnded,
+  episodeSwitched,
+  videoSwitched,
+  windowClosed,
+  screenDisposed,
+}
+
+/// Playback and decode health for one session, reported as shapes on teardown.
+///
+/// A session is one episode's playback: it ends when the episode changes, when
+/// the window closes, or when the screen is torn down. What a report may carry
+/// is deliberately tiny — durations, counts, booleans, enum names — because
+/// this is the one code path in the app that knows what a person is watching.
+/// No title, id, episode, quality label or address reaches [Telemetry] from
+/// here, and no session-scoped identifier either: two reports must not be
+/// linkable back into one evening's viewing.
+///
+/// Every method swallows its own failures and none of them block. Diagnostics
+/// that can break or delay playback are worse than no diagnostics.
+class _PlaybackHealth {
+  /// Screen open, captured when the State is created. The first session's
+  /// startup latency is measured from here, so the number matches what a
+  /// person actually waited through — catalog lookup and player construction
+  /// included, not just the decoder.
+  final DateTime _screenOpenedAt = DateTime.now();
+  bool _screenOpenUsed = false;
+
+  PlayerController? _controller;
+  StreamSubscription<PlayerLifecycleEvent>? _eventsSub;
+  StreamSubscription<BufferingState>? _bufferingSub;
+
+  DateTime? _sessionStartedAt;
+  DateTime? _firstPlayingAt;
+  bool _fromScreenOpen = false;
+
+  int _rebuffers = 0;
+  int _stalledMs = 0;
+  DateTime? _stallStartedAt;
+
+  bool? _local;
+  String? _errorCode;
+  _PlaybackEnd? _end;
+
+  /// Player error codes are constants (`OPEN_FAILED`, `NETWORK_ERROR`, …), but
+  /// they come from a package this repo does not own. Only a constant-shaped
+  /// code is passed through; anything else — a message, an address that leaked
+  /// into the field — is reported as `other` rather than trusted to Scrub.
+  static final _codeShape = RegExp(r'^[A-Z][A-Z0-9_]{0,31}$');
+
+  /// Binds to [controller]'s health streams and opens a session on it.
+  ///
+  /// Also the single point where a replaced controller (video switch) closes
+  /// the outgoing session — the accumulated numbers live here, not on the
+  /// controller, so reporting at rebind time loses nothing.
+  void attach(PlayerController controller) {
+    try {
+      finish(_PlaybackEnd.videoSwitched);
+      _detach();
+      _controller = controller;
+      final firstEver = !_screenOpenUsed;
+      _screenOpenUsed = true;
+      _begin(
+        startedAt: firstEver ? _screenOpenedAt : DateTime.now(),
+        fromScreenOpen: firstEver,
+      );
+      // The controller was just built at the target episode, so its source is
+      // already the one that will open.
+      _local = _readIsLocal();
+      _eventsSub = controller.lifecycleEvents.listen(
+        _onEvent,
+        onError: (Object _) {},
+      );
+      _bufferingSub = controller.bufferingStream.listen(
+        _onBuffering,
+        onError: (Object _) {},
+      );
+    } catch (e) {
+      logD('VideoPlayerScreen', 'Playback health attach error: $e');
+    }
+  }
+
+  /// Sends the live session's report and closes it, using [fallback] when no
+  /// more specific reason was observed.
+  ///
+  /// Idempotent, synchronous and non-throwing: the window-close path calls it
+  /// before the controller and then the engine go away, and must not wait.
+  void finish(_PlaybackEnd fallback) {
+    final startedAt = _sessionStartedAt;
+    if (startedAt == null) return;
+    try {
+      final now = DateTime.now();
+      final stallStartedAt = _stallStartedAt;
+      if (stallStartedAt != null) {
+        _stalledMs += now.difference(stallStartedAt).inMilliseconds;
+      }
+      final firstPlayingAt = _firstPlayingAt;
+      Telemetry.report(
+        'playback',
+        data: {
+          'end_reason': (_end ?? fallback).name,
+          'started': firstPlayingAt != null,
+          if (firstPlayingAt != null)
+            'startup_ms': firstPlayingAt.difference(startedAt).inMilliseconds,
+          // Startup is only comparable across sessions that measured the same
+          // thing: the first one waits for the catalog, later ones do not.
+          'from_screen_open': _fromScreenOpen,
+          'rebuffers': _rebuffers,
+          'stalled_ms': _stalledMs,
+          if (_local != null) 'local': _local,
+          if (_errorCode != null) 'error_code': _errorCode,
+          // Floored to a 10s bucket. An exact watch length sitting next to an
+          // event timestamp identifies an episode about as well as its title
+          // would; the bucket still answers "did they bail in the first
+          // minute".
+          'duration_s': (now.difference(startedAt).inSeconds ~/ 10) * 10,
+        },
+      );
+    } catch (e) {
+      logD('VideoPlayerScreen', 'Playback health report error: $e');
+    } finally {
+      _reset();
+    }
+  }
+
+  void dispose() {
+    finish(_PlaybackEnd.screenDisposed);
+    _detach();
+  }
+
+  void _begin({required DateTime startedAt, required bool fromScreenOpen}) {
+    _reset();
+    _sessionStartedAt = startedAt;
+    _fromScreenOpen = fromScreenOpen;
+  }
+
+  void _reset() {
+    _sessionStartedAt = null;
+    _firstPlayingAt = null;
+    _stallStartedAt = null;
+    _rebuffers = 0;
+    _stalledMs = 0;
+    _local = null;
+    _errorCode = null;
+    _end = null;
+  }
+
+  void _detach() {
+    _eventsSub?.cancel();
+    _bufferingSub?.cancel();
+    _eventsSub = null;
+    _bufferingSub = null;
+    _controller = null;
+  }
+
+  void _onEvent(PlayerLifecycleEvent event) {
+    try {
+      switch (event) {
+        case EpisodeStarted():
+          // The switch has landed, so this is the new episode's source — and
+          // it is readable even if playback never gets going.
+          _local = _readIsLocal() ?? _local;
+        case PlaybackStarted():
+          // Fires on every resume too, so only the first one is startup. The
+          // source is re-read here because this is where the quality that
+          // actually opened is settled, and a downloaded episode counts as
+          // local only on the quality that has a file.
+          if (_firstPlayingAt == null) {
+            _firstPlayingAt = DateTime.now();
+            _local = _readIsLocal() ?? _local;
+          }
+        case MediaLoadFailed(:final error):
+          // An error outranks whatever end reason follows it.
+          _end = _PlaybackEnd.loadFailed;
+          _errorCode = _safeErrorCode(error);
+        case PlaylistEnded():
+          _latch(_PlaybackEnd.playlistEnded);
+        case EpisodeEnded():
+          _latch(_PlaybackEnd.episodeEnded);
+        case EpisodeChanged():
+          // The session boundary. Emitted before the next episode opens, so
+          // the outgoing numbers are complete and the incoming startup clock
+          // starts at the switch rather than at screen open.
+          finish(_PlaybackEnd.episodeSwitched);
+          _begin(startedAt: DateTime.now(), fromScreenOpen: false);
+        default:
+          break;
+      }
+    } catch (e) {
+      logD('VideoPlayerScreen', 'Playback health event error: $e');
+    }
+  }
+
+  /// The adapter re-emits buffering state on every tick (~10/s) with the same
+  /// value, so this counts EDGES, not events. Stalls before the first playing
+  /// state are startup, not rebuffering — they are already in `startup_ms`.
+  void _onBuffering(BufferingState state) {
+    if (_sessionStartedAt == null || _firstPlayingAt == null) return;
+    if (state.isBuffering) {
+      if (_stallStartedAt == null) {
+        _stallStartedAt = DateTime.now();
+        _rebuffers++;
+      }
+      return;
+    }
+    final stallStartedAt = _stallStartedAt;
+    if (stallStartedAt != null) {
+      _stalledMs += DateTime.now().difference(stallStartedAt).inMilliseconds;
+      _stallStartedAt = null;
+    }
+  }
+
+  /// Latches the most specific end reason seen, without letting a natural end
+  /// overwrite an error.
+  void _latch(_PlaybackEnd reason) {
+    if (_end == _PlaybackEnd.loadFailed) return;
+    _end = reason;
+  }
+
+  /// Whether playback is coming off disk. A bool, never the path.
+  bool? _readIsLocal() {
+    try {
+      final type = _controller?.media.currentSource?.type;
+      return type == null ? null : type != VideoSourceType.network;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static String _safeErrorCode(PlayerError error) =>
+      _codeShape.hasMatch(error.code) ? error.code : 'other';
 }

@@ -8,6 +8,7 @@ import 'package:vidra/src/features/subscription/presentation/widgets/update_bann
 import 'package:vidra/src/features/video/presentation/widgets/list/category_filter.dart';
 import 'package:vidra/src/features/video/presentation/video_list_provider.dart';
 import 'package:vidra/src/features/video/presentation/widgets/cards/popular_video_card.dart';
+import 'package:vidra/src/common/skeleton/skeleton_box.dart';
 import 'package:vidra/src/common/skeleton/video_card_skeleton.dart';
 import 'package:vidra/src/features/video/domain/category.dart';
 import 'package:vidra/src/features/video/data/video_repository.dart';
@@ -18,9 +19,20 @@ class VideoListScreen extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     context.locale; // Ensure rebuild on locale change
-    final listState = ref.watch(videoListProvider);
+    // A mid-scroll page load emits twice — the isLoading flip, then the data —
+    // and a whole-state watch rebuilt the banner, the filter row and every
+    // sliver on both. So this build selects only what it renders: the videos
+    // list, plus isLoading folded to the empty-list case, because every
+    // isLoading read left in this method is guarded by videos.isEmpty
+    // (first-load skeleton, empty-vs-error split). The mid-scroll read belongs
+    // to [_PaginationFooter], which watches it on its own.
+    final videos = ref.watch(videoListProvider.select((s) => s.videos));
+    final listState = ref.watch(
+      videoListProvider.select(
+        (s) => (isLoading: s.videos.isEmpty && s.isLoading, error: s.error),
+      ),
+    );
     final filter = ref.watch(videoListFilterProvider);
-    final videos = listState.videos;
 
     // Infinite Scroll Controller
     final scrollController = useScrollController();
@@ -103,11 +115,20 @@ class VideoListScreen extends HookConsumerWidget {
         if (listState.isLoading && videos.isEmpty)
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: kContentGutter),
-            sliver: SliverGrid(
-              gridDelegate: kPosterGrid,
-              delegate: SliverChildBuilderDelegate(
-                (context, index) => const VideoCardSkeleton(),
-                childCount: 12, // Show a reasonable number of skeletons
+            // The one screen-level sweep needs a box ancestor, which a sliver
+            // grid cannot give it, so the skeleton rides an adapter; its dozen
+            // cells fill at most one viewport, so building them all eagerly
+            // costs what the lazy grid was already paying.
+            sliver: SliverToBoxAdapter(
+              child: SkeletonShimmer(
+                child: GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  padding: EdgeInsets.zero,
+                  gridDelegate: kPosterGrid,
+                  itemCount: 12, // Show a reasonable number of skeletons
+                  itemBuilder: (context, index) => const VideoCardSkeleton(),
+                ),
               ),
             ),
           ),
@@ -123,23 +144,7 @@ class VideoListScreen extends HookConsumerWidget {
             ),
           ),
 
-          // Loading footer - use skeletons instead of spinner
-          if (listState.isLoading)
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(
-                kContentGutter,
-                20,
-                kContentGutter,
-                20,
-              ),
-              sliver: SliverGrid(
-                gridDelegate: kPosterGrid,
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) => const VideoCardSkeleton(),
-                  childCount: 4, // Show a row of loading items at bottom
-                ),
-              ),
-            ),
+          const _PaginationFooter(),
         ] else if (!listState.isLoading && videos.isEmpty) ...[
           // Distinguish "request failed" from "genuinely no results"
           SliverFillRemaining(
@@ -182,6 +187,44 @@ class VideoListScreen extends HookConsumerWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+/// The pagination footer — skeletons instead of a spinner — and the screen's
+/// only mid-scroll isLoading read.
+///
+/// Its own consumer, so the isLoading flip that precedes every page of results
+/// repaints one row of skeletons instead of the entire scroll view. It always
+/// sits in the sliver list and collapses to nothing when idle — a conditional
+/// presence would put the isLoading read back in the parent build, which is
+/// the rebuild this widget exists to end.
+///
+/// Deliberately static, no sweep: it shows up under a screenful of live cards
+/// during pagination, where an animation ticker buys nothing.
+class _PaginationFooter extends ConsumerWidget {
+  const _PaginationFooter();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isLoading = ref.watch(videoListProvider.select((s) => s.isLoading));
+    if (!isLoading) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(
+        kContentGutter,
+        20,
+        kContentGutter,
+        20,
+      ),
+      sliver: SliverGrid(
+        gridDelegate: kPosterGrid,
+        delegate: SliverChildBuilderDelegate(
+          (context, index) => const VideoCardSkeleton(),
+          childCount: 4, // Show a row of loading items at bottom
+        ),
+      ),
     );
   }
 }

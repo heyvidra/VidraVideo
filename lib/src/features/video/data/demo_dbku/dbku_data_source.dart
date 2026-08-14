@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/telemetry/telemetry.dart';
 import '../../../../core/utils/log.dart';
 import 'package:vidra/src/features/video/domain/category.dart';
 import 'package:vidra/src/features/video/domain/video_collection.dart';
@@ -25,6 +26,12 @@ class DbkuDataSource implements VideoDataSource {
   static const int _resolveBatch = 8;
 
   final Dio _dio;
+
+  /// Failures already reported this run, keyed by endpoint and field. A theme
+  /// change (or a Cloudflare challenge in place of the page) breaks every page
+  /// the same way, and one show's episodes fail as a batch: one event says as
+  /// much as a hundred.
+  static final _reportedFailures = <String>{};
 
   DbkuDataSource(this._dio);
 
@@ -54,6 +61,18 @@ class DbkuDataSource implements VideoDataSource {
         _showPath(typeId: categoryId, area: area, year: year, page: page),
       );
       final list = DbkuParser.parseVideoList(html);
+      // A later page running out is ordinary; a FIRST page that yields no item
+      // at all is either a filter nobody matches or a thumb selector that no
+      // longer matches, and only the second is a bug.
+      if (page == 1 && list.isEmpty) {
+        _report(
+          'dbku.fetchVideos',
+          field: 'list',
+          // A boolean, never the filters themselves: their values are the area
+          // and year this person was browsing.
+          extra: {'had_filters': area != null || year != null},
+        );
+      }
       return VideoResponse(
         list: list,
         // ponytail: dbku prints no result count anywhere, so "there is more"
@@ -122,6 +141,15 @@ class DbkuDataSource implements VideoDataSource {
       return DbkuParser.parsePlayUrl(await _getHtml(url));
     } on DioException catch (e) {
       logD('Dbku', 'Error resolving $url: $e');
+      // Swallowed: the episode is dropped from the show rather than surfaced
+      // as an error, so nothing else would ever tell us a whole run went
+      // missing. Type and status only — the URL names the episode.
+      _report(
+        'dbku.resolveEpisodeUrl',
+        field: 'request',
+        event: 'network.request_failed',
+        extra: {'type': e.type.name, 'status': e.response?.statusCode},
+      );
       return null;
     }
   }
@@ -135,6 +163,22 @@ class DbkuDataSource implements VideoDataSource {
   }
 
   // --- internals -----------------------------------------------------------
+
+  /// Reports a page that came back but did not carry what the scraper needs.
+  /// Fixed labels and shapes only: a path or a title here would name the show
+  /// somebody opened.
+  void _report(
+    String endpoint, {
+    required String field,
+    String event = 'catalog.shape',
+    Map<String, Object?> extra = const {},
+  }) {
+    if (!_reportedFailures.add('$endpoint/$field')) return;
+    Telemetry.report(
+      event,
+      data: {'endpoint': endpoint, 'field': field, ...extra},
+    );
+  }
 
   Future<String> _getHtml(String path, {Map<String, dynamic>? query}) async {
     final response = await _dio.get<String>(

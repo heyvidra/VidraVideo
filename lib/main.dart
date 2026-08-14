@@ -5,17 +5,20 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter/material.dart';
 import 'package:local_notifier/local_notifier.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vidra_player_kit/vidra_player_kit.dart';
 
 import 'src/config/app_config.dart';
 import 'src/core/network/bundled_roots.dart';
+import 'src/core/telemetry/telemetry.dart';
 import 'src/core/utils/log.dart';
 import 'src/core/utils/window.dart';
 
 import 'src/config/app_theme.dart';
 import 'src/config/no_scrollbar_behavior.dart';
+import 'src/config/reduce_effects.dart';
 import 'src/core/providers/theme_provider.dart'; // Import theme_provider
 import 'src/features/video/data/video_repository.dart';
 import 'src/routing/app_router.dart';
@@ -55,20 +58,51 @@ Future<void> main(List<String> args) async {
 
 Future<void> _runApp() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await EasyLocalization.ensureInitialized();
-  await installBundledRoots();
-  await _setupNotifications();
 
-  try {
-    VidraPlayerKit.ensureInitialized();
-  } catch (e) {
-    logR('Main', 'Error initializing VidraPlayerKit: $e');
+  // Window identity was seeded synchronously from the entrypoint args in
+  // main(), so it is already trustworthy here — and it decides how much of
+  // this boot the engine actually runs. Only a POSITIVELY identified pet
+  // gets the trimmed boot: a secondary window that arrives nameless (an
+  // un-updated runner, where identity only lands with the native windowReady
+  // message) is booted like a player, because over-booting a window wastes a
+  // few hundred milliseconds while under-booting one is a broken player.
+  final isMainWindow = appWindow.isMainWindow;
+  final isPetWindow =
+      !isMainWindow && appWindow.name == PetWindowLauncher.windowName;
+
+  await EasyLocalization.ensureInitialized();
+  // The pet does no Dart-side HTTP — the sprite is painted locally and the
+  // bubble text arrives through window arguments — so the Windows root-CA
+  // seeding has nothing there to protect.
+  if (!isPetWindow) {
+    await installBundledRoots();
+  }
+  // Toasts are only ever sent by the subscription refresh, which lives in
+  // the main engine; secondary engines were paying this setup for nothing.
+  if (isMainWindow) {
+    await _setupNotifications();
   }
 
-  // 2. Data layers
+  // The pet never hosts playback; every other window may.
+  if (!isPetWindow) {
+    try {
+      VidraPlayerKit.ensureInitialized();
+    } catch (e) {
+      logR('Main', 'Error initializing VidraPlayerKit: $e');
+    }
+  }
+
+  // 2. Data layers — every engine, the pet included: MyApp's provider shell
+  // (theme, router) reads the database provider unconditionally, and the pet
+  // itself writes its parked position through the settings repository.
   final database = AppDatabase();
   final settingsRepository = SettingsRepository(database);
   final appSettings = await settingsRepository.getSettings();
+
+  // Before the window configurations resolve: the background-effect builders
+  // read this synchronously, and seeding it here is what keeps an Intel Mac
+  // from flashing acrylic for a frame before the setting loads.
+  ReduceEffects.seed(appSettings);
 
   final initialDataSourceId =
       appSettings.lastDataSourceId ?? kDefaultDataSourceId;
@@ -86,30 +120,64 @@ Future<void> _runApp() async {
   );
 
   // 3. Services initialization
-  await container
-      .read(downloadManagerProvider)
-      .initialize(startProcessing: appWindow.isMainWindow);
+  //
+  // The pet's tree never touches download state, so its engine does not even
+  // construct the manager — and a stray future read would still be safe, just
+  // empty. A player engine reads the persisted tasks synchronously (allTasks,
+  // to map completed downloads onto their on-disk files), so secondary
+  // engines still load the list once but skip the drift watch and the queue.
+  if (!isPetWindow) {
+    await container
+        .read(downloadManagerProvider)
+        .initialize(startProcessing: isMainWindow, watchDb: isMainWindow);
+  }
 
   WindowHelper.init(container.read(settingsRepositoryProvider));
 
-  runBitsdojoWindowApp(
-    routes: {
-      'player': (context, arguments) =>
-          VideoPlayerWindowApp(arguments: arguments),
-      PetWindowLauncher.windowName: (context, arguments) =>
-          PetWindowApp(arguments: arguments),
-    },
-    windowConfigurations: _buildWindowConfigurations(),
-    app: EasyLocalization(
-      supportedLocales: const [Locale('zh'), Locale('en')],
-      path: 'assets/translations',
-      fallbackLocale: const Locale('en'),
-      startLocale: savedLocale != null ? Locale(savedLocale) : null,
-      child: UncontrolledProviderScope(
-        container: container,
-        child: const MyApp(),
+  void startApp() {
+    runBitsdojoWindowApp(
+      routes: {
+        'player': (context, arguments) =>
+            VideoPlayerWindowApp(arguments: arguments),
+        PetWindowLauncher.windowName: (context, arguments) =>
+            PetWindowApp(arguments: arguments),
+      },
+      windowConfigurations: _buildWindowConfigurations(),
+      app: EasyLocalization(
+        supportedLocales: const [Locale('zh'), Locale('en')],
+        path: 'assets/translations',
+        fallbackLocale: const Locale('en'),
+        startLocale: savedLocale != null ? Locale(savedLocale) : null,
+        child: UncontrolledProviderScope(
+          container: container,
+          child: const MyApp(),
+        ),
       ),
-    ),
+    );
+  }
+
+  // Diagnostics wrap the app rather than sitting beside it, so an error that
+  // escapes a widget still gets reported. The pet is left out: it is a sprite
+  // in a window, it was just cut down to the smallest boot in the app, and a
+  // third Sentry client per process buys nothing. Only the main engine may
+  // arm the native crash handler — that one is process-global.
+  if (isPetWindow || !appSettings.telemetryEnabled) {
+    startApp();
+    return;
+  }
+
+  // The real version, not AppConfig's: that constant says 1.0.0 and has since
+  // 1.0.0, and a report that lies about its version cannot answer whether a
+  // fix reached the machine that needed it.
+  final packageInfo = await PackageInfo.fromPlatform();
+
+  await Telemetry.run(
+    windowKind: isMainWindow ? 'main' : 'player',
+    userOptedIn: true,
+    isMainEngine: isMainWindow,
+    release: 'vidra@${packageInfo.version}+${packageInfo.buildNumber}',
+    deviceTags: Telemetry.deviceTags(reduceEffects: ReduceEffects.current),
+    appRunner: startApp,
   );
 }
 
@@ -206,8 +274,15 @@ WindowEffect _resolveBackgroundEffect(DesktopWindow window) {
   // attribute. Behind a video that is worth nothing — the picture covers the
   // window — and a non-opaque window that has not yet presented a frame is
   // exactly what shows up as a blank white sheet in the taskbar preview.
-  // macOS keeps it: its blur is behind the catalog's glass, where it reads.
+  // macOS keeps it only for the catalog: its blur is behind the catalog's
+  // glass, where it reads. The player's Scaffold is opaque black, so behind
+  // it the blur is invisible yet WindowServer still recomputes it every
+  // frame — the picture covers that window on every platform.
   if (Platform.isWindows) return WindowEffect.disabled;
+  if (window.name == 'player') return WindowEffect.disabled;
+  // 减少特效: the desktop blur plus full-window alpha compositing is the
+  // single largest standing GPU cost on the machines this switch exists for.
+  if (ReduceEffects.current) return WindowEffect.disabled;
   return WindowEffect.acrylic;
 }
 

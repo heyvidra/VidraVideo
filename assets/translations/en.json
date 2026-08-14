@@ -93,6 +93,21 @@
       "clear_cache": "Clear Cache",
       "clear_confirm": "Are you sure you want to clear all cached data?"
     },
+    "performance": {
+      "title": "Performance",
+      "reduce_effects": "Reduce effects",
+      "reduce_effects_desc_auto_on": "Turns off window blur and some animations for smoother scrolling on older machines. Intel GPU detected — Auto resolves to on",
+      "reduce_effects_desc_auto_off": "Turns off window blur and some animations for smoother scrolling on older machines. This machine is fast — Auto resolves to off",
+      "mode_auto": "Auto",
+      "mode_on": "On",
+      "mode_off": "Off"
+    },
+    "diagnostics": {
+      "title": "Diagnostics",
+      "enable": "Send diagnostic data",
+      "enable_desc": "Helps track down stutter, casting and crash problems. Technical information only: frame rates, hardware and OS version, casting protocol stages and error codes. Never what you watched — titles, searches, stream addresses and file paths are never sent",
+      "restart_hint": "Takes effect after restarting Vidra"
+    },
     "backup": {
       "title": "Backup",
       "export": "Export data",

@@ -3,6 +3,18 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../config/design_tokens.dart';
+import '../config/reduce_effects.dart';
+
+/// The context menu's blur, unless 减少特效 turned menu blurs off — the near-
+/// opaque fill keeps the panel readable either way (the flat _HistoryDropdown
+/// shipped on that exact reasoning).
+Widget _maybeMenuBlur(Widget child) {
+  if (ReduceEffects.current) return child;
+  return BackdropFilter(
+    filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+    child: child,
+  );
+}
 
 /// 流畅的下拉菜单组件，基于 PlayerOverlayPanel 样式
 class DropdownMenu extends StatefulWidget {
@@ -219,7 +231,10 @@ class _DropdownMenuState extends State<DropdownMenu>
       ),
     );
 
-    if (widget.useBlur) {
+    // 减少特效 wins over useBlur: behind the 72–80% opaque fill the sigma-20
+    // blur — the app's largest kernel — contributes a fifth of the pixels at
+    // a full readback per animated frame of the open/close fade.
+    if (widget.useBlur && !ReduceEffects.current) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(12),
         child: BackdropFilter(
@@ -463,9 +478,8 @@ Future<T?> showVidraMenu<T>({
             type: MaterialType.transparency,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-                child: Container(
+              child: _maybeMenuBlur(
+                Container(
                   constraints: const BoxConstraints(maxHeight: maxHeight),
                   decoration: BoxDecoration(
                     color: t.barBg,

@@ -8,8 +8,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:bitsdojo_window/bitsdojo_window.dart';
 import '../data/backup_service.dart';
 import '../data/settings_repository.dart';
+import '../../../config/reduce_effects.dart';
+import '../../../core/telemetry/telemetry.dart';
 import '../../favorites/presentation/favorites_provider.dart';
 import '../../subscription/presentation/subscription_provider.dart';
 import '../../video/presentation/play_history_provider.dart';
@@ -68,6 +71,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 title: tr('settings.storage.title'),
                 children: [
                   _buildCacheSetting(context, cacheSizeAsync, settingsRepo),
+                ],
+              ),
+              const SizedBox(height: 26),
+              _section(
+                context,
+                title: tr('settings.performance.title'),
+                children: [
+                  _buildReduceEffectsSetting(context, settings, settingsRepo),
+                ],
+              ),
+              const SizedBox(height: 26),
+              _section(
+                context,
+                title: tr('settings.diagnostics.title'),
+                children: [
+                  _buildTelemetrySetting(context, settings, settingsRepo),
                 ],
               ),
               // macOS only: elsewhere the pet renders opaque and Linux
@@ -196,6 +215,93 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: kContentGutter),
       child: ScreenSection(title: title, children: children),
+    );
+  }
+
+  /// 减少特效, three states: an explicit choice must be able to beat the
+  /// hardware default in both directions, so this is not a boolean switch.
+  Widget _buildReduceEffectsSetting(
+    BuildContext context,
+    AppSettings settings,
+    settingsRepo,
+  ) {
+    final mode = ReduceEffectsMode.fromStored(settings.reduceEffects);
+    return ListTile(
+      title: Text(tr('settings.performance.reduce_effects')),
+      subtitle: Text(
+        // Name what auto resolves to on THIS machine, or the default state
+        // reads as a mystery ("自动 — 然后呢?").
+        tr(
+          ReduceEffects.lowPowerGpu
+              ? 'settings.performance.reduce_effects_desc_auto_on'
+              : 'settings.performance.reduce_effects_desc_auto_off',
+        ),
+        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+      ),
+      trailing: SegmentedButton<ReduceEffectsMode>(
+        showSelectedIcon: false,
+        segments: [
+          ButtonSegment(
+            value: ReduceEffectsMode.auto,
+            label: Text(tr('settings.performance.mode_auto')),
+          ),
+          ButtonSegment(
+            value: ReduceEffectsMode.on,
+            label: Text(tr('settings.performance.mode_on')),
+          ),
+          ButtonSegment(
+            value: ReduceEffectsMode.off,
+            label: Text(tr('settings.performance.mode_off')),
+          ),
+        ],
+        selected: {mode},
+        onSelectionChanged: (selection) async {
+          // The notifier persists the choice and republishes it to every
+          // widget that degrades; the native window effect is outside Flutter
+          // and needs its own push.
+          await ref.read(reduceEffectsProvider.notifier).set(selection.first);
+          if (Platform.isMacOS) {
+            appWindow.backgroundEffect = ReduceEffects.current
+                ? WindowEffect.disabled
+                : WindowEffect.acrylic;
+          }
+        },
+      ),
+    );
+  }
+
+  /// Diagnostics, with the subtitle naming what is and is not sent.
+  ///
+  /// The list is not decoration: a switch labelled "help improve Vidra" tells
+  /// a person nothing they can decide on, and this app's users have a
+  /// particular reason to want the second half of that sentence in writing.
+  Widget _buildTelemetrySetting(
+    BuildContext context,
+    AppSettings settings,
+    settingsRepo,
+  ) {
+    return ListTile(
+      title: Text(tr('settings.diagnostics.enable')),
+      subtitle: Text(
+        tr('settings.diagnostics.enable_desc'),
+        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+      ),
+      trailing: Switch(
+        value: settings.telemetryEnabled,
+        onChanged: (value) async {
+          settings.telemetryEnabled = value;
+          await settingsRepo.updateSettings(settings);
+          if (value) {
+            // Nothing starts reporting until the SDK is initialized, which
+            // happens once, around the app.
+            if (context.mounted) {
+              _snack(context, tr('settings.diagnostics.restart_hint'));
+            }
+          } else {
+            await Telemetry.disable();
+          }
+        },
+      ),
     );
   }
 
