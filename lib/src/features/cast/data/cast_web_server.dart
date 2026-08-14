@@ -184,20 +184,31 @@ class CastWebServer {
   /// a non-empty UA comes back to the viewer as UPnP error 716, "Resource
   /// not found", with nothing to say which of the two it was.
   ///
-  /// Nothing here carries a resume position. Appending `&start=<seconds>` to
-  /// what this returns would make the proxy serve an episode that BEGINS
-  /// there — the one resume that asks nothing of the renderer at all — and
-  /// the proxy honours it, but a renderer handed a cut playlist counts from
-  /// the cut, and the DLNA session's reported position is what this app
-  /// mirrors into watch history. Until the position read back is corrected by
-  /// the offset served, a resume built this way would write itself twelve
-  /// minutes backwards. The renderer asking with `TimeSeekRange.dlna.org`
-  /// does not have that problem: it knows what it asked for, and the response
-  /// echoes what it got.
-  String proxied(String url) {
+  /// [startSeconds] makes the proxy serve an episode that BEGINS there.
+  ///
+  /// This is the only resume that works on the televisions this app has met.
+  /// An LG's remote has no seek at all — its fast-forward is 2x/4x playback —
+  /// so it never sends `TimeSeekRange.dlna.org`, and waiting to be asked
+  /// meant every cast restarted the episode. Cutting the playlist asks the
+  /// renderer for nothing.
+  ///
+  /// The cost is that the renderer then counts from the cut, so its reported
+  /// position is short by exactly this many seconds. Whoever passes a
+  /// [startSeconds] owns adding it back before that position becomes watch
+  /// history — see [CastPlaylist.startPositionSeconds]'s use in the cast
+  /// controller. Without that correction a resume at 12:00 writes the
+  /// viewer's progress twelve minutes backwards on every cast, which is a
+  /// worse bug than the episode restarting.
+  String proxied(String url, {int startSeconds = 0}) {
     final base = _baseUrl;
     if (base == null) throw const CastServerException('server not started');
-    return proxyUrlFor(Uri.parse(url), '$base/proxy', extraQuery: 't=$_token');
+    return proxyUrlFor(
+      Uri.parse(url),
+      '$base/proxy',
+      extraQuery: startSeconds > 0
+          ? 't=$_token&start=$startSeconds'
+          : 't=$_token',
+    );
   }
 
   static String _newToken() {

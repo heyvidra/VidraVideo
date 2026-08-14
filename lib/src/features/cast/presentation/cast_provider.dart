@@ -324,31 +324,29 @@ class CastController extends Notifier<CastState> {
     await _server.start(peerHost: Uri.parse(device.address).host);
     _server.onProgress = (p) => _recordProgress(video, playlist, p);
     _server.serve(playlist);
+    // Resume by cutting the playlist, not by asking the renderer to seek.
+    // An LG's remote has no seek — its fast-forward is 2x/4x playback — so
+    // Seek was refused every time and every cast restarted the episode. The
+    // episode that STARTS where the viewer left off asks the renderer for
+    // nothing, and only the item being resumed carries the offset: the ones
+    // after it are watched from their beginning.
+    final resumeAt = playlist.startPositionSeconds;
     await _manager.playQueue(
       CastQueue(
         items: [
-          for (final item in playlist.items)
+          for (final (i, item) in playlist.items.indexed)
             PlaylistItem(
               id: item.url,
               title: item.title,
-              mediaUrl: _server.proxied(item.url),
+              mediaUrl: _server.proxied(
+                item.url,
+                startSeconds: i == playlist.startIndex ? resumeAt : 0,
+              ),
             ),
         ],
         currentIndex: playlist.startIndex,
       ),
     );
-    // Resume where they were. playQueue always starts an episode from zero,
-    // so the seek has to follow it — and it can only follow it, because a
-    // renderer will not seek a URI it has not loaded yet.
-    if (playlist.startPositionSeconds > 0) {
-      try {
-        await _manager.seek(Duration(seconds: playlist.startPositionSeconds));
-      } catch (e) {
-        // Some renderers refuse Seek on HLS. Starting the episode over is a
-        // worse experience, not a failed cast.
-        logD('cast', 'resume seek refused: $e');
-      }
-    }
     _watchDlnaProgress(video, playlist);
   }
 
@@ -391,6 +389,18 @@ class CastController extends Notifier<CastState> {
     if (state.isCasting && state.playlistIndex != p.playlistIndex) {
       state = state.withPlaylistIndex(p.playlistIndex);
     }
+    // Put back what the cut took out. A resumed episode is served starting at
+    // startPositionSeconds, so the renderer counts from there and reports a
+    // position — and a duration — short by exactly that much. Writing those
+    // raw would walk the viewer's progress backwards by the resume offset on
+    // every cast, which is the whole reason this correction exists. Only the
+    // episode that was resumed is short; the TV moving on to the next one is
+    // playing a whole file again.
+    final offset = p.playlistIndex == playlist.startIndex
+        ? Duration(seconds: playlist.startPositionSeconds)
+        : Duration.zero;
+    final position = p.position + offset;
+    final duration = p.duration + offset;
     // Back from playlist position to episode number. They differ whenever an
     // episode had no URL and was left out, and history everywhere else in
     // the app is keyed by the episode number.
@@ -409,8 +419,8 @@ class CastController extends Notifier<CastState> {
           sourceId: video.sourceId,
           videoId: video.apiId,
           episodeIndex: episodeIndex,
-          positionMillis: p.position.inMilliseconds,
-          durationMillis: p.duration.inMilliseconds,
+          positionMillis: position.inMilliseconds,
+          durationMillis: duration.inMilliseconds,
         ),
       );
       await repo.saveVideoHistory(

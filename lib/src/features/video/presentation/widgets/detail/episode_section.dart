@@ -259,9 +259,14 @@ class EpisodeSection extends ConsumerWidget {
             // minmax(104, 1fr) in max-extent terms: a tile may stretch to
             // just under double its 104px floor before a column splits off.
             maxCrossAxisExtent: 208,
-            // Thumb (58) + caption row; the extra over the measured 86.4
-            // absorbs CJK fallback metrics instead of clipping descenders.
-            mainAxisExtent: 88,
+            // Thumb (58) + caption padding (6 + 8) + caption line (11.5 ×
+            // 1.25 = 14.4) = 86.4, PLUS the 1px border EpisodeItem draws top
+            // and bottom — which the old budget of 88 forgot, so every tile
+            // overflowed by about a pixel: invisible in release, a debug
+            // banner across the entire grid. 90 puts back the slack CJK
+            // fallback metrics need. Move that border or those fonts and
+            // this number moves with them.
+            mainAxisExtent: 90,
             crossAxisSpacing: 11,
             mainAxisSpacing: 11,
           ),
