@@ -264,8 +264,11 @@ jobs:
 
       - name: Upload debug symbols to Sentry
         # Skipped rather than failed when the token is absent: a fork building
-        # this tag must still get a DMG.
-        if: ${{ secrets.SENTRY_AUTH_TOKEN != '' }}
+        # this tag must still get a DMG. The `secrets` context is NOT readable
+        # from a step-level `if:` — GitHub silently evaluates it to empty, so
+        # the condition would be false forever and this step would never run.
+        # Hoisting it into `env` at the step is what makes it visible.
+        if: ${{ env.SENTRY_AUTH_TOKEN != '' }}
         run: dart run sentry_dart_plugin
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}

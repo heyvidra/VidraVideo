@@ -115,6 +115,10 @@ sentry:
   upload_source_maps: false
   project: flutter
   org: vidra
+  # Must match --split-debug-info in the release workflow. The plugin defaults
+  # this to '.', which finds nothing and uploads nothing — a green CI step
+  # that shipped no symbols is worse than a failed one.
+  symbols_path: debug-info
   # EU-region org: sentry-cli defaults to the US endpoint and the upload would
   # 404 against it. The DSN carries its own region, so only this side needs it.
   url: https://de.sentry.io
