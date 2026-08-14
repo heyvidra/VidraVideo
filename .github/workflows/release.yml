@@ -245,11 +245,49 @@ jobs:
           TAG="$(gh release view -R heyvidra/VidraDlp --json tagName -q .tagName)"
           echo "vidraDlp release: $TAG"
           echo "vidraDlp: \`$TAG\`" >> "$GITHUB_STEP_SUMMARY"
+          # Every darwin asset, not the first one that sorts. The old glob
+          # took `find … | head -1` out of whatever it happened to download,
+          # and what shipped in 1.12.0 was an arm64-ONLY libmedia_ffi.dylib
+          # inside an otherwise universal app — so on an Intel Mac the
+          # download engine could not load at all. Nothing caught it because
+          # the step ended in `file`, which prints and never fails.
+          rm -rf _dl _vidradlp && mkdir -p _dl _vidradlp
           gh release download "$TAG" -R heyvidra/VidraDlp \
-            -p 'vidradlp-full-darwin-*.tar.gz' -O vidradlp.tar.gz
-          mkdir -p _vidradlp && tar -xzf vidradlp.tar.gz -C _vidradlp
-          cp "$(find _vidradlp -name libmedia_ffi.dylib | head -1)" macos/libmedia_ffi.dylib
-          file macos/libmedia_ffi.dylib
+            -p 'vidradlp-full-*darwin*.tar.gz' --dir _dl
+          echo "downloaded:"; ls -1 _dl
+          for t in _dl/*.tar.gz; do
+            d="_vidradlp/$(basename "$t" .tar.gz)"
+            mkdir -p "$d" && tar -xzf "$t" -C "$d"
+          done
+          # One universal dylib out of however many single-arch ones the
+          # release publishes; lipo -create is a no-op on a single input that
+          # is already fat.
+          # An explicit array, not word-splitting on `$(find …)`: macOS ships
+          # bash 3.2 (no mapfile), and splitting behaves differently again in
+          # the zsh this is developed under, which is how the first draft of
+          # this passed every eyeball and handed lipo one filename containing
+          # a newline.
+          libs=()
+          while IFS= read -r l; do libs+=("$l"); done < <(
+            find _vidradlp -name libmedia_ffi.dylib
+          )
+          if [ "${#libs[@]}" -eq 0 ]; then
+            echo "::error::no libmedia_ffi.dylib in any darwin asset of $TAG"
+            exit 1
+          fi
+          for l in "${libs[@]}"; do echo "  $l: $(lipo -info "$l")"; done
+          lipo -create "${libs[@]}" -output macos/libmedia_ffi.dylib
+          # The app is universal, so this must be too. Failing here is the
+          # point: a missing slice is invisible until an Intel user opens the
+          # app and the download engine is simply gone.
+          for arch in x86_64 arm64; do
+            if ! lipo -info macos/libmedia_ffi.dylib | grep -q "$arch"; then
+              echo "::error::libmedia_ffi.dylib has no $arch slice — $TAG ships" \
+                   "$(lipo -info macos/libmedia_ffi.dylib)"
+              exit 1
+            fi
+          done
+          echo "libmedia_ffi: $(lipo -info macos/libmedia_ffi.dylib)"
 
       - name: Flutter Build (macOS Release)
         # The DSN lives in repo secrets, never in the tree: a build without one
