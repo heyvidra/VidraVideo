@@ -276,23 +276,50 @@ jobs:
       - name: Install create-dmg
         run: brew install create-dmg
 
-      - name: Create DMG
+      # One universal build, split into two downloads.
+      #
+      # Flutter builds macOS universal, so every user was downloading a
+      # complete copy of the architecture their Mac cannot run: 96 MB
+      # installed, 61 MB once thinned. Thinning here rather than building
+      # twice keeps one compile and one symbol upload, and the two bundles
+      # are byte-identical to the slices that were tested together.
+      #
+      # Re-signing is not optional. The bundle is ad-hoc signed, lipo
+      # invalidates that, and macOS refuses to launch an unsigned arm64
+      # binary at all — the failure is a crash on open, not a warning.
+      - name: Create DMGs (per architecture)
         run: |
-          mkdir dmg
-          cp -R build/macos/Build/Products/Release/Vidra.app dmg/
-          create-dmg \
-            --volname "Vidra" \
-            --window-size 500 300 \
-            --icon-size 100 \
-            --app-drop-link 350 150 \
-            Vidra-macOS-x64.dmg \
-            dmg
+          set -euo pipefail
+          for arch in arm64 x64; do
+            slice=$arch
+            [ "$arch" = "x64" ] && slice=x86_64
+            rm -rf "dmg-$arch" && mkdir "dmg-$arch"
+            cp -R build/macos/Build/Products/Release/Vidra.app "dmg-$arch/"
+            app="dmg-$arch/Vidra.app"
+            # Every Mach-O, not just the executables: the frameworks are
+            # where the weight is, and a .dylib is not marked executable.
+            find "$app" -type f | while read -r f; do
+              if lipo -info "$f" 2>/dev/null | grep -q '^Architectures in the fat file'; then
+                lipo -thin "$slice" "$f" -output "$f.thin" && mv "$f.thin" "$f"
+              fi
+            done
+            codesign --force --deep --sign - "$app"
+            codesign --verify --deep --strict "$app"
+            echo "$arch: $(du -sh "$app" | cut -f1)"
+            create-dmg \
+              --volname "Vidra" \
+              --window-size 500 300 \
+              --icon-size 100 \
+              --app-drop-link 350 150 \
+              "Vidra-macOS-$arch.dmg" \
+              "dmg-$arch"
+          done
 
-      - name: Upload DMG Artifact
+      - name: Upload DMG Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Vidra-macOS-x64-DMG
-          path: Vidra-macOS-x64.dmg
+          name: Vidra-macOS-DMG
+          path: Vidra-macOS-*.dmg
           # Only the release job downloads these, and it runs minutes
           # later; keeping them longer just eats the storage quota.
           retention-days: 7
@@ -321,7 +348,7 @@ jobs:
       - name: Download macOS DMG
         uses: actions/download-artifact@v4
         with:
-          name: Vidra-macOS-x64-DMG
+          name: Vidra-macOS-DMG
           path: ./artifacts
 
       # 提取版本号
@@ -344,7 +371,8 @@ jobs:
           | Platform | File |
           |---|---|
           | **Windows (64-bit)** | `Vidra-Windows-x64.msi` |
-          | **macOS (64-bit)** | `Vidra-macOS-x64.dmg` |
+          | **macOS — Apple 芯片 (M1/M2/M3/M4)** | `Vidra-macOS-arm64.dmg` |
+          | **macOS — Intel 芯片** | `Vidra-macOS-x64.dmg` |
 
           ### 🚀 What's New
 
@@ -357,10 +385,14 @@ jobs:
           2. Double-click to install
           3. Follow the installation wizard
 
-          **macOS:**
-          1. Download `Vidra-macOS-x64.dmg`
+          **macOS:** 先看左上角  → 关于本机。写着 Apple M 系列就选 `arm64`,
+          写着 Intel 就选 `x64`。
+          1. Download the DMG for your chip
           2. Open the DMG file
           3. Drag Vidra.app to Applications folder
+
+          拿错了不会损坏任何东西: Intel 机器打开 arm64 版会直接报"不支持",
+          Apple 芯片打开 x64 版能跑但走 Rosetta 转译,会明显更慢。
 
           ### 🐛 Known Issues
 
@@ -381,6 +413,7 @@ jobs:
           prerelease: false
           files: |
             ./artifacts/Vidra-Windows-x64.msi
+            ./artifacts/Vidra-macOS-arm64.dmg
             ./artifacts/Vidra-macOS-x64.dmg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
