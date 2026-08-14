@@ -101,15 +101,19 @@ class OlevodDataSource implements VideoDataSource {
       if (response.statusCode == 200) {
         final data = response.data;
         if (data['code'] == 0) {
-          final listData = data['data']['list'] as List;
+          // A filter combination with no matches comes back as "list": null
+          // (seen with 综艺+英国), not an empty list — every field here is
+          // optional-by-observation.
+          final payload = data['data'] as Map<String, dynamic>? ?? const {};
+          final listData = payload['list'] as List? ?? const [];
           final videos = listData
               .map((e) => OlevodVideoDto.fromJson(e).toDomain(resolveUrl))
               .where((v) => v.vip != true)
               .toList();
           return VideoResponse(
             list: videos,
-            total: data['data']['total'],
-            page: data['data']['page'],
+            total: payload['total'] ?? videos.length,
+            page: payload['page'] ?? page,
           );
         }
       }
