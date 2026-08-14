@@ -5,6 +5,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:vidra/src/common/skeleton/skeleton_box.dart';
 import 'package:vidra/src/config/ambient_background.dart';
 import 'package:vidra/src/config/design_tokens.dart';
+import 'package:vidra/src/config/reduce_effects.dart';
 import 'package:vidra/src/features/video/domain/video_collection.dart';
 import 'package:vidra/src/features/video/domain/play_history.dart'
     show EpisodeHistory, isEpisodicType;
@@ -132,6 +133,9 @@ class EpisodeSection extends ConsumerWidget {
               tint: t.barBg,
               border: t.edgeSoft,
               shadow: t.drop2,
+              // The pinned bar is the app's only blur whose backdrop changes
+              // by definition every scroll frame — no cache can ever help it.
+              flat: ref.watch(reduceEffectsProvider),
               padding: const EdgeInsets.fromLTRB(14, 9, 12, 9),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -772,14 +776,14 @@ class _ComparisonToggle extends StatelessWidget {
 }
 
 /// Field by field, catalog by catalog, with the disagreements marked.
-class _ComparisonTable extends StatelessWidget {
+class _ComparisonTable extends ConsumerWidget {
   const _ComparisonTable({required this.takes, required this.ownSourceId});
 
   final List<_Take> takes;
   final String? ownSourceId;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final t = VidraTokens.of(context);
     final diffs = _disagreements(takes).toSet();
     final head = VidraType.eyebrow(t.fg3).copyWith(fontSize: 9.5);
@@ -790,6 +794,9 @@ class _ComparisonTable extends StatelessWidget {
       saturation: 1.8,
       tint: t.barBg,
       border: t.edgeSoft,
+      // Scrolls WITH the content it blurs, so the filter re-runs every frame
+      // the drawer is on screen and moving.
+      flat: ref.watch(reduceEffectsProvider),
       padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
       // Horizontal scroll rather than a wrap: source count is a config
       // question, and four catalogs on a narrow window must scroll rather than

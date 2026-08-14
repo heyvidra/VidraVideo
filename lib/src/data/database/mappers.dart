@@ -174,7 +174,8 @@ extension AppSettingMapper on db.AppSetting {
       ..locale = locale
       ..showPet = showPet
       ..petWindowX = petWindowX
-      ..petWindowY = petWindowY;
+      ..petWindowY = petWindowY
+      ..reduceEffects = reduceEffects;
   }
 }
 
@@ -200,6 +201,7 @@ extension AppSettingsCompanionMapper on domain.AppSettings {
       showPet: Value(showPet),
       petWindowX: Value(petWindowX),
       petWindowY: Value(petWindowY),
+      reduceEffects: Value(reduceEffects),
     );
   }
 }

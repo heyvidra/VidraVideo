@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vidra/src/common/dropdown_menu.dart';
 import 'package:vidra/src/common/screen_chrome.dart';
 import 'package:vidra/src/config/design_tokens.dart';
+import 'package:vidra/src/config/reduce_effects.dart';
 import 'package:vidra/src/features/video/data/video_repository.dart';
 import 'package:vidra/src/features/video/domain/video_collection.dart';
 import 'package:vidra/src/features/video/domain/play_history.dart';
@@ -448,6 +449,12 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    // 减少特效: the hover overlay still swaps in (it carries the actions), but
+    // the card neither scales nor swaps shadows — ~12 frames each way of
+    // re-rasterizing a Retina poster under a 28px-blur shadow at a changing
+    // scale, per card the pointer crosses. The strengthened border is the
+    // remaining hover cue.
+    final reduced = ref.watch(reduceEffectsProvider);
     return GestureDetector(
       onSecondaryTapUp: (d) => _openMenu(d.globalPosition),
       // Trackpads and touch report a long press where a mouse reports a right
@@ -459,7 +466,7 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
           onEnter: widget.enableHover
               ? (_) {
                   setState(() => isHovered = true);
-                  _controller.forward();
+                  if (!reduced) _controller.forward();
                 }
               : null,
           onExit: widget.enableHover
@@ -486,12 +493,16 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
                   colors: VidraTokens.of(context).glass2,
                 ),
                 borderRadius: BorderRadius.circular(_radius),
-                border: Border.all(color: VidraTokens.of(context).edgeSoft),
+                border: Border.all(
+                  color: reduced && isHovered
+                      ? VidraTokens.of(context).edge
+                      : VidraTokens.of(context).edgeSoft,
+                ),
                 // Two shadows rather than one: a tight contact shadow keeps the
                 // card attached to the page while a wide, soft one carries the
                 // lift. A single blur does one job or the other, and hover with
                 // only the wide shadow reads as the card floating off.
-                boxShadow: isHovered
+                boxShadow: isHovered && !reduced
                     ? [
                         BoxShadow(
                           color: Colors.black.withAlpha(isDark ? 130 : 40),

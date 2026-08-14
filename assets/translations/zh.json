@@ -93,6 +93,15 @@
       "clear_cache": "清除缓存",
       "clear_confirm": "确定要清除所有缓存数据吗？"
     },
+    "performance": {
+      "title": "性能",
+      "reduce_effects": "减少特效",
+      "reduce_effects_desc_auto_on": "关闭窗口毛玻璃与部分动画，让老机器更流畅。检测到本机为 Intel 显卡，「自动」档已开启",
+      "reduce_effects_desc_auto_off": "关闭窗口毛玻璃与部分动画，让老机器更流畅。本机性能充足，「自动」档保持关闭",
+      "mode_auto": "自动",
+      "mode_on": "开",
+      "mode_off": "关"
+    },
     "backup": {
       "title": "数据备份",
       "export": "导出数据",

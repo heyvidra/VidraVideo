@@ -16,6 +16,7 @@ import 'src/core/utils/window.dart';
 
 import 'src/config/app_theme.dart';
 import 'src/config/no_scrollbar_behavior.dart';
+import 'src/config/reduce_effects.dart';
 import 'src/core/providers/theme_provider.dart'; // Import theme_provider
 import 'src/features/video/data/video_repository.dart';
 import 'src/routing/app_router.dart';
@@ -69,6 +70,11 @@ Future<void> _runApp() async {
   final database = AppDatabase();
   final settingsRepository = SettingsRepository(database);
   final appSettings = await settingsRepository.getSettings();
+
+  // Before the window configurations resolve: the background-effect builders
+  // read this synchronously, and seeding it here is what keeps an Intel Mac
+  // from flashing acrylic for a frame before the setting loads.
+  ReduceEffects.seed(appSettings);
 
   final initialDataSourceId =
       appSettings.lastDataSourceId ?? kDefaultDataSourceId;
@@ -212,6 +218,9 @@ WindowEffect _resolveBackgroundEffect(DesktopWindow window) {
   // frame — the picture covers that window on every platform.
   if (Platform.isWindows) return WindowEffect.disabled;
   if (window.name == 'player') return WindowEffect.disabled;
+  // 减少特效: the desktop blur plus full-window alpha compositing is the
+  // single largest standing GPU cost on the machines this switch exists for.
+  if (ReduceEffects.current) return WindowEffect.disabled;
   return WindowEffect.acrylic;
 }
 

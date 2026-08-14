@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
 
 import '../../config/design_tokens.dart';
+import '../../config/reduce_effects.dart';
 
 /// One placeholder block — a static fill, deliberately without its own sweep.
 ///
@@ -53,13 +55,17 @@ class SkeletonBox extends StatelessWidget {
 /// at one animation ticker instead of dozens. The parameters are the ones
 /// the per-box shimmer shipped with: a white sweep that reads over both the
 /// light theme's grey blocks and the dark theme's near-black ones.
-class SkeletonShimmer extends StatelessWidget {
+class SkeletonShimmer extends ConsumerWidget {
   const SkeletonShimmer({super.key, required this.child});
 
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // 减少特效: the blocks alone already say "loading"; the sweep is the one
+    // animation a low-power machine would otherwise run during its most
+    // contended phase.
+    if (ref.watch(reduceEffectsProvider)) return child;
     final dark = Theme.of(context).brightness == Brightness.dark;
     return Shimmer(
       duration: const Duration(milliseconds: 1600),

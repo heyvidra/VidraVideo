@@ -44,6 +44,10 @@ class AppSettings {
   double? petWindowX;
   double? petWindowY;
 
+  /// 减少特效: 'on' / 'off', null = auto (on for Intel-GPU Macs).
+  /// See [ReduceEffects] for the resolution.
+  String? reduceEffects;
+
   AppSettings({
     this.downloadPath,
     this.maxConcurrentDownloads = 3,

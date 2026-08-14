@@ -373,6 +373,11 @@ class AppSettings extends Table {
   /// the pet speaks, and only the bottom-right corner survives that.
   RealColumn get petWindowX => real().nullable()();
   RealColumn get petWindowY => real().nullable()();
+
+  /// 减少特效: 'on' / 'off', null = auto (on for Intel-GPU Macs). Text, not
+  /// bool: the auto state must be distinguishable from an explicit choice,
+  /// or the hardware default could never be overridden in either direction.
+  TextColumn get reduceEffects => text().nullable()();
 }
 
 @DriftDatabase(
@@ -395,7 +400,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   /// True when [table] already has a column named [name].
   ///
@@ -519,6 +524,10 @@ class AppDatabase extends _$AppDatabase {
         if (from < 14 && to >= 14) {
           await _addColumnIfAbsent(m, appSettings, appSettings.petWindowX);
           await _addColumnIfAbsent(m, appSettings, appSettings.petWindowY);
+        }
+        // v15: 减少特效 three-state ('on'/'off', null = auto by GPU class).
+        if (from < 15 && to >= 15) {
+          await _addColumnIfAbsent(m, appSettings, appSettings.reduceEffects);
         }
       });
     },

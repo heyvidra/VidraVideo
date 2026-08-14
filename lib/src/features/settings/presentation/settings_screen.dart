@@ -8,8 +8,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:bitsdojo_window/bitsdojo_window.dart';
 import '../data/backup_service.dart';
 import '../data/settings_repository.dart';
+import '../../../config/reduce_effects.dart';
 import '../../favorites/presentation/favorites_provider.dart';
 import '../../subscription/presentation/subscription_provider.dart';
 import '../../video/presentation/play_history_provider.dart';
@@ -68,6 +70,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 title: tr('settings.storage.title'),
                 children: [
                   _buildCacheSetting(context, cacheSizeAsync, settingsRepo),
+                ],
+              ),
+              const SizedBox(height: 26),
+              _section(
+                context,
+                title: tr('settings.performance.title'),
+                children: [
+                  _buildReduceEffectsSetting(context, settings, settingsRepo),
                 ],
               ),
               // macOS only: elsewhere the pet renders opaque and Linux
@@ -196,6 +206,59 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: kContentGutter),
       child: ScreenSection(title: title, children: children),
+    );
+  }
+
+  /// 减少特效, three states: an explicit choice must be able to beat the
+  /// hardware default in both directions, so this is not a boolean switch.
+  Widget _buildReduceEffectsSetting(
+    BuildContext context,
+    AppSettings settings,
+    settingsRepo,
+  ) {
+    final mode = ReduceEffectsMode.fromStored(settings.reduceEffects);
+    return ListTile(
+      title: Text(tr('settings.performance.reduce_effects')),
+      subtitle: Text(
+        // Name what auto resolves to on THIS machine, or the default state
+        // reads as a mystery ("自动 — 然后呢?").
+        tr(
+          ReduceEffects.lowPowerGpu
+              ? 'settings.performance.reduce_effects_desc_auto_on'
+              : 'settings.performance.reduce_effects_desc_auto_off',
+        ),
+        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+      ),
+      trailing: SegmentedButton<ReduceEffectsMode>(
+        showSelectedIcon: false,
+        segments: [
+          ButtonSegment(
+            value: ReduceEffectsMode.auto,
+            label: Text(tr('settings.performance.mode_auto')),
+          ),
+          ButtonSegment(
+            value: ReduceEffectsMode.on,
+            label: Text(tr('settings.performance.mode_on')),
+          ),
+          ButtonSegment(
+            value: ReduceEffectsMode.off,
+            label: Text(tr('settings.performance.mode_off')),
+          ),
+        ],
+        selected: {mode},
+        onSelectionChanged: (selection) async {
+          settings.reduceEffects = selection.first.stored;
+          await settingsRepo.updateSettings(settings);
+          // Widgets follow the settings stream on their own; the seeded
+          // mirror and the native window effect need an explicit push.
+          ReduceEffects.seed(settings);
+          if (Platform.isMacOS) {
+            appWindow.backgroundEffect = ReduceEffects.current
+                ? WindowEffect.disabled
+                : WindowEffect.acrylic;
+          }
+        },
+      ),
     );
   }
 
