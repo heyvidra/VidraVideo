@@ -96,18 +96,6 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
 
-flutter:
-  uses-material-design: true
-  assets:
-    - assets/images/
-    - assets/translations/
-    - assets/certs/
-    # Desktop pet spritesheet: a 288x64 horizontal strip of six 48x64 cells
-    # (idle | walk1 | walk2 | jump | wink | blink), sliced from the character
-    # design sheet by test/spritesheet_extractor_test.dart (PET_SHEET=... to
-    # regenerate; blink is derived from the idle cell).
-    - assets/pixel_cat_spritesheet.png
-
 # Debug-symbol upload for release builds (see sentry_dart_plugin in
 # dev_dependencies). Reads SENTRY_AUTH_TOKEN from the environment; the release
 # workflow skips the whole step when that secret is absent.
@@ -127,3 +115,22 @@ sentry:
   # from the pubspec above, which is exactly what Telemetry sends at runtime —
   # pinning it here would be a second copy of the version to forget to bump,
   # and symbols under the wrong release symbolicate nothing.
+
+# NOTHING MAY FOLLOW THE `flutter:` SECTION. tool/build_windows.bat
+# appends pubspec_fonts.yaml to this file, and that file starts at two-space
+# indentation so it nests under whatever the last top-level key is. Put a
+# key after flutter: and the CJK fonts land under THAT instead — the build
+# succeeds and ships a Windows binary with no Chinese glyphs. v1.12.0 was
+# tagged with the sentry block down there and died on the font check.
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/translations/
+    - assets/certs/
+    # Desktop pet spritesheet: a 288x64 horizontal strip of six 48x64 cells
+    # (idle | walk1 | walk2 | jump | wink | blink), sliced from the character
+    # design sheet by test/spritesheet_extractor_test.dart (PET_SHEET=... to
+    # regenerate; blink is derived from the idle cell).
+    - assets/pixel_cat_spritesheet.png
