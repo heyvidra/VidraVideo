@@ -8,6 +8,7 @@ import 'package:vidra/src/features/video/presentation/widgets/cross_source_watch
 import 'package:vidra/src/features/video/domain/episode_number.dart';
 import 'package:vidra/src/features/video/domain/play_history.dart';
 import 'package:vidra/src/features/video/presentation/widgets/key_art.dart';
+import 'package:vidra/src/features/cast/presentation/cast_provider.dart';
 import 'package:vidra/src/features/download/data/download_provider.dart';
 import 'package:vidra/src/features/download/domain/download_task.dart';
 import 'package:vidra/src/window/player_window_launcher.dart';
@@ -244,6 +245,24 @@ class EpisodeItem extends ConsumerWidget {
   }
 
   Future<void> _handleTap(BuildContext context, WidgetRef ref) async {
+    // While this show is on a television, the grid is what is being cast:
+    // tapping an episode sends THAT one, the same way download mode makes a
+    // tap queue a download. Casting used to be able to send only whatever
+    // the resume target happened to be, so watching episode 5 on the TV
+    // meant first changing where you had left off.
+    //
+    // Only when the cast is THIS show. Casting something else and opening
+    // this page must still open the local player, or a tap here would take
+    // over a television playing something the viewer never left.
+    final cast = ref.read(castStateProvider);
+    final castingThis =
+        cast.isCasting &&
+        cast.video?.apiId == video.apiId &&
+        cast.video?.sourceId == video.sourceId;
+    if (castingThis && !isDownloadMode) {
+      await _castThisEpisode(context, ref, cast);
+      return;
+    }
     if (isDownloadMode) {
       final manager = ref.read(downloadManagerProvider);
       manager.addTask(
@@ -275,6 +294,44 @@ class EpisodeItem extends ConsumerWidget {
         videoId: video.apiId,
         episodeIndex: originalIndex,
         sourceId: video.sourceId,
+      );
+    }
+  }
+
+  /// Sends this episode to the television already showing this show.
+  ///
+  /// Resuming THIS episode's own position, because that is what tapping it
+  /// does when it opens locally — a tile that resumes in the player and
+  /// restarts on the TV would make the same gesture mean two things. The
+  /// tile's progress bar is the promise being kept.
+  Future<void> _castThisEpisode(
+    BuildContext context,
+    WidgetRef ref,
+    CastState cast,
+  ) async {
+    final device = cast.device;
+    if (device == null) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final label = episodeLabel(episode.title, index: originalIndex);
+    final h = history;
+    final resumeSeconds = h != null && h.durationMillis > 0
+        ? (h.positionMillis / 1000).round()
+        : 0;
+    try {
+      await ref
+          .read(castStateProvider.notifier)
+          .cast(
+            device: device,
+            video: video,
+            episodeIndex: originalIndex,
+            startPositionSeconds: resumeSeconds,
+          );
+      messenger.showSnackBar(
+        SnackBar(content: Text(tr('cast.sent_to', args: [label]))),
+      );
+    } on CastException catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(tr('cast.failed', args: ['$e']))),
       );
     }
   }
