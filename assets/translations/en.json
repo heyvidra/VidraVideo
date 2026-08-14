@@ -35,6 +35,7 @@
     "failed": "Cast failed: {}",
     "nothing_found_hint": "Nothing yet. Check the TV is on and on the same Wi-Fi — the search sweeps the whole subnet and can take a few seconds.",
     "casting_on": "On {}",
+    "casting_episode": "Ep {} · casting",
     "this_tv": "the TV",
     "connecting_to": "Connecting to {}…",
     "failed_no_episode": "This show has no episode that can be cast",

@@ -9,6 +9,7 @@ import '../../video/data/history_repository.dart';
 import '../../video/domain/video_collection.dart';
 import '../../video/presentation/play_history_provider.dart';
 import '../data/cast_web_server.dart';
+import '../data/sleep_blocker.dart';
 import '../domain/cast_target.dart';
 
 /// The DLNA control point. One per window, disposed with it.
@@ -62,6 +63,7 @@ class CastState {
     this.video,
     this.playlist,
     this.connecting = false,
+    this.playlistIndex,
   });
 
   final CastDevice? device;
@@ -69,11 +71,40 @@ class CastState {
   final Video? video;
   final CastPlaylist? playlist;
 
+  /// Which entry of [playlist] the television is on, as last reported by it.
+  ///
+  /// Seeded from the playlist's start so a freshly-started cast can name its
+  /// episode before the first report arrives; the TV's own reports then keep
+  /// it honest across auto-advance, which is the only way this app learns
+  /// the show moved on by itself.
+  final int? playlistIndex;
+
   /// On its way: probing the device, pairing, connecting. Seconds, not
   /// milliseconds, so the page has to say so.
   final bool connecting;
 
   bool get isCasting => device != null && !connecting;
+
+  /// The episode number on screen, in the show's own numbering.
+  ///
+  /// Not the playlist position: episodes with no playable URL never enter
+  /// the playlist, so the two drift apart by however many were dropped
+  /// before it — the same reason watch history is keyed by source index.
+  int? get episodeIndex {
+    final i = playlistIndex;
+    final list = playlist;
+    if (i == null || list == null) return null;
+    return list.sourceIndexOf(i);
+  }
+
+  CastState withPlaylistIndex(int index) => CastState(
+    device: device,
+    route: route,
+    video: video,
+    playlist: playlist,
+    connecting: connecting,
+    playlistIndex: index,
+  );
 }
 
 final castStateProvider = NotifierProvider<CastController, CastState>(
@@ -181,11 +212,17 @@ class CastController extends Notifier<CastState> {
         const Duration(seconds: 90),
         onTimeout: () => throw const CastException('the TV did not answer'),
       );
+      // Casting makes this machine the media server, so an idle sleep stops
+      // the picture on the television. Held for the life of the session and
+      // released on every exit below — including the failure path, which is
+      // why this sits after the last throw.
+      await SleepBlocker.hold();
       state = CastState(
         device: device,
         route: route,
         video: video,
         playlist: playlist,
+        playlistIndex: playlist.startIndex,
       );
     } catch (_) {
       // The one place every failure passes through. Without this, a cast the
@@ -202,6 +239,11 @@ class CastController extends Notifier<CastState> {
       } catch (_) {}
       try {
         await _manager.disconnect();
+      } catch (_) {}
+      // A cast that never started must not leave the machine unable to
+      // sleep. Harmless when the hold never happened.
+      try {
+        await SleepBlocker.release();
       } catch (_) {}
       state = const CastState();
       rethrow;
@@ -342,6 +384,13 @@ class CastController extends Notifier<CastState> {
     CastProgress p,
   ) async {
     if (p.duration <= Duration.zero) return;
+    // The TV moving to the next episode by itself is something only these
+    // reports can tell us, and the detail page names the episode on screen
+    // from it. Updated before the throttle below, which exists to spare the
+    // database, not the UI.
+    if (state.isCasting && state.playlistIndex != p.playlistIndex) {
+      state = state.withPlaylistIndex(p.playlistIndex);
+    }
     // Back from playlist position to episode number. They differ whenever an
     // episode had no URL and was left out, and history everywhere else in
     // the app is keyed by the episode number.
@@ -401,6 +450,7 @@ class CastController extends Notifier<CastState> {
     // proxy too, so leaving the server up would keep this show reachable on
     // the network after the viewer stopped casting it.
     await _server.stop();
+    await SleepBlocker.release();
     state = const CastState();
   }
 }

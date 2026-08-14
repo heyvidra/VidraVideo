@@ -35,6 +35,7 @@
     "failed": "投屏失败: {}",
     "nothing_found_hint": "还没找到设备。请确认电视已开机并和电脑在同一个 Wi-Fi;搜索会扫描整个网段,可能需要十几秒。",
     "casting_on": "在 {} 投屏中",
+    "casting_episode": "第 {} 集 · 投屏中",
     "this_tv": "电视",
     "connecting_to": "正在连接 {}…",
     "failed_no_episode": "这部剧没有可投屏的剧集",

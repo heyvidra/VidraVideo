@@ -35,19 +35,37 @@ class CastButton extends ConsumerWidget {
         cast.video?.sourceId == video.sourceId;
     final casting = cast.isCasting && mine;
     final connecting = cast.connecting && mine;
-    return ActionButton(
+    final button = ActionButton(
       amber: casting,
       busy: connecting,
       icon: casting ? Icons.cast_connected_rounded : Icons.cast_rounded,
       label: connecting
           ? tr('cast.connecting_to', args: [_shortName(cast.device?.name)])
           : casting
-          ? tr('cast.casting_on', args: [_shortName(cast.device?.name)])
+          ? _castingLabel(cast)
           : tr('cast.title'),
       onTap: () => casting
           ? ref.read(castStateProvider.notifier).stop()
           : _pickDevice(context, ref),
     );
+    // The television's name moves to the tooltip while an episode is named:
+    // one button cannot hold both, and on a series page "which episode" is
+    // the question being asked — the TV is in the room, visibly playing.
+    if (!casting) return button;
+    return Tooltip(
+      message: tr('cast.casting_on', args: [_shortName(cast.device?.name)]),
+      child: button,
+    );
+  }
+
+  /// "第 12 集 · 投屏中", or the television's name when there is no episode
+  /// to name — a film, or the moment before the TV's first progress report.
+  String _castingLabel(CastState cast) {
+    final episode = cast.episodeIndex;
+    if (episode == null) {
+      return tr('cast.casting_on', args: [_shortName(cast.device?.name)]);
+    }
+    return tr('cast.casting_episode', args: ['${episode + 1}']);
   }
 
   /// A television's advertised name is written for a network, not a button:
