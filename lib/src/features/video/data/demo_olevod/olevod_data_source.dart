@@ -106,14 +106,14 @@ class OlevodDataSource implements VideoDataSource {
       data: {
         'endpoint': endpoint,
         'field': field,
-        if (errorType != null) 'error': errorType,
+        'error': ?errorType,
         // `code` has been an int in every response seen. If it ever is not,
         // its type is the diagnostic part and its value may be an echo of the
         // request, so only the type goes out.
         if (code != null)
           'code': code is int ? code : code.runtimeType.toString(),
-        if (status != null) 'status': status,
-        if (hadFilters != null) 'had_filters': hadFilters,
+        'status': ?status,
+        'had_filters': ?hadFilters,
       },
     );
   }

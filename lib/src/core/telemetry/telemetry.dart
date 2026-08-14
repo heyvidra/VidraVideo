@@ -100,6 +100,18 @@ class Telemetry {
           scope.setTag(tag.key, tag.value);
         }
       });
+      // A heartbeat, once per launch, from the main engine only.
+      //
+      // Everything else here reports an exception or a filled measurement
+      // window, so a healthy machine that renders little sends nothing at all
+      // — and "nothing arrived" then means either "all is well" or "this has
+      // been broken since the release" with no way to tell which. 1.12.0
+      // shipped in exactly that state and cost an afternoon of proving the
+      // pipe was alive by hand. One event per launch is nothing against a
+      // 5k/month tier and it makes the absence of data readable.
+      if (isMainEngine) {
+        report('app.start', data: {'engine': windowKind});
+      }
       await appRunner();
     });
   }
@@ -161,7 +173,7 @@ class Telemetry {
           category: 'cast',
           message: stage,
           level: outcome == 'error' ? SentryLevel.error : SentryLevel.info,
-          data: {if (outcome != null) 'outcome': outcome, ...detail},
+          data: {'outcome': ?outcome, ...detail},
         ),
       ),
     );

@@ -198,8 +198,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   /// Which screen the frames being drawn belong to, as one of a fixed set of
   /// literals.
   ///
-  /// The location itself must never reach diagnostics: '/detail/83579' and
-  /// '/search/<term>' are exactly the viewing history this app does not
+  /// The location itself must never reach diagnostics: `/detail/83579` and
+  /// `/search/<term>` are exactly the viewing history this app does not
   /// collect. Every value returned here is written in this file, and anything
   /// unrecognised becomes 'other' rather than something derived from the URI.
   static String _screenLabel(String location) {

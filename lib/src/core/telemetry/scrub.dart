@@ -113,9 +113,10 @@ class Scrub {
     // The SDK's own HTTP integration records the full request URL. Nothing
     // here needs per-request breadcrumbs the app did not write itself, and
     // keeping them scrubbed is cheaper to reason about than keeping them out.
-    return crumb.copyWith(
-      message: crumb.message == null ? null : text(crumb.message!),
-      data: crumb.data == null ? null : data(crumb.data!),
-    );
+    final message = crumb.message;
+    final payload = crumb.data;
+    return crumb
+      ..message = message == null ? null : text(message)
+      ..data = payload == null ? null : data(payload);
   }
 }
