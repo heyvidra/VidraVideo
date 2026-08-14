@@ -209,8 +209,17 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
       );
     }
 
-    // Give native texture threads time to spin down before killing the engine
-    await Future.delayed(const Duration(milliseconds: 200));
+    // Give native texture threads time to spin down before killing the
+    // engine. This must outlast the sprite sweeper's 300ms teardown settle —
+    // closing inside that window strands a parked native player that nothing
+    // can reclaim afterwards.
+    await Future.delayed(const Duration(milliseconds: 600));
+
+    // The wakelock must be released here, not in dispose: closing the window
+    // kills the engine, so State.dispose never runs, and the controller path
+    // only disables it when playback actually started. Without this, a window
+    // opened and closed without ever playing leaves the display awake.
+    await WakelockPlus.disable();
 
     // Immediately close the window. Native side handles the rest.
     appWindow.close();

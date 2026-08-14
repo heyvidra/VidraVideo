@@ -1429,19 +1429,23 @@ class _EpisodeGridSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const min = 104.0, gap = 11.0;
-    return LayoutBuilder(
-      builder: (context, c) {
-        final columns = ((c.maxWidth + gap) / (min + gap)).floor().clamp(1, 99);
-        final width = (c.maxWidth - (columns - 1) * gap) / columns;
-        return Wrap(
-          spacing: gap,
-          runSpacing: gap,
-          children: List.generate(
-            columns * 2,
-            (_) => SkeletonBox(width: width, height: 86, radius: 14),
-          ),
-        );
-      },
+    return SkeletonShimmer(
+      child: LayoutBuilder(
+        builder: (context, c) {
+          final columns = ((c.maxWidth + gap) / (min + gap))
+              .floor()
+              .clamp(1, 99);
+          final width = (c.maxWidth - (columns - 1) * gap) / columns;
+          return Wrap(
+            spacing: gap,
+            runSpacing: gap,
+            children: List.generate(
+              columns * 2,
+              (_) => SkeletonBox(width: width, height: 86, radius: 14),
+            ),
+          );
+        },
+      ),
     );
   }
 }

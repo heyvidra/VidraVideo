@@ -8,6 +8,7 @@ import '../../../common/bar_controls.dart';
 import '../../../common/poster_card_action.dart';
 import '../../../core/utils/format.dart';
 import '../../../common/screen_chrome.dart';
+import '../../../common/skeleton/skeleton_box.dart';
 import '../../../common/skeleton/video_card_skeleton.dart';
 import 'widgets/cards/popular_video_card.dart';
 import 'package:vidra/src/window/player_window_launcher.dart';
@@ -158,16 +159,18 @@ class _RecentListScreenState extends ConsumerState<RecentListScreen> {
                   },
                 );
               },
-              loading: () => GridView.builder(
-                padding: const EdgeInsets.fromLTRB(
-                  kContentGutter,
-                  0,
-                  kContentGutter,
-                  24,
+              loading: () => SkeletonShimmer(
+                child: GridView.builder(
+                  padding: const EdgeInsets.fromLTRB(
+                    kContentGutter,
+                    0,
+                    kContentGutter,
+                    24,
+                  ),
+                  gridDelegate: kPosterGrid,
+                  itemCount: 10,
+                  itemBuilder: (context, index) => const VideoCardSkeleton(),
                 ),
-                gridDelegate: kPosterGrid,
-                itemCount: 10,
-                itemBuilder: (context, index) => const VideoCardSkeleton(),
               ),
               error: (err, stack) => Center(
                 child: Text(tr('common.error', args: [err.toString()])),

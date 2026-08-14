@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vidra/src/common/dropdown_menu.dart';
-import 'package:vidra/src/common/skeleton/skeleton_box.dart';
+import 'package:vidra/src/common/screen_chrome.dart';
 import 'package:vidra/src/config/design_tokens.dart';
 import 'package:vidra/src/features/video/data/video_repository.dart';
 import 'package:vidra/src/features/video/domain/video_collection.dart';
@@ -521,6 +521,17 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
     );
   }
 
+  /// Decode covers at the size the grid can actually show: [kPosterGrid] caps
+  /// a cell at 168 logical points and hover scales the card by 1.05, so any
+  /// wider decode is memory the screen never displays. The resting and hover
+  /// covers must request the SAME width, because a different value is a second
+  /// decode of the same bytes the moment the pointer arrives.
+  int _coverDecodeWidth(BuildContext context) =>
+      (kPosterGrid.maxCrossAxisExtent *
+              MediaQuery.devicePixelRatioOf(context) *
+              1.05)
+          .round();
+
   Widget _buildNormalContent() {
     final theme = Theme.of(context);
     // Resolved here rather than at every call site: cards are built by the
@@ -547,11 +558,13 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
                         sourceId: widget.video.sourceId,
                       ),
                   fit: BoxFit.cover,
-                  // The same block the skeleton grid draws, so a card whose
-                  // cover is still loading matches the cards that have not
-                  // arrived at all. The greys it used were off-palette on both
-                  // themes.
-                  placeholder: (context, url) => const SkeletonBox(radius: 0),
+                  memCacheWidth: _coverDecodeWidth(context),
+                  // The skeleton grid's fill, minus its shimmer: each Shimmer
+                  // is its own AnimationController repainting every vsync, and
+                  // a scroll puts dozens of loading covers on screen at once.
+                  placeholder: (context, url) => ColoredBox(
+                    color: VidraTokens.of(context).fg.withValues(alpha: 0.07),
+                  ),
                   errorWidget: (context, url, err) => ColoredBox(
                     color: VidraTokens.of(context).fg.withValues(alpha: 0.09),
                   ),
@@ -738,12 +751,26 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
         // where it belongs, and the flight carries the picture unchanged.
         Hero(
           tag: videoPosterHeroTag(widget.video),
+          // Everything here must match the resting cover exactly — same
+          // sourceId, same decode width — because hovering swaps this image in
+          // whole: any difference is a cache miss, so the swap refetches and
+          // re-decodes, and without the sourceId a non-active source's cover
+          // resolves against the wrong base URL entirely.
           child: CachedNetworkImage(
             imageUrl: ref
                 .read(videoRepositoryProvider)
-                .resolveUrl(widget.video.coverUrl),
+                .resolveUrl(
+                  widget.video.coverUrl,
+                  sourceId: widget.video.sourceId,
+                ),
             fit: BoxFit.cover,
-            placeholder: (context, url) => const SkeletonBox(radius: 0),
+            memCacheWidth: _coverDecodeWidth(context),
+            placeholder: (context, url) => ColoredBox(
+              color: VidraTokens.of(context).fg.withValues(alpha: 0.07),
+            ),
+            errorWidget: (context, url, err) => ColoredBox(
+              color: VidraTokens.of(context).fg.withValues(alpha: 0.09),
+            ),
           ),
         ),
         Container(color: Colors.black.withAlpha(100)),

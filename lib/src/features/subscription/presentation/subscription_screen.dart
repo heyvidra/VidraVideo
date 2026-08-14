@@ -7,6 +7,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../../common/bar_controls.dart';
 import '../../../common/poster_card_action.dart';
 import '../../../common/screen_chrome.dart';
+import '../../../common/skeleton/skeleton_box.dart';
 import '../../../common/skeleton/video_card_skeleton.dart';
 import '../../../config/design_tokens.dart';
 import '../../video/domain/video_collection.dart';
@@ -82,16 +83,18 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
       // The catalog's skeleton, not a spinner: this screen shows the catalog's
       // cards, and a lone spinner in the middle of an empty page says nothing
       // about what is coming.
-      loading: () => GridView.builder(
-        padding: const EdgeInsets.fromLTRB(
-          kContentGutter,
-          0,
-          kContentGutter,
-          24,
+      loading: () => SkeletonShimmer(
+        child: GridView.builder(
+          padding: const EdgeInsets.fromLTRB(
+            kContentGutter,
+            0,
+            kContentGutter,
+            24,
+          ),
+          gridDelegate: kPosterGrid,
+          itemCount: 8,
+          itemBuilder: (context, i) => const VideoCardSkeleton(),
         ),
-        gridDelegate: kPosterGrid,
-        itemCount: 8,
-        itemBuilder: (context, i) => const VideoCardSkeleton(),
       ),
       error: (e, _) => Center(child: Text('$e')),
       data: (subs) {
@@ -212,6 +215,8 @@ class _CalendarRow extends ConsumerWidget {
                   width: 30,
                   height: 41,
                   fit: BoxFit.cover,
+                  memCacheWidth:
+                      (30 * MediaQuery.devicePixelRatioOf(context)).round(),
                   errorWidget: (_, _, _) =>
                       SizedBox(width: 30, height: 41),
                 ),

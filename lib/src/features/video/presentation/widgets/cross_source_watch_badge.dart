@@ -6,12 +6,12 @@ import 'package:vidra/src/features/video/domain/play_history.dart';
 import 'package:vidra/src/features/video/domain/video_collection.dart';
 import 'package:vidra/src/features/video/presentation/play_history_provider.dart';
 
-/// Progress on the same title from another source, or null when there is none.
-///
-/// The two catalogs share no ids, so a show is matched on title + year — see
-/// [crossSourceKey] for why that is exact rather than fuzzy.
-CrossSourceWatch? crossSourceWatchFor(WidgetRef ref, Video video) {
-  final watches = ref.watch(crossSourceWatchesProvider).value;
+/// The best cross-source entry for [video] in [watches], or null. Pure, so the
+/// select() callbacks below can share one reduction.
+CrossSourceWatch? _bestMatch(
+  Map<String, List<CrossSourceWatch>>? watches,
+  Video video,
+) {
   final entries = watches?[crossSourceKey(video.title, video.year?.toString())];
   if (entries == null) return null;
 
@@ -26,22 +26,63 @@ CrossSourceWatch? crossSourceWatchFor(WidgetRef ref, Video video) {
   return best;
 }
 
+/// Progress on the same title from another source, or null when there is none.
+///
+/// The two catalogs share no ids, so a show is matched on title + year — see
+/// [crossSourceKey] for why that is exact rather than fuzzy.
+///
+/// Watched through select() so the read is keyed to this video's own match:
+/// most videos have no cross-source history at all, and their stable null must
+/// not rebuild anything when the screen-wide map re-emits.
+CrossSourceWatch? crossSourceWatchFor(WidgetRef ref, Video video) {
+  return ref.watch(
+    crossSourceWatchesProvider.select(
+      (watches) => _bestMatch(watches.value, video),
+    ),
+  );
+}
+
+/// The two fields a card's badge/label actually renders, as a record: select()
+/// decides "changed?" with ==, and a history change rebuilds the whole map
+/// object-fresh — value equality is what lets a card whose match is unchanged
+/// skip the rebuild that [crossSourceWatchFor]'s identity-compared object
+/// cannot.
+({String sourceId, int lastEpisodeIndex})? _matchSummaryFor(
+  WidgetRef ref,
+  Video video,
+) {
+  return ref.watch(
+    crossSourceWatchesProvider.select((watches) {
+      final best = _bestMatch(watches.value, video);
+      return best == null
+          ? null
+          : (sourceId: best.sourceId, lastEpisodeIndex: best.lastEpisodeIndex);
+    }),
+  );
+}
+
 /// The source's own display name, falling back to the raw id.
 ///
 /// Users pick sources by the names shown in the switcher, never by the internal
 /// slug — labelling a card "olevod" names something they have no other reason
 /// to have seen.
 String sourceDisplayName(WidgetRef ref, String sourceId) {
-  for (final source in ref.watch(availableDataSourcesProvider)) {
-    if (source.id == sourceId) return source.name;
-  }
-  return sourceId;
+  // Selecting the one name keeps this per-card read from rebuilding its caller
+  // when the source list re-emits otherwise unchanged.
+  return ref.watch(
+    availableDataSourcesProvider.select((sources) {
+      for (final source in sources) {
+        if (source.id == sourceId) return source.name;
+      }
+      return sourceId;
+    }),
+  );
 }
 
 /// One line for a card: "欧乐影院 看到 第 5 集", or null to leave the card's own
 /// remarks alone.
 String? crossSourceWatchLabel(WidgetRef ref, Video video) {
-  final match = crossSourceWatchFor(ref, video);
+  final match = _matchSummaryFor(ref, video);
   if (match == null) return null;
   final where = sourceDisplayName(ref, match.sourceId);
   // A film's "episodes" are the source's audio tracks and mirrors, not
@@ -69,7 +110,7 @@ class CrossSourceWatchBadge extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final match = crossSourceWatchFor(ref, video);
+    final match = _matchSummaryFor(ref, video);
     if (match == null) return const SizedBox.shrink();
 
     final theme = Theme.of(context);

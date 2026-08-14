@@ -160,6 +160,11 @@ class _LoadingWithCover extends StatelessWidget {
                           .read(videoRepositoryProvider)
                           .resolveUrl(video.coverUrl, sourceId: video.sourceId),
                 fit: BoxFit.cover,
+                // The same decode cap as the loaded header's backdrop, and it
+                // must stay the same: the image cache keys on decode size, so
+                // a matching cap lets the loaded page reuse this bitmap
+                // instead of decoding the cover a second time at a new size.
+                memCacheWidth: 1600,
                 errorWidget: (_, _, _) =>
                     ColoredBox(color: t.fg.withValues(alpha: 0.08)),
               ),

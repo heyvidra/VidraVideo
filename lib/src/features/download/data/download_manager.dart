@@ -603,6 +603,11 @@ class DownloadManager {
   // Throttling map for save operations
   final _saveThrottler = <String, Timer>{};
 
+  // Pending trailing-edge notification for progress-only updates. One global
+  // timer, not per-task: a notification carries allTasks, so one fire serves
+  // every task's accumulated progress at once.
+  Timer? _notifyThrottle;
+
   /// Update a specific episode in a task
   void _updateEpisode(
     String taskId,
@@ -617,23 +622,43 @@ class DownloadManager {
     updatedEpisodes[episodeIndex] = newEpisode;
 
     _tasks[taskId] = task.copyWith(episodes: updatedEpisodes);
-    _notifyUpdate();
 
-    // Persist changes
-    // If status changed or completed, save immediately
+    // A status transition is news the UI must not sit on — an episode
+    // finishing, pausing, or failing changes what actions the screen offers —
+    // so it notifies and saves immediately. Pure progress ticks arrive many
+    // times per second per episode, multiplied by the slot-pool concurrency,
+    // and every notification rebuilds every downloads listener; those are
+    // throttled the same way their save already is.
     if (oldStatus != newEpisode.status ||
         newEpisode.status == DownloadStatus.completed ||
         newEpisode.status == DownloadStatus.failed) {
+      _notifyUpdate();
       _saveTask(_tasks[taskId]!);
     } else {
-      // Otherwise (progress updates), throttle saving
+      _notifyProgressThrottled();
       _throttledSave(taskId);
     }
   }
 
   /// Notify listeners of task updates
   void _notifyUpdate() {
+    // An immediate notification already carries the full current state, so a
+    // pending throttled one would only repeat it.
+    _notifyThrottle?.cancel();
+    _notifyThrottle = null;
     _taskController.add(allTasks);
+  }
+
+  /// Trailing-edge throttle for progress-only notifications, capping listeners
+  /// at ~4 updates/sec. The timer reads live state when it fires, so the final
+  /// progress value of a burst always reaches listeners; status transitions
+  /// bypass this entirely via [_notifyUpdate].
+  void _notifyProgressThrottled() {
+    if (_notifyThrottle != null) return;
+    _notifyThrottle = Timer(const Duration(milliseconds: 250), () {
+      _notifyThrottle = null;
+      _taskController.add(allTasks);
+    });
   }
 
   /// Throttled save for progress updates
@@ -728,6 +753,9 @@ class DownloadManager {
   void dispose() {
     _settingsSub?.cancel();
     _dbSub?.cancel();
+    // Cancelled before the controller closes, or a trailing notify could fire
+    // into a closed StreamController.
+    _notifyThrottle?.cancel();
     for (final t in _saveThrottler.values) {
       t.cancel();
     }

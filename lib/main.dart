@@ -206,8 +206,12 @@ WindowEffect _resolveBackgroundEffect(DesktopWindow window) {
   // attribute. Behind a video that is worth nothing — the picture covers the
   // window — and a non-opaque window that has not yet presented a frame is
   // exactly what shows up as a blank white sheet in the taskbar preview.
-  // macOS keeps it: its blur is behind the catalog's glass, where it reads.
+  // macOS keeps it only for the catalog: its blur is behind the catalog's
+  // glass, where it reads. The player's Scaffold is opaque black, so behind
+  // it the blur is invisible yet WindowServer still recomputes it every
+  // frame — the picture covers that window on every platform.
   if (Platform.isWindows) return WindowEffect.disabled;
+  if (window.name == 'player') return WindowEffect.disabled;
   return WindowEffect.acrylic;
 }
 

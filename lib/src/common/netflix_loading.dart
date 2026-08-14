@@ -36,10 +36,20 @@ class _NetflixLoadingState extends State<NetflixLoading>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      if (!_controller.isAnimating) {
-        _controller.repeat();
-      }
+    switch (state) {
+      case AppLifecycleState.resumed:
+        if (!_controller.isAnimating) {
+          _controller.repeat();
+        }
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.hidden:
+        // A loading spinner nobody can see must not keep ticking — a slow
+        // fetch behind an unfocused window would otherwise animate at full
+        // frame rate for its entire duration.
+        _controller.stop();
+      case AppLifecycleState.detached:
+        break;
     }
   }
 

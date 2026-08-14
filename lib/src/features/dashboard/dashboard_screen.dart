@@ -304,13 +304,20 @@ class AppStatusBar extends ConsumerWidget {
     final t = VidraTokens.of(context);
     final source = ref.watch(activeDataSourceProvider);
     final subs = ref.watch(unreadSubscriptionCountProvider);
-    final active = ref
-        .watch(downloadTasksProvider)
-        .maybeWhen(
-          data: (tasks) =>
-              tasks.where((t) => t.status == DownloadStatus.downloading).length,
+    // This bar sits on every shell screen and downloadTasksProvider emits on
+    // every progress notification, so the watch is narrowed to the one number
+    // the bar renders — an emission that leaves the count unchanged must
+    // rebuild nothing.
+    final active = ref.watch(
+      downloadTasksProvider.select(
+        (tasks) => tasks.maybeWhen(
+          data: (list) => list
+              .where((t) => t.status == DownloadStatus.downloading)
+              .length,
           orElse: () => 0,
-        );
+        ),
+      ),
+    );
 
     final style = TextStyle(
       fontSize: 10.5,

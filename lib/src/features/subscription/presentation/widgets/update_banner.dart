@@ -59,6 +59,8 @@ class UpdateBanner extends ConsumerWidget {
                   width: 34,
                   height: 46,
                   fit: BoxFit.cover,
+                  memCacheWidth:
+                      (34 * MediaQuery.devicePixelRatioOf(context)).round(),
                   errorWidget: (_, _, _) => const _OnAirDot(),
                 ),
               )

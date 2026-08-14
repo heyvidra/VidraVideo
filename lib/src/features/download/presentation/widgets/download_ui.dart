@@ -175,6 +175,9 @@ class ThumbWithBadge extends StatelessWidget {
                     width: width,
                     height: height,
                     fit: BoxFit.cover,
+                    memCacheWidth:
+                        (width * MediaQuery.devicePixelRatioOf(context))
+                            .round(),
                     placeholder: (_, _) => placeholder(),
                     errorWidget: (_, _, _) => placeholder(),
                   ),
