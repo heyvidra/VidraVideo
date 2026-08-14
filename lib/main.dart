@@ -5,12 +5,14 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter/material.dart';
 import 'package:local_notifier/local_notifier.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vidra_player_kit/vidra_player_kit.dart';
 
 import 'src/config/app_config.dart';
 import 'src/core/network/bundled_roots.dart';
+import 'src/core/telemetry/telemetry.dart';
 import 'src/core/utils/log.dart';
 import 'src/core/utils/window.dart';
 
@@ -132,24 +134,50 @@ Future<void> _runApp() async {
 
   WindowHelper.init(container.read(settingsRepositoryProvider));
 
-  runBitsdojoWindowApp(
-    routes: {
-      'player': (context, arguments) =>
-          VideoPlayerWindowApp(arguments: arguments),
-      PetWindowLauncher.windowName: (context, arguments) =>
-          PetWindowApp(arguments: arguments),
-    },
-    windowConfigurations: _buildWindowConfigurations(),
-    app: EasyLocalization(
-      supportedLocales: const [Locale('zh'), Locale('en')],
-      path: 'assets/translations',
-      fallbackLocale: const Locale('en'),
-      startLocale: savedLocale != null ? Locale(savedLocale) : null,
-      child: UncontrolledProviderScope(
-        container: container,
-        child: const MyApp(),
+  void startApp() {
+    runBitsdojoWindowApp(
+      routes: {
+        'player': (context, arguments) =>
+            VideoPlayerWindowApp(arguments: arguments),
+        PetWindowLauncher.windowName: (context, arguments) =>
+            PetWindowApp(arguments: arguments),
+      },
+      windowConfigurations: _buildWindowConfigurations(),
+      app: EasyLocalization(
+        supportedLocales: const [Locale('zh'), Locale('en')],
+        path: 'assets/translations',
+        fallbackLocale: const Locale('en'),
+        startLocale: savedLocale != null ? Locale(savedLocale) : null,
+        child: UncontrolledProviderScope(
+          container: container,
+          child: const MyApp(),
+        ),
       ),
-    ),
+    );
+  }
+
+  // Diagnostics wrap the app rather than sitting beside it, so an error that
+  // escapes a widget still gets reported. The pet is left out: it is a sprite
+  // in a window, it was just cut down to the smallest boot in the app, and a
+  // third Sentry client per process buys nothing. Only the main engine may
+  // arm the native crash handler — that one is process-global.
+  if (isPetWindow || !appSettings.telemetryEnabled) {
+    startApp();
+    return;
+  }
+
+  // The real version, not AppConfig's: that constant says 1.0.0 and has since
+  // 1.0.0, and a report that lies about its version cannot answer whether a
+  // fix reached the machine that needed it.
+  final packageInfo = await PackageInfo.fromPlatform();
+
+  await Telemetry.run(
+    windowKind: isMainWindow ? 'main' : 'player',
+    userOptedIn: true,
+    isMainEngine: isMainWindow,
+    release: 'vidra@${packageInfo.version}+${packageInfo.buildNumber}',
+    deviceTags: Telemetry.deviceTags(reduceEffects: ReduceEffects.current),
+    appRunner: startApp,
   );
 }
 

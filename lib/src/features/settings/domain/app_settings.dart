@@ -48,6 +48,9 @@ class AppSettings {
   /// See [ReduceEffects] for the resolution.
   String? reduceEffects;
 
+  /// Whether this machine reports diagnostics. See [Telemetry].
+  bool telemetryEnabled;
+
   AppSettings({
     this.downloadPath,
     this.maxConcurrentDownloads = 3,
@@ -63,5 +66,6 @@ class AppSettings {
     this.playerPipY,
     this.locale,
     this.showPet = false,
+    this.telemetryEnabled = true,
   });
 }

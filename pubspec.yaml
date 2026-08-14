@@ -34,6 +34,11 @@ dependencies:
       path: packages/vidra_player_fvp
       ref: v1.4.7
 
+  # Diagnostics. The DSN is never in this repo — it arrives as a
+  # --dart-define, and an empty one makes every call here a no-op, so a dev
+  # build reports nothing and a fork of this repo cannot report to us.
+  sentry_flutter: ^9.27.0
+
   dio: ^5.9.2
   ffi: ^2.1.0
   crypto: ^3.0.7
@@ -78,6 +83,11 @@ dependency_overrides:
 dev_dependencies:
   flutter_lints: ^6.0.0
 
+  # Uploads the debug symbols that --split-debug-info strips out of the
+  # release build. Without it every reported stack trace is a list of
+  # addresses. CI-only: run by the release workflow, never at build time.
+  sentry_dart_plugin: ^3.3.0
+
   build_runner: ^2.12.2
   drift_dev: ^2.30.1
 
@@ -96,3 +106,19 @@ flutter:
     # design sheet by test/spritesheet_extractor_test.dart (PET_SHEET=... to
     # regenerate; blink is derived from the idle cell).
     - assets/pixel_cat_spritesheet.png
+
+# Debug-symbol upload for release builds (see sentry_dart_plugin in
+# dev_dependencies). Reads SENTRY_AUTH_TOKEN from the environment; the release
+# workflow skips the whole step when that secret is absent.
+sentry:
+  upload_debug_symbols: true
+  upload_source_maps: false
+  project: flutter
+  org: vidra
+  # EU-region org: sentry-cli defaults to the US endpoint and the upload would
+  # 404 against it. The DSN carries its own region, so only this side needs it.
+  url: https://de.sentry.io
+  # No `release:` on purpose. The plugin derives `name@version+buildNumber`
+  # from the pubspec above, which is exactly what Telemetry sends at runtime —
+  # pinning it here would be a second copy of the version to forget to bump,
+  # and symbols under the wrong release symbolicate nothing.

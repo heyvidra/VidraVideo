@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:dio/dio.dart' show DioException;
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 import '../../../core/services/m3u8_downloader.dart'
     show DownloadCancelledException;
+import '../../../core/telemetry/telemetry.dart';
 import '../../../core/utils/log.dart';
 import '../../../data/database/app_database.dart' as db;
 import '../../../data/database/mappers.dart';
@@ -562,6 +564,22 @@ class DownloadManager {
         logD(
           'DownloadManager',
           'episode failed after $_maxAttempts attempts: $e',
+        );
+        // Terminal only: an attempt that retried and then succeeded is not
+        // news, and an abort is the user's own doing and returned above. The
+        // error's TYPE, never the error — its message carries the stream URL
+        // it died on.
+        Telemetry.report(
+          'download.failed',
+          data: {
+            'error': e.runtimeType.toString(),
+            'attempts': attempt,
+            // Which downloader gave up: the vidraDlp extractor path (a format
+            // was selected at add time) or the plain HLS path.
+            'extractor': formatId != null,
+            if (e is DioException) 'type': e.type.name,
+            if (e is DioException) 'status': e.response?.statusCode,
+          },
         );
         final i = _indexOfUrl(taskId, url);
         final ep = _episodeAt(taskId, i);

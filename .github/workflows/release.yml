@@ -252,7 +252,23 @@ jobs:
           file macos/libmedia_ffi.dylib
 
       - name: Flutter Build (macOS Release)
-        run: flutter build macos --release --split-debug-info=debug-info
+        # The DSN lives in repo secrets, never in the tree: a build without one
+        # reports nothing at all, which is what every fork and local build
+        # should do. --split-debug-info means the traces that DO arrive carry
+        # addresses, so the symbol upload below is what makes them readable.
+        run: |
+          flutter build macos --release --split-debug-info=debug-info \
+            --dart-define=SENTRY_DSN="${SENTRY_DSN}"
+        env:
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+
+      - name: Upload debug symbols to Sentry
+        # Skipped rather than failed when the token is absent: a fork building
+        # this tag must still get a DMG.
+        if: ${{ secrets.SENTRY_AUTH_TOKEN != '' }}
+        run: dart run sentry_dart_plugin
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
       - name: Install create-dmg
         run: brew install create-dmg

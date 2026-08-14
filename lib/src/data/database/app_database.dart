@@ -378,6 +378,14 @@ class AppSettings extends Table {
   /// bool: the auto state must be distinguishable from an explicit choice,
   /// or the hardware default could never be overridden in either direction.
   TextColumn get reduceEffects => text().nullable()();
+
+  /// Whether this machine reports diagnostics (frame timings, cast protocol
+  /// stages, error shapes — never anything about what was watched; see
+  /// [Telemetry]). On by default: the problems it exists to find are the ones
+  /// that only ever happen on someone else's hardware, and a switch nobody
+  /// finds reports nothing. Builds without a DSN ignore this entirely.
+  BoolColumn get telemetryEnabled =>
+      boolean().withDefault(const Constant(true))();
 }
 
 @DriftDatabase(
@@ -400,7 +408,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   /// True when [table] already has a column named [name].
   ///
@@ -528,6 +536,14 @@ class AppDatabase extends _$AppDatabase {
         // v15: 减少特效 three-state ('on'/'off', null = auto by GPU class).
         if (from < 15 && to >= 15) {
           await _addColumnIfAbsent(m, appSettings, appSettings.reduceEffects);
+        }
+        // v16: whether this machine reports diagnostics.
+        if (from < 16 && to >= 16) {
+          await _addColumnIfAbsent(
+            m,
+            appSettings,
+            appSettings.telemetryEnabled,
+          );
         }
       });
     },

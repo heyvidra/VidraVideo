@@ -12,6 +12,7 @@ import 'package:bitsdojo_window/bitsdojo_window.dart';
 import '../data/backup_service.dart';
 import '../data/settings_repository.dart';
 import '../../../config/reduce_effects.dart';
+import '../../../core/telemetry/telemetry.dart';
 import '../../favorites/presentation/favorites_provider.dart';
 import '../../subscription/presentation/subscription_provider.dart';
 import '../../video/presentation/play_history_provider.dart';
@@ -78,6 +79,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 title: tr('settings.performance.title'),
                 children: [
                   _buildReduceEffectsSetting(context, settings, settingsRepo),
+                ],
+              ),
+              const SizedBox(height: 26),
+              _section(
+                context,
+                title: tr('settings.diagnostics.title'),
+                children: [
+                  _buildTelemetrySetting(context, settings, settingsRepo),
                 ],
               ),
               // macOS only: elsewhere the pet renders opaque and Linux
@@ -255,6 +264,41 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             appWindow.backgroundEffect = ReduceEffects.current
                 ? WindowEffect.disabled
                 : WindowEffect.acrylic;
+          }
+        },
+      ),
+    );
+  }
+
+  /// Diagnostics, with the subtitle naming what is and is not sent.
+  ///
+  /// The list is not decoration: a switch labelled "help improve Vidra" tells
+  /// a person nothing they can decide on, and this app's users have a
+  /// particular reason to want the second half of that sentence in writing.
+  Widget _buildTelemetrySetting(
+    BuildContext context,
+    AppSettings settings,
+    settingsRepo,
+  ) {
+    return ListTile(
+      title: Text(tr('settings.diagnostics.enable')),
+      subtitle: Text(
+        tr('settings.diagnostics.enable_desc'),
+        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+      ),
+      trailing: Switch(
+        value: settings.telemetryEnabled,
+        onChanged: (value) async {
+          settings.telemetryEnabled = value;
+          await settingsRepo.updateSettings(settings);
+          if (value) {
+            // Nothing starts reporting until the SDK is initialized, which
+            // happens once, around the app.
+            if (context.mounted) {
+              _snack(context, tr('settings.diagnostics.restart_hint'));
+            }
+          } else {
+            await Telemetry.disable();
           }
         },
       ),

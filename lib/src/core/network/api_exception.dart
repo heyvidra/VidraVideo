@@ -1,5 +1,7 @@
 import 'package:dio/dio.dart';
 
+import '../telemetry/telemetry.dart';
+
 class ApiException implements Exception {
   final String message;
   final int? statusCode;
@@ -17,6 +19,7 @@ class ApiException implements Exception {
   };
 
   factory ApiException.fromDioException(DioException error) {
+    _reportFailure(error);
     final message = switch (error.type) {
       DioExceptionType.cancel => 'Request to server was cancelled',
       DioExceptionType.connectionTimeout => 'Connection timeout with server',
@@ -58,6 +61,28 @@ class ApiException implements Exception {
           _statusMessages[statusCode] ??
           'Received invalid status code: $statusCode',
       statusCode: statusCode,
+    );
+  }
+
+  /// Failure signatures already reported this run: `type/status`.
+  static final _reportedFailures = <String>{};
+
+  /// A request that ends as an error screen. Every data source funnels through
+  /// [fromDioException] to build that screen, so this is the one place that
+  /// sees them all.
+  ///
+  /// Type and status, nothing else — dio's own message carries the URL that
+  /// failed, and the URL carries what the user was watching. Reported once per
+  /// signature per run: an offline machine is worth one event, not one per
+  /// retry the user taps. Cancellations are the user's own doing and are not
+  /// reported at all.
+  static void _reportFailure(DioException error) {
+    if (error.type == DioExceptionType.cancel) return;
+    final status = error.response?.statusCode;
+    if (!_reportedFailures.add('${error.type.name}/$status')) return;
+    Telemetry.report(
+      'network.request_failed',
+      data: {'type': error.type.name, 'status': status},
     );
   }
 

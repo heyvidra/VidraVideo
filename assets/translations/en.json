@@ -102,6 +102,12 @@
       "mode_on": "On",
       "mode_off": "Off"
     },
+    "diagnostics": {
+      "title": "Diagnostics",
+      "enable": "Send diagnostic data",
+      "enable_desc": "Helps track down stutter, casting and crash problems. Technical information only: frame rates, hardware and OS version, casting protocol stages and error codes. Never what you watched — titles, searches, stream addresses and file paths are never sent",
+      "restart_hint": "Takes effect after restarting Vidra"
+    },
     "backup": {
       "title": "Backup",
       "export": "Export data",

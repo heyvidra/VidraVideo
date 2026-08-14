@@ -6123,6 +6123,21 @@ class $AppSettingsTable extends AppSettings
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _telemetryEnabledMeta = const VerificationMeta(
+    'telemetryEnabled',
+  );
+  @override
+  late final GeneratedColumn<bool> telemetryEnabled = GeneratedColumn<bool>(
+    'telemetry_enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("telemetry_enabled" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -6148,6 +6163,7 @@ class $AppSettingsTable extends AppSettings
     petWindowX,
     petWindowY,
     reduceEffects,
+    telemetryEnabled,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -6350,6 +6366,15 @@ class $AppSettingsTable extends AppSettings
         ),
       );
     }
+    if (data.containsKey('telemetry_enabled')) {
+      context.handle(
+        _telemetryEnabledMeta,
+        telemetryEnabled.isAcceptableOrUnknown(
+          data['telemetry_enabled']!,
+          _telemetryEnabledMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -6451,6 +6476,10 @@ class $AppSettingsTable extends AppSettings
         DriftSqlType.string,
         data['${effectivePrefix}reduce_effects'],
       ),
+      telemetryEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}telemetry_enabled'],
+      )!,
     );
   }
 
@@ -6512,6 +6541,13 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   /// bool: the auto state must be distinguishable from an explicit choice,
   /// or the hardware default could never be overridden in either direction.
   final String? reduceEffects;
+
+  /// Whether this machine reports diagnostics (frame timings, cast protocol
+  /// stages, error shapes — never anything about what was watched; see
+  /// [Telemetry]). On by default: the problems it exists to find are the ones
+  /// that only ever happen on someone else's hardware, and a switch nobody
+  /// finds reports nothing. Builds without a DSN ignore this entirely.
+  final bool telemetryEnabled;
   const AppSetting({
     required this.id,
     this.downloadPath,
@@ -6536,6 +6572,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     this.petWindowX,
     this.petWindowY,
     this.reduceEffects,
+    required this.telemetryEnabled,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -6599,6 +6636,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     if (!nullToAbsent || reduceEffects != null) {
       map['reduce_effects'] = Variable<String>(reduceEffects);
     }
+    map['telemetry_enabled'] = Variable<bool>(telemetryEnabled);
     return map;
   }
 
@@ -6661,6 +6699,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       reduceEffects: reduceEffects == null && nullToAbsent
           ? const Value.absent()
           : Value(reduceEffects),
+      telemetryEnabled: Value(telemetryEnabled),
     );
   }
 
@@ -6703,6 +6742,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       petWindowX: serializer.fromJson<double?>(json['petWindowX']),
       petWindowY: serializer.fromJson<double?>(json['petWindowY']),
       reduceEffects: serializer.fromJson<String?>(json['reduceEffects']),
+      telemetryEnabled: serializer.fromJson<bool>(json['telemetryEnabled']),
     );
   }
   @override
@@ -6734,6 +6774,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       'petWindowX': serializer.toJson<double?>(petWindowX),
       'petWindowY': serializer.toJson<double?>(petWindowY),
       'reduceEffects': serializer.toJson<String?>(reduceEffects),
+      'telemetryEnabled': serializer.toJson<bool>(telemetryEnabled),
     };
   }
 
@@ -6761,6 +6802,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     Value<double?> petWindowX = const Value.absent(),
     Value<double?> petWindowY = const Value.absent(),
     Value<String?> reduceEffects = const Value.absent(),
+    bool? telemetryEnabled,
   }) => AppSetting(
     id: id ?? this.id,
     downloadPath: downloadPath.present ? downloadPath.value : this.downloadPath,
@@ -6807,6 +6849,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     reduceEffects: reduceEffects.present
         ? reduceEffects.value
         : this.reduceEffects,
+    telemetryEnabled: telemetryEnabled ?? this.telemetryEnabled,
   );
   AppSetting copyWithCompanion(AppSettingsCompanion data) {
     return AppSetting(
@@ -6871,6 +6914,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       reduceEffects: data.reduceEffects.present
           ? data.reduceEffects.value
           : this.reduceEffects,
+      telemetryEnabled: data.telemetryEnabled.present
+          ? data.telemetryEnabled.value
+          : this.telemetryEnabled,
     );
   }
 
@@ -6899,7 +6945,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           ..write('showPet: $showPet, ')
           ..write('petWindowX: $petWindowX, ')
           ..write('petWindowY: $petWindowY, ')
-          ..write('reduceEffects: $reduceEffects')
+          ..write('reduceEffects: $reduceEffects, ')
+          ..write('telemetryEnabled: $telemetryEnabled')
           ..write(')'))
         .toString();
   }
@@ -6929,6 +6976,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     petWindowX,
     petWindowY,
     reduceEffects,
+    telemetryEnabled,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -6956,7 +7004,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           other.showPet == this.showPet &&
           other.petWindowX == this.petWindowX &&
           other.petWindowY == this.petWindowY &&
-          other.reduceEffects == this.reduceEffects);
+          other.reduceEffects == this.reduceEffects &&
+          other.telemetryEnabled == this.telemetryEnabled);
 }
 
 class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
@@ -6983,6 +7032,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<double?> petWindowX;
   final Value<double?> petWindowY;
   final Value<String?> reduceEffects;
+  final Value<bool> telemetryEnabled;
   const AppSettingsCompanion({
     this.id = const Value.absent(),
     this.downloadPath = const Value.absent(),
@@ -7007,6 +7057,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.petWindowX = const Value.absent(),
     this.petWindowY = const Value.absent(),
     this.reduceEffects = const Value.absent(),
+    this.telemetryEnabled = const Value.absent(),
   });
   AppSettingsCompanion.insert({
     this.id = const Value.absent(),
@@ -7032,6 +7083,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.petWindowX = const Value.absent(),
     this.petWindowY = const Value.absent(),
     this.reduceEffects = const Value.absent(),
+    this.telemetryEnabled = const Value.absent(),
   });
   static Insertable<AppSetting> custom({
     Expression<int>? id,
@@ -7057,6 +7109,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Expression<double>? petWindowX,
     Expression<double>? petWindowY,
     Expression<String>? reduceEffects,
+    Expression<bool>? telemetryEnabled,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -7086,6 +7139,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       if (petWindowX != null) 'pet_window_x': petWindowX,
       if (petWindowY != null) 'pet_window_y': petWindowY,
       if (reduceEffects != null) 'reduce_effects': reduceEffects,
+      if (telemetryEnabled != null) 'telemetry_enabled': telemetryEnabled,
     });
   }
 
@@ -7113,6 +7167,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Value<double?>? petWindowX,
     Value<double?>? petWindowY,
     Value<String?>? reduceEffects,
+    Value<bool>? telemetryEnabled,
   }) {
     return AppSettingsCompanion(
       id: id ?? this.id,
@@ -7141,6 +7196,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       petWindowX: petWindowX ?? this.petWindowX,
       petWindowY: petWindowY ?? this.petWindowY,
       reduceEffects: reduceEffects ?? this.reduceEffects,
+      telemetryEnabled: telemetryEnabled ?? this.telemetryEnabled,
     );
   }
 
@@ -7222,6 +7278,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     if (reduceEffects.present) {
       map['reduce_effects'] = Variable<String>(reduceEffects.value);
     }
+    if (telemetryEnabled.present) {
+      map['telemetry_enabled'] = Variable<bool>(telemetryEnabled.value);
+    }
     return map;
   }
 
@@ -7250,7 +7309,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
           ..write('showPet: $showPet, ')
           ..write('petWindowX: $petWindowX, ')
           ..write('petWindowY: $petWindowY, ')
-          ..write('reduceEffects: $reduceEffects')
+          ..write('reduceEffects: $reduceEffects, ')
+          ..write('telemetryEnabled: $telemetryEnabled')
           ..write(')'))
         .toString();
   }
@@ -10083,6 +10143,7 @@ typedef $$AppSettingsTableCreateCompanionBuilder =
       Value<double?> petWindowX,
       Value<double?> petWindowY,
       Value<String?> reduceEffects,
+      Value<bool> telemetryEnabled,
     });
 typedef $$AppSettingsTableUpdateCompanionBuilder =
     AppSettingsCompanion Function({
@@ -10109,6 +10170,7 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
       Value<double?> petWindowX,
       Value<double?> petWindowY,
       Value<String?> reduceEffects,
+      Value<bool> telemetryEnabled,
     });
 
 class $$AppSettingsTableFilterComposer
@@ -10232,6 +10294,11 @@ class $$AppSettingsTableFilterComposer
 
   ColumnFilters<String> get reduceEffects => $composableBuilder(
     column: $table.reduceEffects,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get telemetryEnabled => $composableBuilder(
+    column: $table.telemetryEnabled,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -10359,6 +10426,11 @@ class $$AppSettingsTableOrderingComposer
     column: $table.reduceEffects,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get telemetryEnabled => $composableBuilder(
+    column: $table.telemetryEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AppSettingsTableAnnotationComposer
@@ -10476,6 +10548,11 @@ class $$AppSettingsTableAnnotationComposer
     column: $table.reduceEffects,
     builder: (column) => column,
   );
+
+  GeneratedColumn<bool> get telemetryEnabled => $composableBuilder(
+    column: $table.telemetryEnabled,
+    builder: (column) => column,
+  );
 }
 
 class $$AppSettingsTableTableManager
@@ -10532,6 +10609,7 @@ class $$AppSettingsTableTableManager
                 Value<double?> petWindowX = const Value.absent(),
                 Value<double?> petWindowY = const Value.absent(),
                 Value<String?> reduceEffects = const Value.absent(),
+                Value<bool> telemetryEnabled = const Value.absent(),
               }) => AppSettingsCompanion(
                 id: id,
                 downloadPath: downloadPath,
@@ -10556,6 +10634,7 @@ class $$AppSettingsTableTableManager
                 petWindowX: petWindowX,
                 petWindowY: petWindowY,
                 reduceEffects: reduceEffects,
+                telemetryEnabled: telemetryEnabled,
               ),
           createCompanionCallback:
               ({
@@ -10582,6 +10661,7 @@ class $$AppSettingsTableTableManager
                 Value<double?> petWindowX = const Value.absent(),
                 Value<double?> petWindowY = const Value.absent(),
                 Value<String?> reduceEffects = const Value.absent(),
+                Value<bool> telemetryEnabled = const Value.absent(),
               }) => AppSettingsCompanion.insert(
                 id: id,
                 downloadPath: downloadPath,
@@ -10606,6 +10686,7 @@ class $$AppSettingsTableTableManager
                 petWindowX: petWindowX,
                 petWindowY: petWindowY,
                 reduceEffects: reduceEffects,
+                telemetryEnabled: telemetryEnabled,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

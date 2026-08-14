@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:vidra/src/core/telemetry/telemetry.dart';
 import 'package:vidra/src/features/video/domain/video_collection.dart';
 
 /// Every bit of dbku.tv HTML knowledge lives in this file.
@@ -11,6 +12,21 @@ import 'package:vidra/src/features/video/domain/video_collection.dart';
 /// challenge that forces a different fetch strategy — only touches one file.
 class DbkuParser {
   DbkuParser._();
+
+  /// Selectors already reported as broken this run. A theme change breaks the
+  /// same selector on every page, and a 32-episode show would otherwise send
+  /// 32 copies of one fact.
+  static final _reportedSelectors = <String>{};
+
+  /// Reports WHICH selector stopped matching — its name and nothing else. The
+  /// HTML it failed on is a page somebody opened, so none of it leaves here.
+  static void _reportSelector(String where, String field) {
+    if (!_reportedSelectors.add('$where/$field')) return;
+    Telemetry.report(
+      'catalog.shape',
+      data: {'endpoint': where, 'field': field},
+    );
+  }
 
   // --- list / search -------------------------------------------------------
 
@@ -128,7 +144,12 @@ class DbkuParser {
   /// source resolves those before handing the video to the player.
   static Video? parseVideoDetail(String html, int id) {
     final title = _title.firstMatch(html)?.group(1);
-    if (title == null) return null;
+    // Every detail page carries a title; missing one means the page was not
+    // the detail page (a challenge, a redirect) or the theme moved it.
+    if (title == null) {
+      _reportSelector('dbku.parseVideoDetail', 'title');
+      return null;
+    }
 
     final type = _type.firstMatch(html);
     final content = _content.firstMatch(html)?.group(1);
@@ -194,12 +215,21 @@ class DbkuParser {
   /// the whole show.
   static String? parsePlayUrl(String html) {
     final match = _playerCfg.firstMatch(html);
-    if (match == null) return null;
+    // Each of these three costs the user an episode, silently — which of them
+    // fired is the difference between "the player moved" and "the payload
+    // changed".
+    if (match == null) {
+      _reportSelector('dbku.parsePlayUrl', 'player_cfg');
+      return null;
+    }
 
     try {
       final cfg = jsonDecode(match.group(1)!) as Map<String, dynamic>;
       final raw = cfg['url'] as String?;
-      if (raw == null || raw.isEmpty) return null;
+      if (raw == null || raw.isEmpty) {
+        _reportSelector('dbku.parsePlayUrl', 'url');
+        return null;
+      }
 
       // MacCMS `encrypt`: 0 = plain, 1 = urlencoded, 2 = base64(urlencoded).
       switch (cfg['encrypt']) {
@@ -213,6 +243,7 @@ class DbkuParser {
           return raw;
       }
     } on FormatException {
+      _reportSelector('dbku.parsePlayUrl', 'decode');
       return null;
     }
   }
