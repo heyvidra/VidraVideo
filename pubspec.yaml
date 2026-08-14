@@ -44,9 +44,12 @@ dependencies:
     git:
       url: https://github.com/heyvidra/bitsdojo_window_plus.git
       path: bitsdojo_window
-      # v0.4.1: window lifecycle by name (0.4.0) + the hide-on-startup latch
-      # that keeps a shown window from being re-hidden by a lost race.
-      ref: v0.4.1
+      # v0.4.2: traffic lights are no longer clipped to half their height on
+      # macOS 13 and older — the taller-than-standard titlebar centres them
+      # past NSTitlebarView's bounds, and only macOS 14+ leaves overflow
+      # unclipped. (0.4.1: the hide-on-startup latch; 0.4.0: window
+      # lifecycle by name.)
+      ref: v0.4.2
 
   # git, not path: this repo is developed from worktrees as well as from its
   # own checkout, and a relative path resolves differently in each.
