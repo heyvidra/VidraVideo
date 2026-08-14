@@ -26,7 +26,8 @@ import '../domain/hls_rewrite.dart';
 ///   so someone who finds the port still gets 404;
 /// * the proxy fetches only origins the current playlist actually names, so
 ///   it cannot be aimed at 127.0.0.1, at the router's admin page, or at the
-///   internet at large;
+///   internet at large — see [_mayFetch] and [_adoptOrigin] for the two ways
+///   that set grows and what each of them refuses to grow into;
 /// * responses carry a content type we chose, never the upstream's, so
 ///   nothing can serve HTML through us and have it run on this origin;
 /// * no `Access-Control-Allow-Origin`, so even a page holding the token
@@ -73,13 +74,38 @@ class CastWebServer {
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 '
       '(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 
+  /// How a DLNA renderer asks to start part-way in, and how it is answered.
+  static const _timeSeekHeader = 'TimeSeekRange.dlna.org';
+  static const _transferModeHeader = 'transferMode.dlna.org';
+  static const _featuresRequestHeader = 'getcontentFeatures.dlna.org';
+  static const _featuresHeader = 'contentFeatures.dlna.org';
+
+  /// What the renderer is told it may do with a URL.
+  ///
+  /// DLNA.ORG_OP is two flags in one number: the first says time-seek, the
+  /// second byte-seek. A playlist gets 10 — [_timeSeekHeader] is answered for
+  /// real below, and a byte range into a document we rewrite whole would
+  /// describe bytes nobody has. A segment gets 01: it is a file, ranges are
+  /// exactly what it supports, and it has no timeline of its own to seek in.
+  /// The flags say DLNA 1.5, streaming rather than download, not transcoded.
+  ///
+  /// A renderer told none of this guesses, and what an LG guesses about an
+  /// HLS URL declared `video/mp4` is that it can neither seek nor resume.
+  static const _playlistFeatures =
+      'DLNA.ORG_OP=10;DLNA.ORG_CI=0;'
+      'DLNA.ORG_FLAGS=01700000000000000000000000000000';
+  static const _segmentFeatures =
+      'DLNA.ORG_OP=01;DLNA.ORG_CI=0;'
+      'DLNA.ORG_FLAGS=01700000000000000000000000000000';
+
   final HttpClient _client;
   HttpServer? _server;
 
   CastPlaylist? _playlist;
 
-  /// Origins the proxy may fetch, taken from the playlist being served.
-  Set<String> _allowedOrigins = const {};
+  /// Origins the proxy may fetch: the ones the cast named, plus the ones the
+  /// playlists it served named in turn.
+  final Set<String> _allowedOrigins = <String>{};
 
   /// Unguessable per-session path parameter. Not much of a secret — it goes
   /// to a television in cleartext — but it is what makes these endpoints
@@ -128,7 +154,7 @@ class CastWebServer {
     _server = null;
     _baseUrl = null;
     _playlist = null;
-    _allowedOrigins = const {};
+    _allowedOrigins.clear();
     _token = '';
     _fetched = null;
   }
@@ -143,9 +169,9 @@ class CastWebServer {
     final base = _baseUrl;
     if (base == null) throw const CastServerException('server not started');
     _playlist = playlist;
-    _allowedOrigins = {
-      for (final item in playlist.items) Uri.parse(item.url).origin,
-    };
+    _allowedOrigins
+      ..clear()
+      ..addAll({for (final item in playlist.items) Uri.parse(item.url).origin});
     _fetched = Completer<void>();
     return '$base/player?t=$_token';
   }
@@ -157,6 +183,17 @@ class CastWebServer {
   /// User-Agent on most — an https CDN link that one catalog only serves to
   /// a non-empty UA comes back to the viewer as UPnP error 716, "Resource
   /// not found", with nothing to say which of the two it was.
+  ///
+  /// Nothing here carries a resume position. Appending `&start=<seconds>` to
+  /// what this returns would make the proxy serve an episode that BEGINS
+  /// there — the one resume that asks nothing of the renderer at all — and
+  /// the proxy honours it, but a renderer handed a cut playlist counts from
+  /// the cut, and the DLNA session's reported position is what this app
+  /// mirrors into watch history. Until the position read back is corrected by
+  /// the offset served, a resume built this way would write itself twelve
+  /// minutes backwards. The renderer asking with `TimeSeekRange.dlna.org`
+  /// does not have that problem: it knows what it asked for, and the response
+  /// echoes what it got.
   String proxied(String url) {
     final base = _baseUrl;
     if (base == null) throw const CastServerException('server not started');
@@ -282,6 +319,12 @@ class CastWebServer {
 
   /// Fetches [url] for the renderer, wearing the headers the CDN expects.
   Future<void> _serveProxy(HttpRequest req) async {
+    final head = req.method == 'HEAD';
+    // On every answer, refusals included. A renderer reads this before it
+    // reads a body, and one that is told nothing treats the URL as a file to
+    // download rather than as a stream to play.
+    _dlnaHeader(req.response, _transferModeHeader, 'Streaming');
+
     final raw = req.uri.queryParameters['url'];
     if (raw == null || raw.isEmpty) {
       req.response.statusCode = HttpStatus.badRequest;
@@ -289,12 +332,12 @@ class CastWebServer {
       return;
     }
     final target = Uri.tryParse(raw);
-    if (target == null ||
-        !(target.isScheme('http') || target.isScheme('https')) ||
-        !_allowedOrigins.contains(target.origin)) {
+    if (target == null || !_mayFetch(target)) {
       // The playlist said which origins this cast needs. Anything else is
       // someone using us to reach something we were never asked to reach.
-      logD('cast', 'proxy refused ${target?.origin}');
+      // Scheme and host only: a signed CDN URL's query is a credential, and
+      // .origin throws on the schemes worth refusing loudest.
+      logD('cast', 'proxy refused ${target?.scheme}://${target?.host}');
       req.response.statusCode = HttpStatus.forbidden;
       await req.response.close();
       return;
@@ -309,6 +352,28 @@ class CastWebServer {
     // and waits for a continuation that never comes. Decide by extension
     // BEFORE fetching, because the content type only arrives with the body.
     final wantsPlaylist = looksLikePlaylist(null, target);
+    if (req.headers.value(_featuresRequestHeader)?.trim() == '1') {
+      _dlnaHeader(
+        req.response,
+        _featuresHeader,
+        wantsPlaylist ? _playlistFeatures : _segmentFeatures,
+      );
+    }
+
+    // Where the episode should start. The renderer asks with a header; a URL
+    // that was built with `start=` asks on its behalf, which is how a master
+    // playlist passes an offset down to the variant that can actually honour
+    // it. Both are absolute positions in the episode, never relative to what
+    // is being served, so asking twice cannot land twice as far in.
+    final asked =
+        _nptSeconds(req.headers.value(_timeSeekHeader)) ??
+        _positiveSeconds(req.uri.queryParameters['start']);
+
+    if (head && !wantsPlaylist) {
+      await _headSegment(req, target);
+      return;
+    }
+
     final res = await _fetch(
       target,
       wantsPlaylist ? null : req.headers.value(HttpHeaders.rangeHeader),
@@ -332,12 +397,38 @@ class CastWebServer {
       }
       // allowMalformed: one stray byte in a comment must not end the cast,
       // and every line that matters here is ASCII.
-      final rewritten = rewriteHlsPlaylist(
+      final slice = sliceMediaPlaylist(
         playlist: utf8.decode(bytes, allowMalformed: true),
+        offsetSeconds: asked ?? 0,
+      );
+      final rewritten = rewriteHlsPlaylist(
+        playlist: slice.playlist,
         playlistUrl: target,
         proxyBase: '$_baseUrl/proxy',
-        extraQuery: 't=$_token',
+        // A master has no segments to cut, so the offset rides down to the
+        // variant on the URL. A media playlist has already been cut, and
+        // handing the same offset to its segments would mean nothing.
+        extraQuery: !slice.isMedia && asked != null
+            ? 't=$_token&start=${_npt(asked)}'
+            : 't=$_token',
+        onUri: _adoptOrigin,
       );
+      if (asked != null) {
+        // The echo IS the seek contract: a renderer that asked and got no
+        // TimeSeekRange back concludes the stream cannot be seeked at all,
+        // and one that got a window it did not ask for still learns where in
+        // the episode the body it is about to play begins. A master knows no
+        // durations, so it can only name the point; the variant answers with
+        // the real window a moment later.
+        _dlnaHeader(
+          req.response,
+          _timeSeekHeader,
+          slice.isMedia
+              ? 'npt=${_npt(slice.startSeconds)}-${_npt(slice.totalSeconds)}'
+                    '/${_npt(slice.totalSeconds)}'
+              : 'npt=${_npt(asked)}-/*',
+        );
+      }
       // 200, not the upstream's status: a rewritten playlist is a different
       // body of a different length, so a passed-through 206 and its
       // Content-Range would describe bytes we are not sending.
@@ -349,8 +440,22 @@ class CastWebServer {
         // television got a 500 for a playlist that was perfectly valid.
         'application/vnd.apple.mpegurl; charset=utf-8',
       );
-      req.response.add(utf8.encode(rewritten));
+      final body = utf8.encode(rewritten);
+      // A HEAD gets the length of the body a GET would produce — the
+      // rewritten one, counted, never guessed from the upstream's own length,
+      // which describes a document with different URLs in it.
+      req.response.headers.set(
+        HttpHeaders.contentLengthHeader,
+        '${body.length}',
+      );
+      if (!head) req.response.add(body);
       await req.response.close();
+      return;
+    }
+    if (head) {
+      // Not a playlist after all, whatever the extension promised — so
+      // describe what did arrive, and drop the body on the floor.
+      await _answerHead(req, target, res);
       return;
     }
 
@@ -371,6 +476,178 @@ class CastWebServer {
       if (v != null) req.response.headers.set(h, v);
     }
     await _streamBody(req, target, res);
+  }
+
+  /// Answers a HEAD for a media segment: what it is, how long it is, and what
+  /// may be done with it — no body at all.
+  ///
+  /// A renderer HEADs a URL to learn what it is before committing to play it,
+  /// and an answer invented from the file extension would be a confident lie
+  /// about a resource that may not even be there. So ask the CDN, for one
+  /// byte: the Content-Range on the 206 that comes back states the full
+  /// length, and downloading a segment in order to describe it would be
+  /// absurd on a connection the television is about to need.
+  Future<void> _headSegment(HttpRequest req, Uri target) async {
+    final res = await _fetch(target, 'bytes=0-0');
+    if (res == null) {
+      req.response.statusCode = HttpStatus.badGateway;
+      await req.response.close();
+      return;
+    }
+    await _answerHead(req, target, res);
+  }
+
+  /// Describes [res] to the renderer without forwarding a byte of it.
+  Future<void> _answerHead(
+    HttpRequest req,
+    Uri target,
+    HttpClientResponse res,
+  ) async {
+    final total =
+        _rangeTotal(res.headers.value(HttpHeaders.contentRangeHeader)) ??
+        (res.statusCode == HttpStatus.ok && res.contentLength >= 0
+            ? res.contentLength
+            : null);
+    final type = _safeContentType(res.headers.contentType?.mimeType, target);
+    // Nothing here will read this body, and a body nobody reads holds an
+    // upstream socket until the CDN gives up on it.
+    await res.detachSocket().then((s) => s.destroy()).catchError((_) {});
+
+    // 200: the 206 answers a range we invented, not one the renderer asked
+    // for, and a renderer told 206 for a HEAD it sent bare has to guess what
+    // the partial was of.
+    req.response.statusCode = res.statusCode == HttpStatus.partialContent
+        ? HttpStatus.ok
+        : res.statusCode;
+    req.response.headers.set(HttpHeaders.contentTypeHeader, type);
+    req.response.headers.set(HttpHeaders.acceptRangesHeader, 'bytes');
+    if (total != null) {
+      req.response.headers.set(HttpHeaders.contentLengthHeader, '$total');
+    }
+    await req.response.close();
+  }
+
+  /// The full resource length out of `Content-Range: bytes 0-0/12345`.
+  static int? _rangeTotal(String? contentRange) {
+    final m = RegExp(r'/\s*(\d+)\s*$').firstMatch(contentRange ?? '');
+    return m == null ? null : int.tryParse(m.group(1)!);
+  }
+
+  /// DLNA header names are compared by renderers with a case-sensitive string
+  /// match more often than they should be, and dart:io lower-cases every name
+  /// it writes unless told not to. `transfermode.dlna.org` is a header those
+  /// renderers do not see.
+  static void _dlnaHeader(HttpResponse res, String name, String value) =>
+      res.headers.set(name, value, preserveHeaderCase: true);
+
+  /// The second [header] asks playback to start at, or null when it asks for
+  /// nothing we can read.
+  ///
+  /// Both spellings are in the wild — `npt=12.5-` and `npt=00:00:12.500-` —
+  /// and a renderer sends whichever it feels like. The end of the range is
+  /// ignored: we serve to the end of the episode regardless, because a
+  /// renderer that wanted less than that simply stops reading.
+  static double? _nptSeconds(String? header) {
+    final m = RegExp(
+      r'npt\s*=\s*([\d:.]+)',
+      caseSensitive: false,
+    ).firstMatch(header ?? '');
+    if (m == null) return null;
+    var seconds = 0.0;
+    for (final part in m.group(1)!.split(':')) {
+      final value = double.tryParse(part);
+      if (value == null || value < 0) return null;
+      seconds = seconds * 60 + value;
+    }
+    return seconds;
+  }
+
+  /// Seconds from a `start=` query parameter, ignoring the zero and the
+  /// nonsense — a resume at position zero is just playback.
+  static double? _positiveSeconds(String? value) {
+    final seconds = double.tryParse(value ?? '');
+    return seconds != null && seconds > 0 ? seconds : null;
+  }
+
+  static String _npt(double seconds) => seconds.toStringAsFixed(3);
+
+  /// Whether the proxy may fetch [url].
+  ///
+  /// Exact origin first: what the cast named, plus what the playlists it has
+  /// served named in turn. Then one deliberate widening — a host under the
+  /// same domain as an origin already on the list. CDNs hand out
+  /// `edge12.<domain>` in a redirect mid-episode, and refusing that is a
+  /// television that stops dead halfway through.
+  ///
+  /// Without a public-suffix list — a dependency this app is not taking for
+  /// one redirect — the domain is read as an allowed host minus its first
+  /// label, so `vod.example.com` vouches for `example.com` and everything
+  /// under it, and never for anything above. Two rules keep that from
+  /// swallowing a whole suffix: the domain needs at least two labels, and
+  /// under a two-letter country code at least three, or `player.example.co.uk`
+  /// would vouch for every `co.uk` there is. An address literal widens
+  /// nothing at all — `127.0.0.1` has no domain above it, and another port on
+  /// a machine we are talking to is another service, not another edge — so
+  /// the guarantee this file opens with survives: this proxy still cannot be
+  /// pointed at localhost or at the router.
+  bool _mayFetch(Uri url) {
+    if (!(url.isScheme('http') || url.isScheme('https'))) return false;
+    if (_allowedOrigins.contains(url.origin)) return true;
+    return _allowedOrigins.any((o) => sameSite(Uri.parse(o).host, url.host));
+  }
+
+  /// Whether [host] is close enough to [allowed] to be the same CDN. Public
+  /// because the rule is the security boundary, and a boundary is worth
+  /// asserting on directly rather than through a socket.
+  static bool sameSite(String allowed, String host) {
+    if (InternetAddress.tryParse(allowed) != null ||
+        InternetAddress.tryParse(host) != null) {
+      return false;
+    }
+    final labels = allowed.split('.');
+    if (labels.length < 3) return false;
+    final domain = labels.skip(1).join('.');
+    final parts = domain.split('.');
+    if (parts.length < 2) return false;
+    if (parts.last.length <= 2 && parts.length < 3) return false;
+    return host == domain || host.endsWith('.$domain');
+  }
+
+  /// Takes an origin a playlist we just served named, so the variants and
+  /// segments in it can be fetched when the renderer comes back for them.
+  ///
+  /// The list has to grow here: a master playlist whose variants live on a
+  /// second host — which is how every multi-CDN catalog is built — otherwise
+  /// hands the television URLs this proxy then refuses with a 403. What it
+  /// must not grow into is a way to reach this machine. A playlist naming a
+  /// loopback, link-local or private address is refused unless the cast was
+  /// already talking to that address, which on a real network never happens
+  /// and in the tests is the entire fixture.
+  void _adoptOrigin(Uri target) {
+    if (!(target.isScheme('http') || target.isScheme('https'))) return;
+    final origin = target.origin;
+    if (_allowedOrigins.contains(origin)) return;
+    if (_isLocalHost(target.host) &&
+        !_allowedOrigins.any((o) => Uri.parse(o).host == target.host)) {
+      logD('cast', 'playlist named a local origin, refused: $origin');
+      return;
+    }
+    _allowedOrigins.add(origin);
+  }
+
+  /// Addresses that are this machine or this network rather than a CDN.
+  static bool _isLocalHost(String host) {
+    if (host == 'localhost' || host.endsWith('.local')) return true;
+    final ip = InternetAddress.tryParse(host);
+    if (ip == null) return false;
+    if (ip.isLoopback || ip.isLinkLocal) return true;
+    final b = ip.rawAddress;
+    if (ip.type == InternetAddressType.IPv4) {
+      return b[0] == 10 ||
+          (b[0] == 172 && b[1] >= 16 && b[1] < 32) ||
+          (b[0] == 192 && b[1] == 168);
+    }
+    return (b[0] & 0xfe) == 0xfc;
   }
 
   /// Copies the upstream body to the renderer, re-fetching where it left off
@@ -497,12 +774,14 @@ class CastWebServer {
   /// guards on this proxy: it re-sends the Referer to whatever host it lands
   /// on, and — the one that matters — it would fetch a Location outside the
   /// allowlist, so a redirect is all it would take to point this at
-  /// 127.0.0.1. Every hop is checked like the first.
+  /// 127.0.0.1. Every hop is checked like the first, by [_mayFetch], which is
+  /// also what decides that an edge host under the CDN's own domain is the
+  /// same CDN and not somewhere new.
   Future<HttpClientResponse?> _fetch(Uri target, String? range) async {
     var url = target;
     for (var hop = 0; hop < 5; hop++) {
-      if (!_allowedOrigins.contains(url.origin)) {
-        logD('cast', 'proxy refused redirect to ${url.origin}');
+      if (!_mayFetch(url)) {
+        logD('cast', 'proxy refused redirect to $url');
         return null;
       }
       final req = await _client.getUrl(url).timeout(_upstreamTimeout);
