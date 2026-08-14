@@ -57,7 +57,7 @@ dependencies:
   vidra_cast:
     git:
       url: https://github.com/heyvidra/vidra_cast.git
-      ref: v0.1.7
+      ref: v0.1.8
 
   path: ^1.9.1
   easy_localization: ^3.0.8
