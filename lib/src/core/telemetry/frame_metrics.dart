@@ -154,11 +154,16 @@ class FrameMetrics {
 
   static final FrameMetrics instance = FrameMetrics._();
 
-  /// One report per minute of rendering — measured in frames, not on a
+  /// One report per five minutes of rendering — measured in frames, not on a
   /// wall clock. A timer would keep firing while the app sits idle in the
   /// background at zero frames, and a stream of reports saying "no jank in a
   /// window where nothing was drawn" is worse than no reports at all.
-  static const int _windowMicros = 60 * 1000000;
+  ///
+  /// Five rather than one because the free Sentry tier is 5k events a month
+  /// and a per-minute window spends it on a handful of machines. The counters
+  /// are exact over whatever the window turns out to be and [summary] reports
+  /// `window_s`, so a longer window costs resolution, not correctness.
+  static const int _windowMicros = 5 * 60 * 1000000;
 
   /// A gap larger than this is not slow rendering, it is the app doing
   /// nothing — so it does not count towards the window.
