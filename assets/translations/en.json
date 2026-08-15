@@ -101,7 +101,12 @@
       "reduce_effects_desc_auto_off": "Turns off window blur and some animations for smoother scrolling on older machines. This machine is fast — Auto resolves to off",
       "mode_auto": "Auto",
       "mode_on": "On",
-      "mode_off": "Off"
+      "mode_off": "Off",
+      "player_window": "Open the player in its own window",
+      "player_window_desc_auto_on": "Auto — this machine plays in the current window",
+      "player_window_desc_auto_off": "Auto — this machine opens a separate window",
+      "player_mode_window": "New window",
+      "player_mode_in_app": "This window"
     },
     "diagnostics": {
       "title": "Diagnostics",

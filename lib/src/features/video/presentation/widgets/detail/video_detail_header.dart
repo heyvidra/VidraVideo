@@ -474,7 +474,8 @@ class _PlayButton extends ConsumerWidget {
             ),
           ],
         ),
-        onTap: () => PlayerWindowLauncher.open(
+        onTap: () => PlayerLauncher.open(
+          context,
           videoId: newer.videoId,
           episodeIndex: newer.lastEpisodeIndex,
           sourceId: newer.sourceId,
@@ -510,7 +511,8 @@ class _PlayButton extends ConsumerWidget {
           : tr('video.detail.continue_watching_short'),
       onTap: () async {
         if (episodes.isNotEmpty) {
-          await PlayerWindowLauncher.open(
+          await PlayerLauncher.open(
+            context,
             videoId: video.apiId,
             episodeIndex: target.episodeIndex,
             sourceId: video.sourceId,

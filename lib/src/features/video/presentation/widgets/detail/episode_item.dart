@@ -290,7 +290,8 @@ class EpisodeItem extends ConsumerWidget {
         ),
       );
     } else {
-      await PlayerWindowLauncher.open(
+      await PlayerLauncher.open(
+        context,
         videoId: video.apiId,
         episodeIndex: originalIndex,
         sourceId: video.sourceId,

@@ -478,7 +478,8 @@ class _DownloadTaskCardState extends ConsumerState<DownloadTaskCard> {
   /// default app). The in-app player prefers the local downloaded file for a
   /// video/episode it already has on disk, so this plays offline from disk.
   void _playInApp(DownloadTask task, EpisodeDownloadInfo episode) {
-    PlayerWindowLauncher.open(
+    PlayerLauncher.open(
+      context,
       videoId: task.videoId,
       episodeIndex: episode.index ?? 0,
     );

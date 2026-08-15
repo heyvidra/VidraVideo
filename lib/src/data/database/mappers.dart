@@ -176,6 +176,7 @@ extension AppSettingMapper on db.AppSetting {
       ..petWindowX = petWindowX
       ..petWindowY = petWindowY
       ..reduceEffects = reduceEffects
+      ..playerWindowMode = playerWindowMode
       ..telemetryEnabled = telemetryEnabled;
   }
 }
@@ -203,6 +204,7 @@ extension AppSettingsCompanionMapper on domain.AppSettings {
       petWindowX: Value(petWindowX),
       petWindowY: Value(petWindowY),
       reduceEffects: Value(reduceEffects),
+      playerWindowMode: Value(playerWindowMode),
       telemetryEnabled: Value(telemetryEnabled),
     );
   }

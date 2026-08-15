@@ -751,7 +751,8 @@ class _PreviewButton extends StatelessWidget {
     return Tooltip(
       message: tr('download.url.preview_hint', args: [quality]),
       child: OutlinedButton.icon(
-        onPressed: () => PlayerWindowLauncher.open(
+        onPressed: () => PlayerLauncher.open(
+          context,
           videoId: videoId,
           episodeIndex: 0,
           directUrl: f.url,
