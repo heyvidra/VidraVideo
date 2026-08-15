@@ -132,11 +132,15 @@ class _RecentListScreenState extends ConsumerState<RecentListScreen> {
                       return PopularVideoCard(
                         key: ValueKey('history_${item.id}'),
                         video: video,
-                        // Straight back into the episode they left. This list
-                        // exists precisely because they intend to keep watching;
-                        // routing it through the detail page made the shortcut
-                        // longer than the long way round.
-                        onTap: () => PlayerWindowLauncher.open(
+                        // Straight back into the episode they left — from the
+                        // play ring, which is the only part of the card that
+                        // resumes. The poster itself opens the detail page, as
+                        // it does everywhere else: coming back to this list to
+                        // check the episode list or the blurb is common enough
+                        // that a whole-card shortcut to playback fired on the
+                        // wrong intent more often than the right one.
+                        onTap: () => PlayerLauncher.open(
+                          context,
                           videoId: item.videoId,
                           episodeIndex: item.lastEpisodeIndex,
                           sourceId: item.sourceId,
