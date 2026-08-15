@@ -170,6 +170,24 @@ class AppTheme {
           ),
         ),
       ),
+      // Borrowed from the dialog, which is the one surface in this app whose
+      // colours were chosen rather than derived.
+      //
+      // Left to Material this was WHITE TEXT ON A WHITE SURFACE in the dark
+      // theme — `inverseSurface` and `onInverseSurface` are the only two roles
+      // the ColorScheme above does not name, and what they derive to happens to
+      // collide. Nothing failed and nothing looked broken: the snack bar
+      // appeared, correctly sized, holding an invisible sentence. Every error
+      // this app reports to a person arrives this way, so a cast that failed
+      // for a nameable, actionable reason read as one that failed silently.
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: appliedDialogTheme.backgroundColor,
+        contentTextStyle: appliedDialogTheme.contentTextStyle,
+        elevation: 12,
+        shape: appliedDialogTheme.shape,
+        actionTextColor: primaryColor,
+      ),
       // primaryColor, not the dark accent literal: on the light theme a
       // #7BE7F0 track is a pale wash on near-white, and the inactive half was
       // white-on-white outright.
