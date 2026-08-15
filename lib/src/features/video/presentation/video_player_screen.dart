@@ -235,6 +235,14 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
     // opened and closed without ever playing leaves the display awake.
     await WakelockPlus.disable();
 
+    // Leaving means two different things. With a window of its own there is
+    // an engine to tear down and the native side finishes the job; hosted in
+    // the main window there is only a route, and closing the window would
+    // take the whole app with it.
+    if (_inApp && mounted) {
+      Navigator.of(context).maybePop();
+      return;
+    }
     // Immediately close the window. Native side handles the rest.
     appWindow.close();
   }
@@ -298,11 +306,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
       // White, explicitly. The player's chrome is always dark over video, so
       // it must not inherit the app's icon colour — in the light theme that is
       // near-black, and this button vanished into the title bar.
-      leading: IconButton(
-        icon: const Icon(Icons.close, color: Colors.white),
-        tooltip: tr('common.close'),
-        onPressed: _handleSafeClose,
-      ),
+      leading: _leadingButton,
       locale: currentVidraLocale,
     );
 
@@ -330,8 +334,44 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
     return controller;
   }
 
+  /// Whether this player is a page in the main window rather than a window of
+  /// its own. The close controller is the tell: only the window shell binds
+  /// one. See [PlayerWindow] for which machines take which path.
+  bool get _inApp => widget.closeController == null;
+
+  /// How far the leading control has to start in from the left, in the main
+  /// window, to clear the traffic lights.
+  ///
+  /// A player window of its own is opened with the native buttons hidden, so
+  /// it owns that corner outright. The main window does not: macOS parks its
+  /// three buttons at x = 20 / 40 / 60 with a 12pt diameter, so the last one
+  /// ends at 66 — and this player's own button was landing on top of them.
+  static const double _trafficLightsInset = 80;
+
+  /// Leaves, in the way this player can leave.
+  ///
+  /// An X is a promise to close something; in the main window this pops a
+  /// route and the page underneath comes back, which is what a `<` promises.
+  /// Same handler either way — [_handleSafeClose] already knows the
+  /// difference — but the icon must not say the wrong thing.
+  Widget get _leadingButton {
+    final button = IconButton(
+      icon: Icon(
+        _inApp ? Icons.arrow_back_ios_new_rounded : Icons.close,
+        color: Colors.white,
+      ),
+      tooltip: tr(_inApp ? 'common.back' : 'common.close'),
+      onPressed: _handleSafeClose,
+    );
+    if (!_inApp) return button;
+    return Padding(
+      padding: const EdgeInsets.only(left: _trafficLightsInset),
+      child: button,
+    );
+  }
+
   /// A message screen (not found / no episodes / error) that still carries a
-  /// close button — the player window hides its native title-bar buttons, so
+  /// way out — the player window hides its native title-bar buttons, so
   /// without this a broken open (e.g. the file was deleted) can't be closed.
   Widget _infoScreen(String message) {
     return Stack(
@@ -343,10 +383,15 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
         ),
         Positioned(
           top: 10,
-          left: 10,
+          // No Padding here — this one places itself, so it clears the
+          // buttons by starting past them.
+          left: _inApp ? _trafficLightsInset : 10,
           child: IconButton(
-            icon: const Icon(Icons.close, color: Colors.white),
-            tooltip: tr('common.close'),
+            icon: Icon(
+              _inApp ? Icons.arrow_back_ios_new_rounded : Icons.close,
+              color: Colors.white,
+            ),
+            tooltip: tr(_inApp ? 'common.back' : 'common.close'),
             onPressed: _handleSafeClose,
           ),
         ),

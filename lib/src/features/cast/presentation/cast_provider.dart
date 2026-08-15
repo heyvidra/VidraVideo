@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:vidra_cast/vidra_cast.dart';
 
+import '../../../core/telemetry/telemetry.dart';
 import '../../../core/utils/log.dart';
 import '../../video/domain/play_history.dart';
 import '../../video/data/history_repository.dart';
@@ -132,6 +133,28 @@ class CastController extends Notifier<CastState> {
   CastManager get _manager => ref.read(castManagerProvider);
   CastWebServer get _server => ref.read(castWebServerProvider);
 
+  /// How far the current attempt got.
+  ///
+  /// A cast crosses two networks and a television, and every interesting
+  /// failure looks the same from the outside: a snack bar, and a TV that
+  /// stayed dark. What separates them is WHERE it stopped — the Tizen probe,
+  /// the TV fetching our page, the renderer accepting the queue — so the
+  /// stage is carried on the breadcrumb trail and ends up as the tag on
+  /// whatever gets thrown.
+  String _stage = 'idle';
+  final Stopwatch _elapsed = Stopwatch();
+
+  /// Records one stage. Shapes only — enum names, counts, milliseconds. A
+  /// title, a URL or a television's name here would defeat [Telemetry]'s
+  /// whole premise, and none of them would say anything a count does not.
+  void _mark(String stage, {Map<String, Object?> detail = const {}}) {
+    _stage = stage;
+    Telemetry.castBreadcrumb(
+      stage,
+      detail: {'at_ms': _elapsed.elapsedMilliseconds, ...detail},
+    );
+  }
+
   Future<void> startDiscovery() => _manager.startDiscovery();
   Future<void> stopDiscovery() => _manager.stopDiscovery();
 
@@ -181,6 +204,17 @@ class CastController extends Notifier<CastState> {
     // connect together run to tens of seconds, and a page that looks
     // untouched invites a second tap and a second cast.
     state = CastState(device: device, video: video, connecting: true);
+    _elapsed
+      ..reset()
+      ..start();
+    _mark(
+      'start',
+      detail: {
+        'protocol': device.protocol.name,
+        'episodes': playlist.items.length,
+        'resuming': playlist.startPositionSeconds > 0,
+      },
+    );
     try {
       // Whatever was running is over. Unsubscribing here rather than in the
       // DLNA path covers the case that used to leak: casting show A over
@@ -201,7 +235,9 @@ class CastController extends Notifier<CastState> {
       // restarted. Sized for the slowest honest path: Samsung first-time
       // pairing (45s) plus the wait for the TV to fetch the page (25s).
       final route = await () async {
+        _mark('probe');
         final route = await routeFor(device);
+        _mark('route', detail: {'route': route.name});
         if (route == CastRoute.browser) {
           await _castViaBrowser(device, video, playlist);
         } else {
@@ -212,6 +248,7 @@ class CastController extends Notifier<CastState> {
         const Duration(seconds: 90),
         onTimeout: () => throw const CastException('the TV did not answer'),
       );
+      _mark('ready');
       // Casting makes this machine the media server, so an idle sleep stops
       // the picture on the television. Held for the life of the session and
       // released on every exit below — including the failure path, which is
@@ -224,11 +261,20 @@ class CastController extends Notifier<CastState> {
         playlist: playlist,
         playlistIndex: playlist.startIndex,
       );
-    } catch (_) {
+    } catch (e, stack) {
       // The one place every failure passes through. Without this, a cast the
       // renderer refused left the server listening on every interface with a
       // live token and a loaded playlist, while the UI showed "cast" again —
       // so there was no longer any way to switch it off.
+      //
+      // It is also the only place with both the stage and a real stack, so the
+      // report goes out from here. The stage is in the tag, not the message:
+      // `cast.browser.page_wait` and `cast.dlna.connect` are different bugs
+      // that throw the same CastException, and a tag is what lets Sentry keep
+      // them apart. The two guards above this try are deliberately not
+      // reported — an empty show and a double tap are answers, not defects.
+      Telemetry.castBreadcrumb(_stage, outcome: 'error');
+      Telemetry.error('cast.$_stage', e, stack);
       //
       // Neither teardown may throw. Reaching the reset below matters more
       // than either of them succeeding: the guard at the top of this method
@@ -256,10 +302,12 @@ class CastController extends Notifier<CastState> {
     CastPlaylist playlist,
   ) async {
     final host = Uri.parse(device.address).host;
+    _mark('browser.serve');
     await _server.start(peerHost: host);
     _server.onProgress = (p) => _recordProgress(video, playlist, p);
     final url = _server.serve(playlist);
     final tizen = TizenRemoteController(host);
+    _mark('browser.launch');
     if (!await tizen.launchBrowser(url)) {
       // Take the server down again. It is serving this show to the LAN and
       // nothing on screen would say so, because the UI is about to be told
@@ -272,6 +320,7 @@ class CastController extends Notifier<CastState> {
     // an unanswered firewall prompt or an address on the wrong interface
     // both look identical from the sending side, and used to end in
     // "casting to Samsung" over a television showing nothing.
+    _mark('browser.page_wait');
     try {
       await _server.pageFetched.timeout(const Duration(seconds: 25));
     } on TimeoutException {
@@ -310,6 +359,7 @@ class CastController extends Notifier<CastState> {
     Video video,
     CastPlaylist playlist,
   ) async {
+    _mark('dlna.connect');
     await _manager
         .connect(device)
         .timeout(
@@ -321,6 +371,7 @@ class CastController extends Notifier<CastState> {
     // "Resource not found" — it will not do TLS, and it sends no
     // User-Agent to a CDN that requires one. Through the proxy it is plain
     // http from a machine on its own network, with the headers restored.
+    _mark('dlna.serve');
     await _server.start(peerHost: Uri.parse(device.address).host);
     _server.onProgress = (p) => _recordProgress(video, playlist, p);
     _server.serve(playlist);
@@ -331,6 +382,7 @@ class CastController extends Notifier<CastState> {
     // nothing, and only the item being resumed carries the offset: the ones
     // after it are watched from their beginning.
     final resumeAt = playlist.startPositionSeconds;
+    _mark('dlna.play_queue');
     await _manager.playQueue(
       CastQueue(
         items: [

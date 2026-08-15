@@ -11,6 +11,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import '../data/backup_service.dart';
 import '../data/settings_repository.dart';
+import '../../../config/player_window_mode.dart';
 import '../../../config/reduce_effects.dart';
 import '../../../core/telemetry/telemetry.dart';
 import '../../favorites/presentation/favorites_provider.dart';
@@ -79,6 +80,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 title: tr('settings.performance.title'),
                 children: [
                   _buildReduceEffectsSetting(context, settings, settingsRepo),
+                  _buildPlayerWindowSetting(context, settings),
                 ],
               ),
               const SizedBox(height: 26),
@@ -220,6 +222,49 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   /// 减少特效, three states: an explicit choice must be able to beat the
   /// hardware default in both directions, so this is not a boolean switch.
+  /// Where the player opens. Three states for the same reason 减少特效 has
+  /// three: auto follows the hardware, and an explicit choice has to beat that
+  /// guess in BOTH directions — someone on a fast machine who prefers one
+  /// window, and someone on a slow one who wants playback on a second display.
+  Widget _buildPlayerWindowSetting(BuildContext context, AppSettings settings) {
+    final mode = PlayerWindowMode.fromStored(settings.playerWindowMode);
+    return ListTile(
+      title: Text(tr('settings.performance.player_window')),
+      subtitle: Text(
+        // Say what auto resolves to HERE, or the default reads as a mystery.
+        tr(
+          ReduceEffects.lowPowerGpu
+              ? 'settings.performance.player_window_desc_auto_on'
+              : 'settings.performance.player_window_desc_auto_off',
+        ),
+        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+      ),
+      trailing: SegmentedButton<PlayerWindowMode>(
+        showSelectedIcon: false,
+        segments: [
+          ButtonSegment(
+            value: PlayerWindowMode.auto,
+            label: Text(tr('settings.performance.mode_auto')),
+          ),
+          ButtonSegment(
+            value: PlayerWindowMode.window,
+            label: Text(tr('settings.performance.player_mode_window')),
+          ),
+          ButtonSegment(
+            value: PlayerWindowMode.inApp,
+            label: Text(tr('settings.performance.player_mode_in_app')),
+          ),
+        ],
+        selected: {mode},
+        onSelectionChanged: (selection) async {
+          // Takes effect on the next thing played; whatever is already open
+          // stays where it is rather than being torn out from under someone.
+          await ref.read(playerWindowProvider.notifier).set(selection.first);
+        },
+      ),
+    );
+  }
+
   Widget _buildReduceEffectsSetting(
     BuildContext context,
     AppSettings settings,

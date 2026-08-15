@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:vidra_player/vidra_player.dart' show PlayerEffects;
 
 import '../features/settings/domain/app_settings.dart';
 import '../features/settings/presentation/settings_provider.dart';
@@ -68,6 +69,16 @@ class ReduceEffects {
 
   static void seed(AppSettings settings) {
     current = resolve(ReduceEffectsMode.fromStored(settings.reduceEffects));
+    // The player package carries its own copy of this switch, because it is a
+    // package and cannot read this one. Set it HERE rather than at the call
+    // sites: _runApp() seeds every engine — player and pet included, each its
+    // own isolate with its own statics — and the settings screen re-seeds on
+    // every toggle, so this one line is the whole wiring for both.
+    //
+    // It gates the player's BackdropFilter panels, which read back the live
+    // video texture every frame. That readback is the single most expensive
+    // thing the player does on an Intel Mac.
+    PlayerEffects.reduced = current;
   }
 }
 

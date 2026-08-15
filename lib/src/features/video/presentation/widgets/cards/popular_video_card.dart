@@ -339,7 +339,9 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
       }
       episodeIndex = count - 1;
     }
-    await PlayerWindowLauncher.open(
+    if (!mounted) return;
+    await PlayerLauncher.open(
+      context,
       videoId: video.apiId,
       episodeIndex: episodeIndex,
       sourceId: video.sourceId,
@@ -490,7 +492,11 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
       // click.
       onLongPressStart: (d) => _openMenu(d.globalPosition),
       child: InkWell(
-        onTap: widget.onTap ?? _openDetail,
+        // The card opens the detail page, always — including on 最近播放, where
+        // it used to resume playback outright. Resuming is still one tap away
+        // on the play ring; it just no longer owns the whole poster, where it
+        // fired on anyone reaching for the episode list or the blurb.
+        onTap: _openDetail,
         child: MouseRegion(
           // Crossings drive the controller; [isHovered] exists only for what
           // an animation cannot express — the reduced-mode border colour and
@@ -999,65 +1005,35 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
             // above centre so it clears that panel at every card height.
             Align(
               alignment: const Alignment(0, -0.35),
-              child: Container(
-                padding: const EdgeInsets.all(11),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.black.withAlpha(70),
-                  border: Border.all(color: Colors.white70, width: 3),
-                ),
-                child: const Icon(
-                  Icons.play_arrow_rounded,
-                  color: Colors.white,
-                  size: 30,
-                ),
-              ),
-            ),
-
-            // Secondary way in, shown only when tapping the card does something
-            // OTHER than open the detail page. Without it, giving the recent-play
-            // cards a straight-to-playback tap left the episode list unreachable
-            // from the one screen a viewer returns to.
-            if (widget.onTap != null)
-              Align(
-                alignment: const Alignment(0, 0.15),
-                child: Center(
-                  child: Material(
-                    color: Colors.black45,
-                    borderRadius: BorderRadius.circular(999),
-                    child: InkWell(
-                      // Its own tap target: the card's InkWell sits underneath and
-                      // would otherwise start playback instead.
-                      onTap: _openDetail,
-                      borderRadius: BorderRadius.circular(16),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.list,
-                              color: Colors.white,
-                              size: 14,
-                            ),
-                            const SizedBox(width: 5),
-                            Text(
-                              tr('common.view_details'),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+              // The one thing on the card that plays. Its own tap target,
+              // because the card's InkWell sits underneath and would otherwise
+              // take this to the detail page like every other spot.
+              //
+              // Cards with nowhere to resume to — the catalog, favourites,
+              // subscriptions — keep the ring as the affordance it has always
+              // been and follow the card to the detail page.
+              child: Material(
+                type: MaterialType.transparency,
+                shape: const CircleBorder(),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: widget.onTap ?? _openDetail,
+                  child: Container(
+                    padding: const EdgeInsets.all(11),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.black.withAlpha(70),
+                      border: Border.all(color: Colors.white70, width: 3),
+                    ),
+                    child: const Icon(
+                      Icons.play_arrow_rounded,
+                      color: Colors.white,
+                      size: 30,
                     ),
                   ),
                 ),
               ),
+            ),
           ],
         ),
       ),

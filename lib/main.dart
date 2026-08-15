@@ -18,6 +18,7 @@ import 'src/core/utils/window.dart';
 
 import 'src/config/app_theme.dart';
 import 'src/config/no_scrollbar_behavior.dart';
+import 'src/config/player_window_mode.dart';
 import 'src/config/reduce_effects.dart';
 import 'src/core/providers/theme_provider.dart'; // Import theme_provider
 import 'src/features/video/data/video_repository.dart';
@@ -103,6 +104,11 @@ Future<void> _runApp() async {
   // read this synchronously, and seeding it here is what keeps an Intel Mac
   // from flashing acrylic for a frame before the setting loads.
   ReduceEffects.seed(appSettings);
+  // Same reason and the same moment: the launch sites are tap handlers with
+  // no time to await a database, and this runs in every engine — including
+  // the player's own window, where "open in this window" has to resolve the
+  // same way it did on the page that opened it.
+  PlayerWindow.seed(appSettings);
 
   final initialDataSourceId =
       appSettings.lastDataSourceId ?? kDefaultDataSourceId;

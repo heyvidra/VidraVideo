@@ -1,7 +1,7 @@
 name: vidra
 description: "Vidra - Video Streaming App"
 publish_to: "none"
-version: 1.12.2+36
+version: 1.13.0+37
 
 environment:
   sdk: ^3.10.1
@@ -23,17 +23,20 @@ dependencies:
   vidra_player:
     git:
       url: https://github.com/heyvidra/VidraPlayer.git
-      # v1.4.8 (the sweep changes from 1.4.7, on a commit whose CI is green);
+      # v1.5.0 (the Intel render pass: per-frame position rebuilds, the
+      # controls-layer saveLayer, and PlayerEffects.reduced);
       # pinned to the commit so it unifies with vidra_player_kit's internal
       # `vidra_player: path: ../../` dep (pub won't match a tag to a commit).
-      # This SHA and the tag below MUST name the same commit.
-      ref: f204aa875a0a87b397faaa274afe73907ad3f26e
+      # This SHA and the tag below MUST name the same commit — v1.5.0 is an
+      # ANNOTATED tag, so this is what it dereferences to (`v1.5.0^{}`), not
+      # the tag object `git ls-remote` prints on the plain `refs/tags` line.
+      ref: 557de61b52505bf11d487b830d4968ad6e882fbe
 
   vidra_player_kit:
     git:
       url: https://github.com/heyvidra/VidraPlayer.git
       path: packages/vidra_player_fvp
-      ref: v1.4.8
+      ref: v1.5.0
 
   # Diagnostics. The DSN is never in this repo — it arrives as a
   # --dart-define, and an empty one makes every call here a no-op, so a dev

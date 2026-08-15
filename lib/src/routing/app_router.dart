@@ -108,17 +108,26 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
         ],
       ),
+      // Outside the shell on purpose: a video does not want the sidebar next
+      // to it. This is the whole of "play in this window" — the same screen
+      // the player window hosts, mounted in the main engine instead of a
+      // second one. See [PlayerWindow] for which machines take this path.
       GoRoute(
-        path: '/player/:id', // Fullscreen player outside shell
+        path: '/player/:id',
         pageBuilder: (context, state) {
           final id = state.pathParameters['id']!;
-          final sourceId = state.uri.queryParameters['sourceId'];
-          final index =
-              int.tryParse(state.uri.queryParameters['index'] ?? '0') ?? 0;
+          final q = state.uri.queryParameters;
+          final index = int.tryParse(q['index'] ?? '0') ?? 0;
           return myTransitionPage(
             VideoPlayerScreen(
               videoId: id,
-              sourceId: sourceId,
+              sourceId: q['sourceId'],
+              // A pasted link that was parsed but never downloaded: nothing in
+              // the catalog describes it, so its address and titles ride along
+              // here exactly as they ride in the window's arguments map.
+              directUrl: q['directUrl'],
+              directTitle: q['directTitle'],
+              directCoverUrl: q['directCoverUrl'],
               initialEpisodeIndex: index,
             ),
           );

@@ -51,6 +51,10 @@ class AppSettings {
   /// Whether this machine reports diagnostics. See [Telemetry].
   bool telemetryEnabled;
 
+  /// Where the player opens: 'window' / 'in_app', null = auto.
+  /// See [PlayerWindowMode] for the resolution.
+  String? playerWindowMode;
+
   AppSettings({
     this.downloadPath,
     this.maxConcurrentDownloads = 3,
