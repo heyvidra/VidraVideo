@@ -386,6 +386,12 @@ class AppSettings extends Table {
   /// finds reports nothing. Builds without a DSN ignore this entirely.
   BoolColumn get telemetryEnabled =>
       boolean().withDefault(const Constant(true))();
+
+  /// Where the player opens: 'window' / 'in_app', null = auto (in-app on
+  /// Intel-GPU Macs). Text for the same reason [reduceEffects] is — an
+  /// explicit choice has to outrank the hardware guess in both directions,
+  /// and a bool cannot say "I have not chosen".
+  TextColumn get playerWindowMode => text().nullable()();
 }
 
 @DriftDatabase(
@@ -408,7 +414,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 17;
 
   /// True when [table] already has a column named [name].
   ///
@@ -545,9 +551,67 @@ class AppDatabase extends _$AppDatabase {
             appSettings.telemetryEnabled,
           );
         }
+        // v17: where the player opens ('window'/'in_app', null = auto).
+        if (from < 17 && to >= 17) {
+          await _addColumnIfAbsent(
+            m,
+            appSettings,
+            appSettings.playerWindowMode,
+          );
+        }
       });
     },
   );
+}
+
+/// The macOS bundle identifier every build up to 1.12.2 shipped with, before
+/// it moved off the `com.example` placeholder.
+///
+/// [getApplicationSupportDirectory] is bundle-scoped on macOS, so renaming the
+/// bundle hands an existing install a fresh empty directory and leaves its
+/// library — watch history, favourites, subscriptions — in the old one. Only
+/// macOS is affected: Windows and Linux derive this path from the executable
+/// metadata and the app name, neither of which the rename touched.
+///
+/// ponytail: delete this and its call once no supported version predates the
+/// rename.
+const String _legacyMacOSBundleId = 'com.example.videoapp.video';
+
+/// Resolves which database file to open, moving a pre-rename library into
+/// place first if one is still sitting under the old bundle identifier.
+///
+/// The move is a single directory rename, deliberately. Migrating file by file
+/// leaves states that a retry cannot repair: a `-wal` that arrived without its
+/// `.sqlite` has taken the committed-but-uncheckpointed transactions with it,
+/// so the database left behind silently rolls back to its last checkpoint.
+/// One `rename(2)` on one volume either moves the whole directory or moves
+/// nothing, and it carries the image cache along for free.
+///
+/// [path_provider] creates the new directory before handing it over, so the
+/// empty one it just made is removed to clear the way — only ever when it IS
+/// empty, and never when [target] already exists.
+///
+/// When the rename fails, this returns the OLD file and the app opens the
+/// library where it lies. That is what keeps the failure recoverable: letting
+/// drift create an empty database at [target] instead would make the "already
+/// migrated" check true forever and strand the real library for good.
+Future<File> resolveDatabaseFile({
+  required Directory legacyFolder,
+  required File target,
+}) async {
+  if (target.existsSync() || !legacyFolder.existsSync()) return target;
+  final legacyDb = File(p.join(legacyFolder.path, p.basename(target.path)));
+  if (!legacyDb.existsSync()) return target;
+  try {
+    final destination = target.parent;
+    if (destination.existsSync() && destination.listSync().isEmpty) {
+      destination.deleteSync();
+    }
+    await legacyFolder.rename(destination.path);
+    return target;
+  } on FileSystemException {
+    return legacyDb;
+  }
 }
 
 LazyDatabase _openConnection() {
@@ -556,7 +620,15 @@ LazyDatabase _openConnection() {
     if (!dbFolder.existsSync()) {
       await dbFolder.create(recursive: true);
     }
-    final file = File(p.join(dbFolder.path, 'vidradb.sqlite'));
+    var file = File(p.join(dbFolder.path, 'vidradb.sqlite'));
+    if (Platform.isMacOS) {
+      file = await resolveDatabaseFile(
+        legacyFolder: Directory(
+          p.join(dbFolder.parent.path, _legacyMacOSBundleId),
+        ),
+        target: file,
+      );
+    }
     return NativeDatabase.createInBackground(file);
   });
 }
