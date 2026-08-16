@@ -23,20 +23,20 @@ dependencies:
   vidra_player:
     git:
       url: https://github.com/heyvidra/VidraPlayer.git
-      # v1.6.0; pinned to the commit so it unifies with vidra_player_kit's
+      # v1.7.0; pinned to the commit so it unifies with vidra_player_kit's
       # internal `vidra_player: path: ../../` dep (pub won't match a tag to a
       # commit). This SHA and the tag below MUST name the same commit — the
       # tags are ANNOTATED, so this is what the tag dereferences to
-      # (`v1.6.0^{}`), not the tag object `git ls-remote` prints on the plain
+      # (`v1.7.0^{}`), not the tag object `git ls-remote` prints on the plain
       # `refs/tags` line. Getting that wrong resolves to a tree that is not a
       # commit and pub fails in a way that does not name this file.
-      ref: 42a4469a65e109895444b4fcb70af51fa39ea0cb
+      ref: 12e541ca24a3c70db3503acb75b6c01f1f8ded04
 
   vidra_player_kit:
     git:
       url: https://github.com/heyvidra/VidraPlayer.git
       path: packages/vidra_player_fvp
-      ref: v1.6.0
+      ref: v1.7.0
 
   # Diagnostics. The DSN is never in this repo — it arrives as a
   # --dart-define, and an empty one makes every call here a no-op, so a dev
