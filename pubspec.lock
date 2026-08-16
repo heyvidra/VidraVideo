@@ -1381,17 +1381,17 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: "557de61b52505bf11d487b830d4968ad6e882fbe"
-      resolved-ref: "557de61b52505bf11d487b830d4968ad6e882fbe"
+      ref: "7c09250eec0d9ffc28192b112d0376753ee56380"
+      resolved-ref: "7c09250eec0d9ffc28192b112d0376753ee56380"
       url: "https://github.com/heyvidra/VidraPlayer.git"
     source: git
-    version: "1.5.0"
+    version: "1.5.1"
   vidra_player_kit:
     dependency: "direct main"
     description:
       path: "packages/vidra_player_fvp"
-      ref: "v1.5.0"
-      resolved-ref: "557de61b52505bf11d487b830d4968ad6e882fbe"
+      ref: "v1.5.1"
+      resolved-ref: "7c09250eec0d9ffc28192b112d0376753ee56380"
       url: "https://github.com/heyvidra/VidraPlayer.git"
     source: git
     version: "0.0.1"
