@@ -151,42 +151,53 @@ class _DashboardTitleBarState extends ConsumerState<DashboardTitleBar> {
           // The search field, left-aligned with the rest of the bar rather
           // than centred: centred, it drifted away from the back button it
           // sits next to and left a hole on both sides at wide window sizes.
-          CompositedTransformTarget(
-            link: _historyLink,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 460, minWidth: 180),
-              child: SizedBox(
-                height: 32,
-                child: Row(
-                  children: [
-                    Icon(Icons.search, color: t.fg3, size: 17),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OverlayPortal(
-                        controller: _historyOverlay,
-                        overlayChildBuilder: (context) => _HistoryDropdown(
-                          link: _historyLink,
-                          controller: _searchController,
-                          onPick: _submit,
-                        ),
-                        child: TextField(
-                          controller: _searchController,
-                          focusNode: _searchFocus,
-                          style: TextStyle(color: t.fg, fontSize: 13),
-                          cursorColor: t.cyan,
-                          decoration: InputDecoration(
-                            hintText: tr('dashboard.search_hint'),
-                            hintStyle: TextStyle(color: t.fg3, fontSize: 13),
-                            border: InputBorder.none,
-                            isDense: true,
-                            contentPadding: EdgeInsets.zero,
+          //
+          // Flexible, and with no minimum, because it is the ONE elastic thing
+          // on this bar — everything else is an icon, a wordmark or a source
+          // name, none of which can give up a pixel. It used to hold a 180
+          // floor, so a narrow window had nothing left to take from and the row
+          // overflowed by exactly what that floor would not surrender, silently
+          // clipping the controls on the right. The minimum window size is 60%
+          // of the SCREEN, not a fixed width, so there is no width this bar can
+          // assume; it has to be able to shrink instead.
+          Flexible(
+            child: CompositedTransformTarget(
+              link: _historyLink,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 460),
+                child: SizedBox(
+                  height: 32,
+                  child: Row(
+                    children: [
+                      Icon(Icons.search, color: t.fg3, size: 17),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OverlayPortal(
+                          controller: _historyOverlay,
+                          overlayChildBuilder: (context) => _HistoryDropdown(
+                            link: _historyLink,
+                            controller: _searchController,
+                            onPick: _submit,
                           ),
-                          onSubmitted: _submit,
-                          textInputAction: TextInputAction.search,
+                          child: TextField(
+                            controller: _searchController,
+                            focusNode: _searchFocus,
+                            style: TextStyle(color: t.fg, fontSize: 13),
+                            cursorColor: t.cyan,
+                            decoration: InputDecoration(
+                              hintText: tr('dashboard.search_hint'),
+                              hintStyle: TextStyle(color: t.fg3, fontSize: 13),
+                              border: InputBorder.none,
+                              isDense: true,
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                            onSubmitted: _submit,
+                            textInputAction: TextInputAction.search,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
