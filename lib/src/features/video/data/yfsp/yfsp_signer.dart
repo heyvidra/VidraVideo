@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
@@ -40,20 +41,89 @@ class YfspSigner {
   /// The API 403s a request with no `Referer` from the site.
   static const String referer = 'https://www.yfsp.tv/';
 
-  ({String pub, String priv})? _keys;
+  /// STATIC, so the pair outlives the source instance holding it.
+  ///
+  /// `allDataSourcesProvider` builds a fresh [YfspDataSource] — and with it a
+  /// fresh signer — on every rebuild, so an instance field meant re-scraping
+  /// a 26 KB page each time. That page sits in front of the FIRST signed call
+  /// of a session, so it was pre-roll the viewer waited through, and it was
+  /// spent on the one host here that rate-limits into a bot challenge.
+  static ({String pub, String priv})? _keys;
 
   /// De-duplicates concurrent scrapes. A cold start fires the category list
   /// and the first catalog page at once; without this they would each fetch
   /// and parse the same 26 KB page.
-  Future<({String pub, String priv})>? _pending;
+  static Future<({String pub, String priv})>? _pending;
 
-  /// Throws away the cached pair so the next [sign] scrapes a fresh one.
-  void invalidate() => _keys = null;
+  /// Where the pair survives a process boundary.
+  ///
+  /// Static is not enough on its own: the player runs in its OWN engine, hence
+  /// its own isolate and its own statics, so opening a video scraped the page
+  /// a second time — and that one lands squarely on the play path. A file is
+  /// the cheapest thing both engines can read. Nothing secret is in it: this
+  /// is public page markup, and a stale pair costs one retry, which
+  /// [invalidate] already handles.
+  static File get _cacheFile =>
+      File('${Directory.systemTemp.path}/vidra_yfsp/keys.json');
+
+  /// Throws away the cached pair, memory and disk, so the next [sign] scrapes
+  /// a fresh one. Called when the API says a signature is stale — which is the
+  /// only expiry signal there is, since the pair carries no lifetime.
+  void invalidate() {
+    _keys = null;
+    try {
+      if (_cacheFile.existsSync()) _cacheFile.deleteSync();
+    } on FileSystemException {
+      // A cache that will not delete is one the next write replaces anyway.
+    }
+  }
+
+  /// The pair, from memory, then disk, then the site.
+  ///
+  /// The disk read is what keeps the scrape off the play path: the player's
+  /// engine starts cold every time a video opens, and a pair another engine
+  /// already fetched is as good as one of its own.
+  Future<({String pub, String priv})> _resolveKeys() async {
+    final cached = _keys ??= _readCache();
+    if (cached != null) return cached;
+    final keys = await (_pending ??= _fetchKeys());
+    _pending = null;
+    _keys = keys;
+    _writeCache(keys);
+    return keys;
+  }
+
+  ({String pub, String priv})? _readCache() {
+    try {
+      final file = _cacheFile;
+      if (!file.existsSync()) return null;
+      final json = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
+      final pub = json['pub'] as String?;
+      final priv = json['priv'] as String?;
+      if (pub == null || priv == null || pub.isEmpty || priv.isEmpty) {
+        return null;
+      }
+      return (pub: pub, priv: priv);
+    } on Object {
+      // Unreadable, truncated, or written by an older shape: scraping again is
+      // always correct, so a bad cache must never be an error.
+      return null;
+    }
+  }
+
+  void _writeCache(({String pub, String priv}) keys) {
+    try {
+      final file = _cacheFile;
+      file.parent.createSync(recursive: true);
+      file.writeAsStringSync(jsonEncode({'pub': keys.pub, 'priv': keys.priv}));
+    } on Object {
+      // A cache that will not write costs a scrape, not a failure.
+    }
+  }
 
   /// `base` plus [params], signed. Values are passed RAW — this encodes them.
   Future<String> sign(String base, Map<String, String> params) async {
-    final keys = _keys ??= await (_pending ??= _fetchKeys());
-    _pending = null;
+    final keys = await _resolveKeys();
     return signWith(base, params, pub: keys.pub, priv: keys.priv);
   }
 
@@ -64,8 +134,7 @@ class YfspSigner {
   /// a signature is returned untouched, matching the site's own guard.
   Future<String> signExisting(String url) async {
     if (_alreadySigned(url)) return url;
-    final keys = _keys ??= await (_pending ??= _fetchKeys());
-    _pending = null;
+    final keys = await _resolveKeys();
     return _signExisting(url, keys);
   }
 

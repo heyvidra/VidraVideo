@@ -124,7 +124,18 @@ class _DashboardTitleBarState extends ConsumerState<DashboardTitleBar> {
       // re-run on every rasterized frame; 减少特效 drops the readback too.
       staticBackdrop: true,
       flat: reduce,
-      padding: const EdgeInsets.fromLTRB(0, 6, 8, 6),
+      // No trailing padding: [BarIcon] is a 17px glyph in a 32px hit box, so it
+      // carries ~7.5px of its own. Adding 8 on top left the last control
+      // sitting twice as far from the edge as its neighbours sit from each
+      // other, which reads as a cluster that failed to reach the corner rather
+      // than as deliberate breathing room.
+      //
+      // There is no Windows counterpart to [leadingInset] — the platform
+      // difference is already carried by the row itself. macOS ends on the
+      // language switcher and is flush; Windows and Linux end on
+      // [_WindowControls], so their other controls stop three hit boxes short
+      // of the edge because three window buttons are standing there.
+      padding: const EdgeInsets.fromLTRB(0, 6, 0, 6),
       child: Row(
         children: [
           SizedBox(width: widget.leadingInset),
@@ -160,49 +171,68 @@ class _DashboardTitleBarState extends ConsumerState<DashboardTitleBar> {
           // clipping the controls on the right. The minimum window size is 60%
           // of the SCREEN, not a fixed width, so there is no width this bar can
           // assume; it has to be able to shrink instead.
-          Flexible(
-            child: CompositedTransformTarget(
-              link: _historyLink,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 460),
-                child: SizedBox(
-                  height: 32,
-                  child: Row(
-                    children: [
-                      Icon(Icons.search, color: t.fg3, size: 17),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: OverlayPortal(
-                          controller: _historyOverlay,
-                          overlayChildBuilder: (context) => _HistoryDropdown(
-                            link: _historyLink,
-                            controller: _searchController,
-                            onPick: _submit,
-                          ),
-                          child: TextField(
-                            controller: _searchController,
-                            focusNode: _searchFocus,
-                            style: TextStyle(color: t.fg, fontSize: 13),
-                            cursorColor: t.cyan,
-                            decoration: InputDecoration(
-                              hintText: tr('dashboard.search_hint'),
-                              hintStyle: TextStyle(color: t.fg3, fontSize: 13),
-                              border: InputBorder.none,
-                              isDense: true,
-                              contentPadding: EdgeInsets.zero,
+          //
+          // Expanded + Align, NOT Flexible + a Spacer after it. Those were two
+          // flex children of equal weight, and a Row splits the free space
+          // between them by weight FIRST — it does not let the loose one take
+          // what it needs and hand the rest to the tight one. So the search got
+          // half the free width, gave back everything past 460, and that
+          // remainder was never re-offered to the Spacer: it settled at the end
+          // of the row, because a Row lays out from the start. The wider the
+          // window, the bigger the half, the bigger the leftover — a right-hand
+          // gap that grew with the window while the middle stayed put.
+          //
+          // One flex child instead. It claims the whole gap, the ConstrainedBox
+          // caps what is DRAWN at 460, and the empty remainder inside it is the
+          // middle of the bar rather than a hole after the last control.
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: CompositedTransformTarget(
+                link: _historyLink,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 460),
+                  child: SizedBox(
+                    height: 32,
+                    child: Row(
+                      children: [
+                        Icon(Icons.search, color: t.fg3, size: 17),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OverlayPortal(
+                            controller: _historyOverlay,
+                            overlayChildBuilder: (context) => _HistoryDropdown(
+                              link: _historyLink,
+                              controller: _searchController,
+                              onPick: _submit,
                             ),
-                            onSubmitted: _submit,
-                            textInputAction: TextInputAction.search,
+                            child: TextField(
+                              controller: _searchController,
+                              focusNode: _searchFocus,
+                              style: TextStyle(color: t.fg, fontSize: 13),
+                              cursorColor: t.cyan,
+                              decoration: InputDecoration(
+                                hintText: tr('dashboard.search_hint'),
+                                hintStyle: TextStyle(
+                                  color: t.fg3,
+                                  fontSize: 13,
+                                ),
+                                border: InputBorder.none,
+                                isDense: true,
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                              onSubmitted: _submit,
+                              textInputAction: TextInputAction.search,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-          const Spacer(),
           DataSourceSwitcher(onDataSourceChanged: widget.onHomeRequested),
           const SizedBox(width: 8),
           const SubscriptionBell(),
@@ -240,10 +270,13 @@ class _DashboardTitleBarState extends ConsumerState<DashboardTitleBar> {
           // end of the same row rather than loose in the corner: they are the
           // window's controls and so is everything to their left. macOS has
           // its own, on the other end of this bar.
-          if (!Platform.isMacOS) ...[
-            const SizedBox(width: 2),
-            const _WindowControls(),
-          ],
+          //
+          // The gap belongs to the controls, so it lives INSIDE this block. It
+          // used to sit above it, unconditional, which put 8px of nothing after
+          // the last control on macOS — the trailing space this bar had just
+          // been trimmed of everywhere else.
+          const SizedBox(width: 14),
+          if (!Platform.isMacOS) const _WindowControls(),
         ],
       ),
     );
