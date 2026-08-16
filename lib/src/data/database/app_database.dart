@@ -564,18 +564,27 @@ class AppDatabase extends _$AppDatabase {
   );
 }
 
-/// The macOS bundle identifier every build up to 1.12.2 shipped with, before
-/// it moved off the `com.example` placeholder.
+/// Every macOS bundle identifier this app has shipped under, newest first.
 ///
 /// [getApplicationSupportDirectory] is bundle-scoped on macOS, so renaming the
 /// bundle hands an existing install a fresh empty directory and leaves its
 /// library — watch history, favourites, subscriptions — in the old one. Only
 /// macOS is affected: Windows and Linux derive this path from the executable
-/// metadata and the app name, neither of which the rename touched.
+/// metadata and the app name, neither of which a rename touches.
 ///
-/// ponytail: delete this and its call once no supported version predates the
-/// rename.
-const String _legacyMacOSBundleId = 'com.example.videoapp.video';
+/// Newest first because an install can be arriving from ANY of them: 1.12.2
+/// and older sit on the placeholder, and 1.13.0 spent one release on
+/// `com.vidra.app` before that turned out to be a mistake — a directory whose
+/// name ends in `.app` IS an application bundle to macOS, so every folder this
+/// app owns showed up in Finder as a broken app and refused to open. Ordered
+/// so the most recent library wins if a machine somehow has two.
+///
+/// ponytail: drop entries as their versions stop being supported; delete the
+/// list and its call once none are.
+const List<String> _legacyMacOSBundleIds = [
+  'com.vidra.app',
+  'com.example.videoapp.video',
+];
 
 /// Resolves which database file to open, moving a pre-rename library into
 /// place first if one is still sitting under the old bundle identifier.
@@ -596,22 +605,29 @@ const String _legacyMacOSBundleId = 'com.example.videoapp.video';
 /// drift create an empty database at [target] instead would make the "already
 /// migrated" check true forever and strand the real library for good.
 Future<File> resolveDatabaseFile({
-  required Directory legacyFolder,
+  required List<Directory> legacyFolders,
   required File target,
 }) async {
-  if (target.existsSync() || !legacyFolder.existsSync()) return target;
-  final legacyDb = File(p.join(legacyFolder.path, p.basename(target.path)));
-  if (!legacyDb.existsSync()) return target;
-  try {
-    final destination = target.parent;
-    if (destination.existsSync() && destination.listSync().isEmpty) {
-      destination.deleteSync();
+  if (target.existsSync()) return target;
+  for (final legacyFolder in legacyFolders) {
+    if (!legacyFolder.existsSync()) continue;
+    final legacyDb = File(p.join(legacyFolder.path, p.basename(target.path)));
+    if (!legacyDb.existsSync()) continue;
+    try {
+      final destination = target.parent;
+      if (destination.existsSync() && destination.listSync().isEmpty) {
+        destination.deleteSync();
+      }
+      await legacyFolder.rename(destination.path);
+      return target;
+    } on FileSystemException {
+      // Could not move this one. Open it where it lies rather than trying an
+      // older directory: a library that exists beats an older library that
+      // also exists, and the next launch retries the move.
+      return legacyDb;
     }
-    await legacyFolder.rename(destination.path);
-    return target;
-  } on FileSystemException {
-    return legacyDb;
   }
+  return target;
 }
 
 LazyDatabase _openConnection() {
@@ -623,9 +639,10 @@ LazyDatabase _openConnection() {
     var file = File(p.join(dbFolder.path, 'vidradb.sqlite'));
     if (Platform.isMacOS) {
       file = await resolveDatabaseFile(
-        legacyFolder: Directory(
-          p.join(dbFolder.parent.path, _legacyMacOSBundleId),
-        ),
+        legacyFolders: [
+          for (final id in _legacyMacOSBundleIds)
+            Directory(p.join(dbFolder.parent.path, id)),
+        ],
         target: file,
       );
     }

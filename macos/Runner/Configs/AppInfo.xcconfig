@@ -7,8 +7,16 @@
 // The application's name. By default this is also the title of the Flutter window.
 PRODUCT_NAME = Vidra
 
-// The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.vidra.app
+// The application's bundle identifier.
+//
+// MUST NOT END IN `.app`. Every per-app directory macOS creates is named after
+// this — ~/Library/Caches/<id>, ~/Library/Application Support/<id> — and a
+// directory whose name ends in `.app` IS an application bundle as far as the
+// system is concerned. 1.13.0 shipped as com.vidra.app and every one of those
+// folders came up in Finder as a broken app: `mdls` reported them as
+// com.apple.application-bundle, and opening one asked LaunchServices to launch
+// it, which failed with "可能已损坏或不完整".
+PRODUCT_BUNDLE_IDENTIFIER = com.vidra.video
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2025 Vidra. All rights reserved.
