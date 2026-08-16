@@ -45,7 +45,8 @@
     "failed_refused": "电视拒绝了这个视频,可能是它不支持该格式",
     "failed_no_page": "电视没有打开这个页面。请检查电脑的防火墙是否允许 Vidra 接受连接,以及电视和电脑是否在同一个网络",
     "failed_busy": "上一次投屏还在连接中,请稍候",
-    "pet_bubble": "正在投到 {}"
+    "pet_bubble": "正在投到 {}",
+    "episode_hint": "投屏中 · 点任意一集，即可换电视上播的那一集"
   },
   "dashboard": {
     "search_hint": "搜索",

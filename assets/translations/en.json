@@ -45,7 +45,8 @@
     "failed_refused": "The TV refused this video, most likely its format",
     "failed_no_page": "The TV never opened the page — check this computer's firewall allows Vidra to accept connections, and that both are on the same network",
     "failed_busy": "Another cast is still connecting",
-    "pet_bubble": "Casting to {}"
+    "pet_bubble": "Casting to {}",
+    "episode_hint": "Casting — tap any episode to change what the TV plays"
   },
   "dashboard": {
     "search_hint": "Search",

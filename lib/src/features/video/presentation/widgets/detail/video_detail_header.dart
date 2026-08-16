@@ -314,6 +314,10 @@ class _Actions extends StatelessWidget {
         _SubscribeButton(video: video),
         _FavoriteButton(video: video),
         CastButton(video: video),
+        // Follows the cast button because it is that button's consequence:
+        // once a television is showing this show, the grid below stops
+        // opening the local player and starts choosing what the TV plays.
+        CastEpisodeHint(video: video, isDownloadMode: isDownloadMode),
       ],
     );
   }

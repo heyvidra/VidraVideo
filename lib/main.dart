@@ -8,9 +8,12 @@ import 'package:local_notifier/local_notifier.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:vidra_player/vidra_player.dart';
 import 'package:vidra_player_kit/vidra_player_kit.dart';
 
 import 'src/config/app_config.dart';
+import 'src/core/network/browser_identity.dart';
+import 'src/core/network/player_browser_headers.dart';
 import 'src/core/network/bundled_roots.dart';
 import 'src/core/telemetry/telemetry.dart';
 import 'src/core/utils/log.dart';
@@ -71,6 +74,11 @@ Future<void> _runApp() async {
   final isPetWindow =
       !isMainWindow && appWindow.name == PetWindowLauncher.windowName;
 
+  // Roll this run's browser before anything can send a request. Every engine
+  // rolls its own, which is fine — each is a separate process's worth of
+  // traffic to an origin, and nothing ties them together.
+  BrowserIdentity.seed();
+
   await EasyLocalization.ensureInitialized();
   // The pet does no Dart-side HTTP — the sprite is painted locally and the
   // bubble text arrives through window arguments — so the Windows root-CA
@@ -88,6 +96,14 @@ Future<void> _runApp() async {
   if (!isPetWindow) {
     try {
       VidraPlayerKit.ensureInitialized();
+      // AFTER ensureInitialized, which registers the stock adapter — this
+      // replaces it so the stream fetch presents the same browser the rest of
+      // the app does. Same label, so nothing downstream reads a different
+      // engine than the one actually playing.
+      VidraPlayer.setPlayerFactory(
+        BrowserHeaderPlayerAdapter.new,
+        adapterLabel: 'fvp',
+      );
     } catch (e) {
       logR('Main', 'Error initializing VidraPlayerKit: $e');
     }

@@ -1,4 +1,6 @@
 import 'package:dio/dio.dart';
+
+import '../../../../core/network/browser_headers.dart';
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/telemetry/telemetry.dart';
 import '../../../../core/utils/log.dart';
@@ -13,11 +15,16 @@ import 'dbku_parser.dart';
 class DbkuDataSource implements VideoDataSource {
   static const String _baseUrl = 'https://www.dbku.tv';
 
-  /// The site is behind Cloudflare and serves the plain HTML to a browser UA.
-  /// If it ever turns on a JS challenge, this is the first thing to revisit.
-  static const String _userAgent =
-      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 '
-      '(KHTML, like Gecko) Chrome/131.0 Safari/537.36';
+  // The site is behind Cloudflare and serves the plain HTML to a browser UA.
+  // If it ever turns on a JS challenge, this is the first thing to revisit.
+  //
+  // That User-Agent used to be a constant here — one Chrome major behind the
+  // one the cast proxy hardcoded, and two version components short of a real
+  // Chrome. It comes from BrowserHeaders now, together with the client hints
+  // that have to agree with it: a Chrome User-Agent arriving with no
+  // `sec-ch-ua`, or with one naming a different major, is exactly what a
+  // Cloudflare managed rule reads. Only the document `Accept` is set below,
+  // because this is the one caller fetching pages rather than calling an API.
 
   /// Grid pages render a fixed 48 items.
   static const int _pageSize = 48;
@@ -186,7 +193,7 @@ class DbkuDataSource implements VideoDataSource {
       queryParameters: query,
       options: Options(
         responseType: ResponseType.plain,
-        headers: const {'User-Agent': _userAgent},
+        headers: const {'Accept': BrowserHeaders.documentAccept},
       ),
     );
     return response.data ?? '';

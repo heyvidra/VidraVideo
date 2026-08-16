@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:vidra/src/core/network/browser_headers.dart';
 import 'package:vidra/src/core/utils/log.dart';
 import 'segment_downloader.dart';
 
@@ -167,7 +168,12 @@ class M3U8Downloader implements SegmentDownloader {
       _throwIfCancelled(shouldCancel);
 
       // 1. Download m3u8 playlist (one Dio shared by playlist + all segments)
-      final dio = Dio();
+      //
+      // Its own client, not the app's shared one, so it carries the identity
+      // explicitly. This is the highest-volume request site in the app on the
+      // fallback path — one playlist plus every TS segment — and a CDN that
+      // starts refusing non-browsers would break it before anything else.
+      final dio = Dio()..interceptors.add(const BrowserHeaders());
       final response = await _withCancelWatcher(
         (token) => dio.get(m3u8Url, cancelToken: token),
         shouldCancel,

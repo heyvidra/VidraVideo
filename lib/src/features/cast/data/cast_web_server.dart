@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
+import '../../../core/network/browser_identity.dart';
 import '../../../core/utils/log.dart';
 import '../domain/cast_target.dart';
 import '../domain/hls_rewrite.dart';
@@ -70,9 +71,17 @@ class CastWebServer {
   /// Referer is never checked and one source only requires a non-empty
   /// User-Agent — but the renderer sends neither, so the proxy restores what
   /// the CDN saw when the app was the one asking.
-  static const _upstreamUa =
-      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 '
-      '(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
+  ///
+  /// Comes from [BrowserIdentity] now rather than a constant of its own, so
+  /// the proxy and the player present the SAME browser for the same run. They
+  /// were two hardcoded Chrome versions before, sixteen majors apart, which
+  /// meant a stream fetched directly and the same stream fetched through here
+  /// looked like two different clients to one CDN.
+  ///
+  /// The Referer is deliberately NOT taken from here — [_fetch] sets it per
+  /// redirect hop to the host being asked, which is the behaviour that was
+  /// measured against real CDNs.
+  static String get _upstreamUa => BrowserIdentity.userAgent;
 
   /// How a DLNA renderer asks to start part-way in, and how it is answered.
   static const _timeSeekHeader = 'TimeSeekRange.dlna.org';

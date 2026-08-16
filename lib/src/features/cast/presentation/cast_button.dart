@@ -58,6 +58,14 @@ class CastButton extends ConsumerWidget {
     );
   }
 
+  /// Whether a tap on an episode would go to the television rather than the
+  /// local player. Mirrors the check in `EpisodeItem._onTap` — the two must
+  /// agree, because this is what tells the viewer that gesture exists.
+  static bool castsEpisodes(CastState cast, Video video) =>
+      cast.isCasting &&
+      cast.video?.apiId == video.apiId &&
+      cast.video?.sourceId == video.sourceId;
+
   /// "第 12 集 · 投屏中", or the television's name when there is no episode
   /// to name — a film, or the moment before the TV's first progress report.
   String _castingLabel(CastState cast) {
@@ -338,6 +346,70 @@ class _DevicePickerDialogState extends ConsumerState<_DevicePickerDialog> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Says that, right now, tapping an episode sends it to the television.
+///
+/// It is the one thing on this page nobody would guess: the same tap that
+/// opens the local player every other time silently changes meaning once a
+/// cast is running, and nothing on screen said so.
+///
+/// Shown under EXACTLY the condition that makes it true — this show on the
+/// television, and not in download mode — because the rule it states is false
+/// the rest of the time. Stated while a different show is casting, or while
+/// the grid is queueing downloads, it would teach a gesture that does
+/// something else.
+class CastEpisodeHint extends ConsumerWidget {
+  const CastEpisodeHint({
+    super.key,
+    required this.video,
+    required this.isDownloadMode,
+  });
+
+  final Video video;
+
+  /// The grid's other mode. A tap there queues a download and never reaches
+  /// the cast path, so the hint has to go while it is on.
+  final ValueNotifier<bool> isDownloadMode;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cast = ref.watch(castStateProvider);
+    if (!CastButton.castsEpisodes(cast, video)) {
+      return const SizedBox.shrink();
+    }
+    return ValueListenableBuilder<bool>(
+      valueListenable: isDownloadMode,
+      builder: (context, downloading, _) {
+        if (downloading) return const SizedBox.shrink();
+        final t = VidraTokens.of(context);
+        return ConstrainedBox(
+          // Wraps onto its own line rather than squeezing the buttons, and
+          // stops short of the full width so it reads as a note beside them
+          // and not as a paragraph of its own.
+          constraints: const BoxConstraints(maxWidth: 260),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Amber, matching the button it follows: the two are one state.
+              Text(
+                '→',
+                style: TextStyle(fontSize: 12, height: 1.5, color: t.amber),
+              ),
+              const SizedBox(width: 9),
+              Flexible(
+                child: Text(
+                  tr('cast.episode_hint'),
+                  style: TextStyle(fontSize: 12, height: 1.5, color: t.fg3),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
