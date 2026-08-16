@@ -156,6 +156,41 @@ void main() {
     });
   });
 
+  group('images', () {
+    // A cover is an <img>, not a fetch. Sending the XHR set on it would be a
+    // request describing itself as something it is not.
+    test('ask as an image, not as an XHR', () {
+      final h = BrowserHeaders.forImage(
+        Uri.parse('https://www.olevod.com/upload/vod/x.jpg'),
+      );
+
+      expect(h['Sec-Fetch-Dest'], 'image');
+      expect(h['Sec-Fetch-Mode'], 'no-cors');
+      expect(h['Accept'], startsWith('image/'));
+      expect(h['Accept'], isNot(contains('application/json')));
+    });
+
+    test('present the same browser the rest of the app does', () {
+      final h = BrowserHeaders.forImage(Uri.parse('https://www.olevod.com/a'));
+      final profile = BrowserIdentity.current;
+
+      expect(h['User-Agent'], profile.userAgent);
+      expect(h.containsKey('sec-ch-ua'), profile.isChromium);
+      if (profile.isChromium) {
+        expect(h['sec-ch-ua'], profile.secChUa);
+        expect(h['sec-ch-ua-platform'], profile.platform);
+      }
+    });
+
+    test('carry the referer of the site that serves them', () {
+      final h = BrowserHeaders.forImage(
+        Uri.parse('https://www.olevod.com/upload/vod/x.jpg'),
+      );
+      expect(h['Referer'], 'https://www.olevod.com/');
+      expect(h['Sec-Fetch-Site'], 'same-origin');
+    });
+  });
+
   test('accept-language names a real language tag', () {
     expect(BrowserHeaders.acceptLanguage, matches(RegExp(r'^[a-zA-Z-]+,')));
     expect(BrowserHeaders.acceptLanguage, contains('q=0.'));

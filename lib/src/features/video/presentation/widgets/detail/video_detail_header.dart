@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:vidra/src/common/cover_image.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -127,20 +127,19 @@ class _Backdrop extends StatelessWidget {
         children: [
           Hero(
             tag: videoPosterHeroTag(video),
-            child: CachedNetworkImage(
+            child: CoverImage(
               imageUrl: art.startsWith('http')
                   ? art
                   : repository.resolveUrl(art, sourceId: video.sourceId),
-              fit: BoxFit.cover,
               // Cover fit in a strip this wide scales the art by width, not
               // by the fixed 176px height, and the width tracks the window —
               // so the decode must be capped at a typical maximized window's
               // physical width, the one axis bound the layout cannot give.
               memCacheWidth: 1600,
-              placeholder: (_, _) => ColoredBox(
+              placeholder: ColoredBox(
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.06),
               ),
-              errorWidget: (_, _, _) => ColoredBox(
+              errorWidget: ColoredBox(
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
               ),
             ),
@@ -196,17 +195,16 @@ class _Poster extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(13),
-        child: CachedNetworkImage(
+        child: CoverImage(
           imageUrl: video.coverUrl.startsWith('http')
               ? video.coverUrl
               : repository.resolveUrl(video.coverUrl, sourceId: video.sourceId),
-          fit: BoxFit.cover,
           memCacheWidth:
               (VideoDetailHeader._posterW *
                       MediaQuery.devicePixelRatioOf(context))
                   .round(),
-          placeholder: (_, _) => const ColoredBox(color: Color(0x33000000)),
-          errorWidget: (_, _, _) => const ColoredBox(color: Color(0x33000000)),
+          placeholder: const ColoredBox(color: Color(0x33000000)),
+          errorWidget: const ColoredBox(color: Color(0x33000000)),
         ),
       ),
     );

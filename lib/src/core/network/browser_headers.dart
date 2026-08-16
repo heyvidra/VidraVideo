@@ -78,6 +78,32 @@ class BrowserHeaders extends Interceptor {
     }
   }
 
+  /// The headers a browser sends fetching an `<img>`, which are not the ones
+  /// it sends from `fetch`.
+  ///
+  /// Same browser, different kind of request: an image load asks for image
+  /// types, its `Sec-Fetch-Dest` is `image`, and it is `no-cors` rather than
+  /// `cors` — an image request claiming `dest: empty` would contradict itself.
+  /// Covers come from the catalog's own CDN, so hotlink protection is the
+  /// thing this guards against.
+  static Map<String, String> forImage(Uri url) {
+    final profile = BrowserIdentity.current;
+    return {
+      'User-Agent': profile.userAgent,
+      if (profile.isChromium) ...{
+        'sec-ch-ua': profile.secChUa!,
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': profile.platform,
+      },
+      'Referer': refererFor(url),
+      'Accept': imageAccept,
+      'Accept-Language': acceptLanguage,
+      'Sec-Fetch-Dest': 'image',
+      'Sec-Fetch-Mode': 'no-cors',
+      'Sec-Fetch-Site': fetchSite(url, Uri.parse(refererFor(url))),
+    };
+  }
+
   /// Dio's own header map is case-insensitive, but this is also called with a
   /// plain map for the two clients that do not use Dio.
   static bool _hasUserAgent(Map<String, dynamic> headers) =>
@@ -126,6 +152,10 @@ class BrowserHeaders extends Interceptor {
 
   /// What `fetch`/XHR asks for. Callers scraping HTML override this.
   static const _xhrAccept = 'application/json, text/plain, */*';
+
+  /// What a browser asks for when it is loading an image.
+  static const imageAccept =
+      'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8';
 
   /// What a browser asks for when it is loading a page — for the catalog this
   /// app scrapes rather than calls.

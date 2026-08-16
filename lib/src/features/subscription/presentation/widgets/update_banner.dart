@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:vidra/src/common/cover_image.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -54,14 +54,13 @@ class UpdateBanner extends ConsumerWidget {
             if ((top.coverUrl ?? '').isNotEmpty)
               ClipRRect(
                 borderRadius: BorderRadius.circular(6),
-                child: CachedNetworkImage(
+                child: CoverImage(
                   imageUrl: top.coverUrl!,
                   width: 34,
                   height: 46,
-                  fit: BoxFit.cover,
                   memCacheWidth:
                       (34 * MediaQuery.devicePixelRatioOf(context)).round(),
-                  errorWidget: (_, _, _) => const _OnAirDot(),
+                  errorWidget: const _OnAirDot(),
                 ),
               )
             else

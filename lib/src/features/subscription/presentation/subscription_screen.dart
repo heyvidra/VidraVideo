@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:vidra/src/common/cover_image.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -210,15 +210,13 @@ class _CalendarRow extends ConsumerWidget {
             if ((sub.coverUrl ?? '').isNotEmpty)
               ClipRRect(
                 borderRadius: BorderRadius.circular(6),
-                child: CachedNetworkImage(
+                child: CoverImage(
                   imageUrl: sub.coverUrl!,
                   width: 30,
                   height: 41,
-                  fit: BoxFit.cover,
                   memCacheWidth:
                       (30 * MediaQuery.devicePixelRatioOf(context)).round(),
-                  errorWidget: (_, _, _) =>
-                      SizedBox(width: 30, height: 41),
+                  errorWidget: const SizedBox(width: 30, height: 41),
                 ),
               )
             else

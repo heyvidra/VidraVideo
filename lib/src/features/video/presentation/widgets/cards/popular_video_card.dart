@@ -1,7 +1,7 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:vidra/src/common/cover_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vidra/src/common/dropdown_menu.dart';
 import 'package:vidra/src/common/screen_chrome.dart';
@@ -639,22 +639,21 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
               // against the wrong base URL entirely.
               Hero(
                 tag: videoPosterHeroTag(widget.video),
-                child: CachedNetworkImage(
+                child: CoverImage(
                   imageUrl: ref
                       .read(videoRepositoryProvider)
                       .resolveUrl(
                         widget.video.coverUrl,
                         sourceId: widget.video.sourceId,
                       ),
-                  fit: BoxFit.cover,
                   memCacheWidth: _coverDecodeWidth(context),
                   // The skeleton grid's fill, minus its shimmer: each Shimmer
                   // is its own AnimationController repainting every vsync, and
                   // a scroll puts dozens of loading covers on screen at once.
-                  placeholder: (context, url) => ColoredBox(
+                  placeholder: ColoredBox(
                     color: VidraTokens.of(context).fg.withValues(alpha: 0.07),
                   ),
-                  errorWidget: (context, url, err) => ColoredBox(
+                  errorWidget: ColoredBox(
                     color: VidraTokens.of(context).fg.withValues(alpha: 0.09),
                   ),
                 ),

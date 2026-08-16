@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:vidra/src/common/cover_image.dart';
 import 'package:flutter/material.dart';
 
 /// Shared flat card box for download rows: surface fill, 14 radius, hairline.
@@ -170,16 +170,15 @@ class ThumbWithBadge extends StatelessWidget {
             borderRadius: BorderRadius.circular(radius),
             child: imageUrl == null
                 ? placeholder()
-                : CachedNetworkImage(
+                : CoverImage(
                     imageUrl: imageUrl!,
                     width: width,
                     height: height,
-                    fit: BoxFit.cover,
                     memCacheWidth:
                         (width * MediaQuery.devicePixelRatioOf(context))
                             .round(),
-                    placeholder: (_, _) => placeholder(),
-                    errorWidget: (_, _, _) => placeholder(),
+                    placeholder: placeholder(),
+                    errorWidget: placeholder(),
                   ),
           ),
           if (duration != null)
