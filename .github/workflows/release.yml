@@ -406,9 +406,17 @@ jobs:
           echo "Version: $VERSION"
 
       # 生成 Release Notes
+      #
+      # 每版专属的部分 — 更新了什么、升级要注意什么、已知问题 — 来自仓库里的
+      # release_notes/<版本>.md。写在提交里,跟着 tag 走,发版前就能review;
+      # 写在这个 heredoc 里的话,改一次说明就要改一次 workflow。
+      #
+      # 缺这个文件时退回占位文案:忘了写说明不该让一次发版失败。下载表和安装
+      # 说明留在这里,它们每版都一样。
       - name: Generate Release Notes
         id: notes
         run: |
+          VERSION='${{ steps.version.outputs.version }}'
           cat > release_notes.md << 'EOF'
           ## 🎉 Vidra ${{ steps.version.outputs.version }}
 
@@ -420,9 +428,25 @@ jobs:
           | **macOS — Apple 芯片 (M1/M2/M3/M4)** | `Vidra-macOS-arm64.dmg` |
           | **macOS — Intel 芯片** | `Vidra-macOS-x64.dmg` |
 
+          EOF
+
+          if [ -f "release_notes/${VERSION}.md" ]; then
+            echo "Using release_notes/${VERSION}.md"
+            cat "release_notes/${VERSION}.md" >> release_notes.md
+          else
+            echo "::warning::release_notes/${VERSION}.md not found, using placeholder"
+            cat >> release_notes.md << 'EOF'
           ### 🚀 What's New
 
           - Bug fixes and performance improvements
+
+          ### 🐛 Known Issues
+
+          - None currently
+          EOF
+          fi
+
+          cat >> release_notes.md << 'EOF'
 
           ### 📝 Installation
 
@@ -440,14 +464,13 @@ jobs:
           拿错了不会损坏任何东西: Intel 机器打开 arm64 版会直接报"不支持",
           Apple 芯片打开 x64 版能跑但走 Rosetta 转译,会明显更慢。
 
-          ### 🐛 Known Issues
-
-          - None currently
-
           ### 💬 Feedback
 
           Please report issues on [GitHub Issues](https://github.com/${{ github.repository }}/issues)
           EOF
+
+          echo "--- generated ---"
+          cat release_notes.md
 
       # 创建 Release
       - name: Create Release
