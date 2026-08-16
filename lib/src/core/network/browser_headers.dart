@@ -11,10 +11,24 @@ import 'browser_identity.dart';
 /// is a value no browser would ever produce for this request. Hosts absent
 /// here fall back to their own origin, which is the honest answer when we do
 /// not know of a site that fronts them.
+/// yfsp's stream CDNs are here for a stronger reason than tidiness: they answer
+/// 520 to a request whose Referer names the CDN itself, which is exactly what
+/// the fallback below produces. Measured on global.dudupro.com — no
+/// User-Agent 520, a User-Agent alone 200, and `Referer:
+/// https://global.dudupro.com/` 520 again. The site that fronts them is the
+/// only Referer they accept, and it is also the one a browser really sends.
+///
+/// This map is exact-host, and yfsp's edge names rotate (hss111, hss112, …),
+/// so it cannot be the only defence — a source that knows its CDN can still
+/// replace the whole set through `VideoDataSource.streamHeaders`.
 const Map<String, String> _siteOrigins = {
   'api.olelive.com': 'https://www.olevod.com',
   'www.olevod.com': 'https://www.olevod.com',
   'www.dbku.tv': 'https://www.dbku.tv',
+  'm10.yfsp.tv': 'https://www.yfsp.tv',
+  'www.yfsp.tv': 'https://www.yfsp.tv',
+  'global.dudupro.com': 'https://www.yfsp.tv',
+  'static.yfsp.tv': 'https://www.yfsp.tv',
 };
 
 /// Presents one coherent browser to every host this app talks to.

@@ -6636,12 +6636,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   /// ordered list with no queries against it.
   final String? searchHistory;
 
-  /// Data sources the user has switched off, comma-joined ids.
-  ///
-  /// A string rather than a list converter because it is read through a
-  /// riverpod `select` on every rebuild: a String compares by value, so an
-  /// unrelated settings write (download path, theme) does not look like a
-  /// change and does not tear down the catalog. Null or empty = all on.
+  /// Data sources the user has switched off, comma-joined ids. Null or empty
+  /// = all on, which is what every row predating this reads as.
   final String? disabledDataSourceIds;
 
   /// Whether the desktop pet window comes up with the app. Off by default:
