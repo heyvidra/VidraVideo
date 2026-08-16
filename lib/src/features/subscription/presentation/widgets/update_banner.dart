@@ -25,7 +25,8 @@ class UpdateBanner extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final subs =
-        ref.watch(subscriptionsProvider).value ?? const <Subscription>[];
+        ref.watch(visibleSubscriptionsProvider).value ??
+        const <Subscription>[];
     final unread = subs.where((s) => s.unread).toList()
       ..sort((a, b) {
         final at = a.lastUpdateAt, bt = b.lastUpdateAt;

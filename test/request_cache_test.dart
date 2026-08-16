@@ -49,7 +49,7 @@ class CountingSource implements VideoDataSource {
   }
 
   @override
-  Future<Video?> getVideoDetail(int id) async {
+  Future<Video?> getVideoDetail(int id, {String? sourceKey}) async {
     detailCalls++;
     return Video(
       apiId: id,
@@ -79,6 +79,12 @@ class CountingSource implements VideoDataSource {
   Future<String?> resolveEpisodeUrl(String url) async => url;
 
   @override
+  String? get pingHost => null;
+
+  @override
+  Map<String, String>? get streamHeaders => null;
+
+  @override
   String resolveUrl(String url) => url;
 
   @override
@@ -93,7 +99,7 @@ class GrowingSource extends CountingSource {
   int episodes = 1;
 
   @override
-  Future<Video?> getVideoDetail(int id) async {
+  Future<Video?> getVideoDetail(int id, {String? sourceKey}) async {
     detailCalls++;
     return Video(
       apiId: id,

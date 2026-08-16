@@ -7,6 +7,11 @@ class Video {
   final int id;
   final String? sourceId; // Which data source this video came from
   final int apiId; // The ID provided by the data source
+
+  /// The source's own show identifier when [apiId] cannot be it — yfsp keys
+  /// shows by a base62 token too wide for an int. Null for every source whose
+  /// ids are numbers. See `Videos.sourceKey` for why this has to be stored.
+  final String? sourceKey;
   final String title;
   final String coverUrl;
   final String? thumbUrl;
@@ -41,6 +46,7 @@ class Video {
     this.id = 0,
     this.sourceId,
     required this.apiId,
+    this.sourceKey,
     required this.title,
     required this.coverUrl,
     this.thumbUrl,
@@ -72,6 +78,7 @@ class Video {
     int? id,
     String? sourceId,
     int? apiId,
+    String? sourceKey,
     String? title,
     String? coverUrl,
     String? thumbUrl,
@@ -101,6 +108,7 @@ class Video {
       id: id ?? this.id,
       sourceId: sourceId ?? this.sourceId,
       apiId: apiId ?? this.apiId,
+      sourceKey: sourceKey ?? this.sourceKey,
       title: title ?? this.title,
       coverUrl: coverUrl ?? this.coverUrl,
       thumbUrl: thumbUrl ?? this.thumbUrl,
@@ -135,6 +143,7 @@ class Video {
         other.id == id &&
         other.sourceId == sourceId &&
         other.apiId == apiId &&
+        other.sourceKey == sourceKey &&
         other.title == title &&
         other.coverUrl == coverUrl &&
         other.thumbUrl == thumbUrl &&

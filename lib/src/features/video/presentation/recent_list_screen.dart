@@ -32,7 +32,7 @@ class _RecentListScreenState extends ConsumerState<RecentListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final historyAsync = ref.watch(playHistoryProvider);
+    final historyAsync = ref.watch(visiblePlayHistoryProvider);
 
     return Scaffold(
       backgroundColor: Colors.transparent,

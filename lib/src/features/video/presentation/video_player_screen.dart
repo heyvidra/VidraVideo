@@ -282,6 +282,39 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
     return eps;
   }
 
+  /// Last chance to turn a stored episode URL into a playable one, run by the
+  /// player for every path that opens media (first load, episode switch,
+  /// quality switch, retry).
+  ///
+  /// Only yfsp stores something unplayable — a `yfsp://` placeholder, because
+  /// its stream URLs are minted per playback behind a rate limiter that a
+  /// whole-show resolve trips. Every other source hands its URL straight back,
+  /// so this stays a no-op for them, and a local file is never touched.
+  Future<VideoSource?> _resolveSource(VideoSource source) async {
+    if (source.type != VideoSourceType.network) return source;
+    final repo = ref.read(videoRepositoryProvider);
+    final resolved = await repo.resolveEpisodeUrl(
+      source.path,
+      sourceId: widget.sourceId,
+    );
+    if (resolved == null) return null;
+    // A source may answer with a LOCAL path: yfsp has to rewrite its playlist
+    // before anything can play it (every segment needs a signature the player
+    // cannot add) and hands back the rewritten copy on disk. The segments
+    // inside it are still absolute https urls, so this is a local playlist
+    // over a network stream, not an offline file.
+    if (!resolved.startsWith('http://') && !resolved.startsWith('https://')) {
+      return VideoSource.file(resolved);
+    }
+    // Rebuilt even when the URL did not change: the headers are what some
+    // sources need, and a source whose URL was already playable still has to
+    // carry them.
+    return VideoSource.network(
+      resolved,
+      headers: repo.streamHeaders(sourceId: widget.sourceId),
+    );
+  }
+
   PlayerController newController(
     VideoMetadata metadata,
     List<VideoEpisode> episodes,
@@ -325,6 +358,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
       episodes: episodes,
       windowDelegate: BitsdojoWindowDelegate(),
       mediaRepository: _mediaRepository,
+      sourceResolver: _resolveSource,
     );
 
     // Health binds here rather than in initState: the controller is what

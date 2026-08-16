@@ -13,10 +13,12 @@ import '../domain/play_history.dart' show isEpisodicType, crossSourceKey;
 import '../domain/search_hit.dart';
 import '../domain/video_settings.dart';
 import '../domain/category.dart'; // Relative to this file
+import '../../settings/domain/app_settings.dart' show formatSourceIds;
 import '../../settings/presentation/settings_provider.dart';
 import 'video_data_source.dart';
 import 'demo_dbku/dbku_data_source.dart';
 import 'demo_olevod/olevod_data_source.dart';
+import 'yfsp/yfsp_data_source.dart';
 import 'mock/mock_data_source.dart';
 
 // Providers
@@ -29,14 +31,82 @@ final initialDataSourceIdProvider = Provider<String>((ref) {
 /// broken app, not as a demo.
 const kDefaultDataSourceId = 'olevod';
 
-final availableDataSourcesProvider = Provider<List<VideoDataSource>>((ref) {
+/// The switched-off set as of app start, so the first frame is already right.
+///
+/// Overridden in `main()` from the settings row that bootstrap already reads.
+/// Without it the dashboard would paint every source for one frame and then
+/// drop the disabled ones — the same flash [ReduceEffects.seed] exists to
+/// avoid. Left empty in tests, which is the "nothing disabled" default.
+final initialDisabledDataSourceIdsProvider = Provider<Set<String>>(
+  (ref) => const {},
+);
+
+/// Which sources the user has switched off.
+///
+/// Seeded from bootstrap and updated imperatively on toggle — deliberately NOT
+/// derived from the settings STREAM, even though that would be less code.
+/// [availableDataSourcesProvider] is read all over the widget tree, and wiring
+/// it to a drift stream drags a live database subscription into every screen
+/// that renders a source; the widget tests caught it first, failing with "a
+/// Timer is still pending after the widget tree was disposed". The active
+/// source id next door has the same shape for the same reason — see
+/// [DataSourceIdNotifier], whose `setSource` this mirrors.
+class DisabledDataSourceIdsNotifier extends Notifier<Set<String>> {
+  @override
+  Set<String> build() => ref.watch(initialDisabledDataSourceIdsProvider);
+
+  /// Switches [id] on or off and persists it.
+  ///
+  /// State moves first so the switch and the screens behind it flip together;
+  /// the write follows. A failed write costs the setting on the next launch,
+  /// not the frame the user is looking at.
+  Future<void> setEnabled(String id, bool enabled) async {
+    final next = {...state};
+    if (enabled) {
+      next.remove(id);
+    } else {
+      next.add(id);
+    }
+    if (next.length == state.length) return;
+    state = next;
+
+    final repo = ref.read(settingsRepositoryProvider);
+    final settings = await repo.getSettings();
+    settings.disabledDataSourceIds = formatSourceIds(next);
+    await repo.updateSettings(settings);
+  }
+}
+
+final disabledDataSourceIdsProvider =
+    NotifierProvider<DisabledDataSourceIdsNotifier, Set<String>>(
+      DisabledDataSourceIdsNotifier.new,
+    );
+
+/// Every source the build ships, switched off ones included.
+///
+/// Only the settings screen wants this: it has to list a source in order to
+/// offer the switch that turns it back on. Everything else wants
+/// [availableDataSourcesProvider].
+final allDataSourcesProvider = Provider<List<VideoDataSource>>((ref) {
   final dio = ref.watch(dioProvider);
   return [
     OlevodDataSource(dio),
     DbkuDataSource(dio),
+    YfspDataSource(dio),
     // Fixture data for development only — never offered in a release build.
     if (kDebugMode) MockDataSource(),
   ];
+});
+
+final availableDataSourcesProvider = Provider<List<VideoDataSource>>((ref) {
+  final all = ref.watch(allDataSourcesProvider);
+  final disabled = ref.watch(disabledDataSourceIdsProvider);
+  final enabled = all.where((s) => !disabled.contains(s.id)).toList();
+  // Belt and braces: the settings screen refuses to switch off the last
+  // source, but a hand-edited row or a source id retired in an update could
+  // still empty this — and everything downstream reaches for `sources.first`.
+  // An app with no catalog at all is a worse answer than an ignored setting.
+  return enabled.isEmpty ? all : enabled;
 });
 
 class DataSourceIdNotifier extends Notifier<String> {
@@ -170,30 +240,27 @@ class VideoRepository {
         DateTime.now().difference(freshAt) < _detailTtl) {
       forceRefresh = false;
     }
-    // 1. Check local cache if not forcing refresh
-    if (!forceRefresh) {
-      try {
-        final cached =
-            await (_db.select(
-                  _db.videos,
-                )..where((t) => t.sourceId.equals(sid) & t.apiId.equals(apiId)))
-                .getSingleOrNull();
-
-        // Check if urls exist efficiently?
-        // cached.urls is loaded.
-        if (cached != null) {
-          final domainVideo = cached.toDomain();
-          if (domainVideo.urls?.isNotEmpty ?? false) {
-            return domainVideo;
-          }
-        }
-      } catch (e) {
-        // Log error?
-      }
+    // 1. Read the cached row. Unconditionally, even on a forced refresh: it
+    // is the only place [Video.sourceKey] survives a restart, and a source
+    // that keys on it (yfsp) cannot fetch anything without it. Serving the
+    // row back is still gated on !forceRefresh below.
+    Video? cached;
+    try {
+      cached =
+          (await (_db.select(
+                _db.videos,
+              )..where((t) => t.sourceId.equals(sid) & t.apiId.equals(apiId)))
+              .getSingleOrNull())
+              ?.toDomain();
+    } catch (e) {
+      // Log error?
+    }
+    if (!forceRefresh && (cached?.urls?.isNotEmpty ?? false)) {
+      return cached;
     }
 
     final ds = _getDataSource(sid);
-    var video = await ds.getVideoDetail(apiId);
+    var video = await ds.getVideoDetail(apiId, sourceKey: cached?.sourceKey);
     if (video != null) {
       _detailFreshAt['$sid|$apiId'] = DateTime.now();
       // Ensure sourceId is set for the local DB
@@ -392,6 +459,21 @@ class VideoRepository {
 
   Future<String?> getDownloadUrl(Video video, {VideoEpisode? episode}) =>
       _getDataSource(video.sourceId).getDownloadUrl(video, episode: episode);
+
+  /// Turns a stored episode URL into one the player can open.
+  ///
+  /// Idempotent for every source: an already-playable URL comes back
+  /// untouched, so this is safe to run in front of ALL playback rather than
+  /// only yfsp's. yfsp is the source that needs it — it stores a `yfsp://`
+  /// placeholder and mints the real URL here, one request at play time,
+  /// because minting a whole show up front trips its rate limiter.
+  Future<String?> resolveEpisodeUrl(String url, {String? sourceId}) =>
+      _getDataSource(sourceId).resolveEpisodeUrl(url);
+
+  /// Headers this source's streams must be opened with, or null to let the
+  /// player guess. See [VideoDataSource.streamHeaders].
+  Map<String, String>? streamHeaders({String? sourceId}) =>
+      _getDataSource(sourceId).streamHeaders;
 }
 
 final crossSearchProvider = FutureProvider.autoDispose

@@ -14,6 +14,7 @@ extension VideoMapper on db.Video {
       id: id,
       sourceId: sourceId,
       apiId: apiId,
+      sourceKey: sourceKey,
       title: title,
       coverUrl: coverUrl,
       thumbUrl: thumbUrl,
@@ -48,6 +49,7 @@ extension VideoCompanionMapper on domain.Video {
       id: id == 0 ? const Value.absent() : Value(id),
       sourceId: Value(sourceId),
       apiId: apiId,
+      sourceKey: Value(sourceKey),
       title: title,
       coverUrl: coverUrl,
       thumbUrl: Value(thumbUrl),
@@ -177,7 +179,8 @@ extension AppSettingMapper on db.AppSetting {
       ..petWindowY = petWindowY
       ..reduceEffects = reduceEffects
       ..playerWindowMode = playerWindowMode
-      ..telemetryEnabled = telemetryEnabled;
+      ..telemetryEnabled = telemetryEnabled
+      ..disabledDataSourceIds = disabledDataSourceIds;
   }
 }
 
@@ -206,6 +209,7 @@ extension AppSettingsCompanionMapper on domain.AppSettings {
       reduceEffects: Value(reduceEffects),
       playerWindowMode: Value(playerWindowMode),
       telemetryEnabled: Value(telemetryEnabled),
+      disabledDataSourceIds: Value(disabledDataSourceIds),
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/log.dart';
 import '../data/history_repository.dart';
+import '../data/video_repository.dart' show disabledDataSourceIdsProvider;
 import '../domain/play_history.dart';
 
 final episodeHistoriesProvider = FutureProvider.autoDispose
@@ -38,13 +39,43 @@ final crossSourceWatchesProvider =
       // Rebuild when playback history changes, or a show watched in this
       // session would not be annotated until the app restarts.
       ref.watch(playHistoryProvider);
-      return repository.getCrossSourceWatches();
+      final disabled = ref.watch(disabledDataSourceIdsProvider);
+      final index = await repository.getCrossSourceWatches();
+      if (disabled.isEmpty) return index;
+      // These annotate a card with "you watched this on the OTHER catalog".
+      // A switched-off catalog must not be that other one, and an entry whose
+      // every watch came from one leaves no badge rather than an empty one.
+      final visible = <String, List<CrossSourceWatch>>{};
+      for (final entry in index.entries) {
+        final kept = entry.value
+            .where((w) => !disabled.contains(w.sourceId))
+            .toList();
+        if (kept.isNotEmpty) visible[entry.key] = kept;
+      }
+      return visible;
     });
 
 final playHistoryProvider =
     AsyncNotifierProvider<PlayHistoryNotifier, List<RecentPlayback>>(
       PlayHistoryNotifier.new,
     );
+
+/// What 最近观看 lists: history minus the sources the user switched off.
+///
+/// Derived, not filtered in the notifier, for the same reason favourites are:
+/// clearing and deleting history walk the full list. Nothing is removed from
+/// the database — switching the source back on restores the entries.
+final visiblePlayHistoryProvider = Provider<AsyncValue<List<RecentPlayback>>>((
+  ref,
+) {
+  final disabled = ref.watch(disabledDataSourceIdsProvider);
+  return ref
+      .watch(playHistoryProvider)
+      .whenData(
+        (all) =>
+            all.where((r) => !disabled.contains(r.video.sourceId)).toList(),
+      );
+});
 
 class PlayHistoryNotifier extends AsyncNotifier<List<RecentPlayback>> {
   HistoryRepository get _repository => ref.watch(historyRepositoryProvider);

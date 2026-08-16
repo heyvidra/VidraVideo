@@ -97,7 +97,7 @@ class DbkuDataSource implements VideoDataSource {
   }
 
   @override
-  Future<Video?> getVideoDetail(int id) async {
+  Future<Video?> getVideoDetail(int id, {String? sourceKey}) async {
     try {
       final html = await _getHtml('/voddetail/$id.html');
       final video = DbkuParser.parseVideoDetail(html, id);
@@ -168,6 +168,13 @@ class DbkuDataSource implements VideoDataSource {
     final resolved = await resolveEpisodeUrl(url);
     return resolved == null ? null : resolveUrl(resolved);
   }
+
+  @override
+  String? get pingHost => 'www.dbku.tv';
+
+  // Happy with the player's default headers.
+  @override
+  Map<String, String>? get streamHeaders => null;
 
   // --- internals -----------------------------------------------------------
 

@@ -15,7 +15,7 @@ class FavoritesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final favoritesAsync = ref.watch(favoritesProvider);
+    final favoritesAsync = ref.watch(visibleFavoritesProvider);
 
     return Scaffold(
       backgroundColor: Colors.transparent,

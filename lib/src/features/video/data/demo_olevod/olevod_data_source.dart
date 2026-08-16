@@ -214,7 +214,7 @@ class OlevodDataSource implements VideoDataSource {
   }
 
   @override
-  Future<Video?> getVideoDetail(int id) async {
+  Future<Video?> getVideoDetail(int id, {String? sourceKey}) async {
     final path = '$_apiBaseUrl/v1/pub/vod/detail/$id/true';
 
     try {
@@ -304,6 +304,14 @@ class OlevodDataSource implements VideoDataSource {
   // Olevod's detail payload already carries stream URLs, so nothing to resolve.
   @override
   Future<String?> resolveEpisodeUrl(String url) async => url;
+
+  // The API host, not the CDN one: it is what every catalog call waits on.
+  @override
+  String? get pingHost => 'api.olelive.com';
+
+  // Happy with the player's default headers.
+  @override
+  Map<String, String>? get streamHeaders => null;
 
   @override
   Future<String?> getDownloadUrl(Video video, {VideoEpisode? episode}) async {

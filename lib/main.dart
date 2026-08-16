@@ -27,6 +27,7 @@ import 'src/core/providers/theme_provider.dart'; // Import theme_provider
 import 'src/features/video/data/video_repository.dart';
 import 'src/routing/app_router.dart';
 import 'src/features/settings/data/settings_repository.dart';
+import 'src/features/settings/domain/app_settings.dart' show parseSourceIds;
 import 'src/features/settings/presentation/settings_provider.dart';
 import 'src/features/download/data/download_provider.dart';
 import 'src/window/pet_window.dart';
@@ -135,6 +136,9 @@ Future<void> _runApp() async {
     overrides: [
       appDatabaseProvider.overrideWithValue(database),
       initialDataSourceIdProvider.overrideWithValue(initialDataSourceId),
+      initialDisabledDataSourceIdsProvider.overrideWithValue(
+        parseSourceIds(appSettings.disabledDataSourceIds),
+      ),
       initialThemeModeProvider.overrideWithValue(
         initialThemeMode,
       ), // Override theme

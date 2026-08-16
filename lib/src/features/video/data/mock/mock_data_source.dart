@@ -42,7 +42,7 @@ class MockDataSource implements VideoDataSource {
   }
 
   @override
-  Future<Video?> getVideoDetail(int id) async {
+  Future<Video?> getVideoDetail(int id, {String? sourceKey}) async {
     return Video(
       apiId: id,
       title: '模拟视频 Detail (Source: Mock)',
@@ -92,6 +92,13 @@ class MockDataSource implements VideoDataSource {
 
   @override
   Future<String?> resolveEpisodeUrl(String url) async => url;
+
+  // Fixtures, no network — nothing to measure and nothing to show.
+  @override
+  String? get pingHost => null;
+
+  @override
+  Map<String, String>? get streamHeaders => null;
 
   @override
   Future<String?> getDownloadUrl(Video video, {VideoEpisode? episode}) async {

@@ -12,6 +12,7 @@ import 'package:vidra/src/core/utils/log.dart';
 import 'package:vidra/src/features/cast/presentation/cast_provider.dart';
 import 'package:vidra/src/features/download/data/download_provider.dart';
 import 'package:vidra/src/features/download/domain/download_task.dart';
+import 'package:vidra/src/features/video/data/source_latency.dart';
 import 'package:vidra/src/features/video/data/video_repository.dart';
 import '../settings/presentation/settings_provider.dart';
 import '../subscription/data/subscription_checker.dart';
@@ -372,17 +373,41 @@ class AppStatusBar extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
         child: Row(
           children: [
-            Container(
-              width: 6,
-              height: 6,
-              margin: const EdgeInsets.only(right: 7),
-              decoration: BoxDecoration(
-                color: t.cyan,
-                shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: t.cyanGlow, blurRadius: 10)],
-              ),
-            ),
-            Text(source.name, style: style),
+            // Every enabled source with its round trip, so "which one is
+            // quick today" is answerable without switching to each in turn.
+            // The active one keeps the dot it always had.
+            ...ref
+                .watch(sourceLatencyProvider)
+                .maybeWhen(
+                  data: (all) => [
+                    for (final entry in all)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 16),
+                        child: _SourceLatencyChip(
+                          entry: entry,
+                          isActive: entry.sourceId == source.id,
+                          style: style,
+                        ),
+                      ),
+                  ],
+                  // Measuring, or it failed outright: fall back to what this
+                  // bar said before latency existed rather than to nothing.
+                  orElse: () => [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      margin: const EdgeInsets.only(right: 7),
+                      decoration: BoxDecoration(
+                        color: t.cyan,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(color: t.cyanGlow, blurRadius: 10),
+                        ],
+                      ),
+                    ),
+                    Text(source.name, style: style),
+                  ],
+                ),
             if (active > 0) ...[
               const SizedBox(width: 18),
               Text(
@@ -399,6 +424,88 @@ class AppStatusBar extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// One source's name and round trip, behind a signal glyph.
+class _SourceLatencyChip extends StatelessWidget {
+  const _SourceLatencyChip({
+    required this.entry,
+    required this.isActive,
+    required this.style,
+  });
+
+  final SourceLatency entry;
+  final bool isActive;
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = VidraTokens.of(context);
+    final bars = latencyBars(entry.millis);
+    // Colour says reachability, the bars say how fast. Two channels rather
+    // than one so the row still reads with the colours washed out.
+    final tint = !entry.reachable
+        ? t.clash
+        : bars >= 3
+        ? t.cyan
+        : t.amber;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _SignalBars(filled: bars, tint: tint, dim: t.fg4),
+        const SizedBox(width: 6),
+        Text(
+          entry.name,
+          // The active source is the one the catalog below is showing, and
+          // that has to stay legible at a glance in a row of four names.
+          style: isActive
+              ? style.copyWith(color: t.fg, fontWeight: FontWeight.w600)
+              : style,
+        ),
+        const SizedBox(width: 5),
+        Text(
+          entry.reachable
+              ? tr('source.latency_ms', args: ['${entry.millis}'])
+              : tr('source.latency_unreachable'),
+          style: style.copyWith(color: tint),
+        ),
+      ],
+    );
+  }
+}
+
+/// Four rising bars, [filled] of them lit.
+class _SignalBars extends StatelessWidget {
+  const _SignalBars({
+    required this.filled,
+    required this.tint,
+    required this.dim,
+  });
+
+  final int filled;
+  final Color tint;
+  final Color dim;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        for (var i = 0; i < 4; i++)
+          Container(
+            width: 2,
+            height: 3.0 + i * 2.0,
+            margin: EdgeInsets.only(right: i == 3 ? 0 : 1.5),
+            decoration: BoxDecoration(
+              color: i < filled ? tint : dim,
+              borderRadius: BorderRadius.circular(1),
+            ),
+          ),
+      ],
     );
   }
 }

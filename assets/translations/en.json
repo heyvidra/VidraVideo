@@ -89,6 +89,11 @@
         "desc": "Netscape cookies.txt exported from a logged-in browser. Needed for login/age-restricted videos (e.g. YouTube)."
       }
     },
+    "sources": {
+      "title": "Data sources",
+      "desc": "Switching one off hides its catalog, its entry in the source switcher, and its rows in Recent, Watchlist and Subscriptions. Nothing is deleted — switch it back on to restore them.",
+      "keep_one": "At least one data source has to stay on"
+    },
     "storage": {
       "title": "Storage",
       "cache": "Cache",
@@ -374,5 +379,9 @@
     "dismiss": "Dismiss",
     "mark_all_read": "Mark all read",
     "pet_bubble": "{} has new episodes"
+  },
+  "source": {
+    "latency_ms": "{} ms",
+    "latency_unreachable": "unreachable"
   }
 }

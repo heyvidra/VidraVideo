@@ -31,7 +31,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final async = ref.watch(subscriptionsProvider);
+    final async = ref.watch(visibleSubscriptionsProvider);
 
     final unread = async.value?.where((s) => s.unread).length ?? 0;
 

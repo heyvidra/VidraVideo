@@ -41,6 +41,17 @@ class $VideosTable extends Videos with TableInfo<$VideosTable, Video> {
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _sourceKeyMeta = const VerificationMeta(
+    'sourceKey',
+  );
+  @override
+  late final GeneratedColumn<String> sourceKey = GeneratedColumn<String>(
+    'source_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _titleMeta = const VerificationMeta('title');
   @override
   late final GeneratedColumn<String> title = GeneratedColumn<String>(
@@ -285,6 +296,7 @@ class $VideosTable extends Videos with TableInfo<$VideosTable, Video> {
     id,
     sourceId,
     apiId,
+    sourceKey,
     title,
     coverUrl,
     thumbUrl,
@@ -338,6 +350,12 @@ class $VideosTable extends Videos with TableInfo<$VideosTable, Video> {
       );
     } else if (isInserting) {
       context.missing(_apiIdMeta);
+    }
+    if (data.containsKey('source_key')) {
+      context.handle(
+        _sourceKeyMeta,
+        sourceKey.isAcceptableOrUnknown(data['source_key']!, _sourceKeyMeta),
+      );
     }
     if (data.containsKey('title')) {
       context.handle(
@@ -506,6 +524,10 @@ class $VideosTable extends Videos with TableInfo<$VideosTable, Video> {
         DriftSqlType.int,
         data['${effectivePrefix}api_id'],
       )!,
+      sourceKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_key'],
+      ),
       title: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}title'],
@@ -628,6 +650,18 @@ class Video extends DataClass implements Insertable<Video> {
   final int id;
   final String? sourceId;
   final int apiId;
+
+  /// The source's OWN identifier for this show, when [apiId] is not it.
+  ///
+  /// olevod and dbku number their shows, so their `apiId` IS the id the API
+  /// takes and this stays null. yfsp keys shows by an 11-character base62
+  /// token ("PwLAKyPFpPE") — 66 bits, which does not fit an int and which no
+  /// endpoint will trade back for a number — so its `apiId` is only a local
+  /// handle and the token has to travel with the row. Without it a cold start
+  /// straight into a favourite could look the show up locally but never
+  /// refresh it. See [VideoRepository.getVideo], which reads this back out and
+  /// hands it to [VideoDataSource.getVideoDetail].
+  final String? sourceKey;
   final String title;
   final String coverUrl;
   final String? thumbUrl;
@@ -656,6 +690,7 @@ class Video extends DataClass implements Insertable<Video> {
     required this.id,
     this.sourceId,
     required this.apiId,
+    this.sourceKey,
     required this.title,
     required this.coverUrl,
     this.thumbUrl,
@@ -689,6 +724,9 @@ class Video extends DataClass implements Insertable<Video> {
       map['source_id'] = Variable<String>(sourceId);
     }
     map['api_id'] = Variable<int>(apiId);
+    if (!nullToAbsent || sourceKey != null) {
+      map['source_key'] = Variable<String>(sourceKey);
+    }
     map['title'] = Variable<String>(title);
     map['cover_url'] = Variable<String>(coverUrl);
     if (!nullToAbsent || thumbUrl != null) {
@@ -765,6 +803,9 @@ class Video extends DataClass implements Insertable<Video> {
           ? const Value.absent()
           : Value(sourceId),
       apiId: Value(apiId),
+      sourceKey: sourceKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceKey),
       title: Value(title),
       coverUrl: Value(coverUrl),
       thumbUrl: thumbUrl == null && nullToAbsent
@@ -831,6 +872,7 @@ class Video extends DataClass implements Insertable<Video> {
       id: serializer.fromJson<int>(json['id']),
       sourceId: serializer.fromJson<String?>(json['sourceId']),
       apiId: serializer.fromJson<int>(json['apiId']),
+      sourceKey: serializer.fromJson<String?>(json['sourceKey']),
       title: serializer.fromJson<String>(json['title']),
       coverUrl: serializer.fromJson<String>(json['coverUrl']),
       thumbUrl: serializer.fromJson<String?>(json['thumbUrl']),
@@ -864,6 +906,7 @@ class Video extends DataClass implements Insertable<Video> {
       'id': serializer.toJson<int>(id),
       'sourceId': serializer.toJson<String?>(sourceId),
       'apiId': serializer.toJson<int>(apiId),
+      'sourceKey': serializer.toJson<String?>(sourceKey),
       'title': serializer.toJson<String>(title),
       'coverUrl': serializer.toJson<String>(coverUrl),
       'thumbUrl': serializer.toJson<String?>(thumbUrl),
@@ -895,6 +938,7 @@ class Video extends DataClass implements Insertable<Video> {
     int? id,
     Value<String?> sourceId = const Value.absent(),
     int? apiId,
+    Value<String?> sourceKey = const Value.absent(),
     String? title,
     String? coverUrl,
     Value<String?> thumbUrl = const Value.absent(),
@@ -923,6 +967,7 @@ class Video extends DataClass implements Insertable<Video> {
     id: id ?? this.id,
     sourceId: sourceId.present ? sourceId.value : this.sourceId,
     apiId: apiId ?? this.apiId,
+    sourceKey: sourceKey.present ? sourceKey.value : this.sourceKey,
     title: title ?? this.title,
     coverUrl: coverUrl ?? this.coverUrl,
     thumbUrl: thumbUrl.present ? thumbUrl.value : this.thumbUrl,
@@ -953,6 +998,7 @@ class Video extends DataClass implements Insertable<Video> {
       id: data.id.present ? data.id.value : this.id,
       sourceId: data.sourceId.present ? data.sourceId.value : this.sourceId,
       apiId: data.apiId.present ? data.apiId.value : this.apiId,
+      sourceKey: data.sourceKey.present ? data.sourceKey.value : this.sourceKey,
       title: data.title.present ? data.title.value : this.title,
       coverUrl: data.coverUrl.present ? data.coverUrl.value : this.coverUrl,
       thumbUrl: data.thumbUrl.present ? data.thumbUrl.value : this.thumbUrl,
@@ -990,6 +1036,7 @@ class Video extends DataClass implements Insertable<Video> {
           ..write('id: $id, ')
           ..write('sourceId: $sourceId, ')
           ..write('apiId: $apiId, ')
+          ..write('sourceKey: $sourceKey, ')
           ..write('title: $title, ')
           ..write('coverUrl: $coverUrl, ')
           ..write('thumbUrl: $thumbUrl, ')
@@ -1023,6 +1070,7 @@ class Video extends DataClass implements Insertable<Video> {
     id,
     sourceId,
     apiId,
+    sourceKey,
     title,
     coverUrl,
     thumbUrl,
@@ -1055,6 +1103,7 @@ class Video extends DataClass implements Insertable<Video> {
           other.id == this.id &&
           other.sourceId == this.sourceId &&
           other.apiId == this.apiId &&
+          other.sourceKey == this.sourceKey &&
           other.title == this.title &&
           other.coverUrl == this.coverUrl &&
           other.thumbUrl == this.thumbUrl &&
@@ -1085,6 +1134,7 @@ class VideosCompanion extends UpdateCompanion<Video> {
   final Value<int> id;
   final Value<String?> sourceId;
   final Value<int> apiId;
+  final Value<String?> sourceKey;
   final Value<String> title;
   final Value<String> coverUrl;
   final Value<String?> thumbUrl;
@@ -1113,6 +1163,7 @@ class VideosCompanion extends UpdateCompanion<Video> {
     this.id = const Value.absent(),
     this.sourceId = const Value.absent(),
     this.apiId = const Value.absent(),
+    this.sourceKey = const Value.absent(),
     this.title = const Value.absent(),
     this.coverUrl = const Value.absent(),
     this.thumbUrl = const Value.absent(),
@@ -1142,6 +1193,7 @@ class VideosCompanion extends UpdateCompanion<Video> {
     this.id = const Value.absent(),
     this.sourceId = const Value.absent(),
     required int apiId,
+    this.sourceKey = const Value.absent(),
     required String title,
     required String coverUrl,
     this.thumbUrl = const Value.absent(),
@@ -1175,6 +1227,7 @@ class VideosCompanion extends UpdateCompanion<Video> {
     Expression<int>? id,
     Expression<String>? sourceId,
     Expression<int>? apiId,
+    Expression<String>? sourceKey,
     Expression<String>? title,
     Expression<String>? coverUrl,
     Expression<String>? thumbUrl,
@@ -1204,6 +1257,7 @@ class VideosCompanion extends UpdateCompanion<Video> {
       if (id != null) 'id': id,
       if (sourceId != null) 'source_id': sourceId,
       if (apiId != null) 'api_id': apiId,
+      if (sourceKey != null) 'source_key': sourceKey,
       if (title != null) 'title': title,
       if (coverUrl != null) 'cover_url': coverUrl,
       if (thumbUrl != null) 'thumb_url': thumbUrl,
@@ -1235,6 +1289,7 @@ class VideosCompanion extends UpdateCompanion<Video> {
     Value<int>? id,
     Value<String?>? sourceId,
     Value<int>? apiId,
+    Value<String?>? sourceKey,
     Value<String>? title,
     Value<String>? coverUrl,
     Value<String?>? thumbUrl,
@@ -1264,6 +1319,7 @@ class VideosCompanion extends UpdateCompanion<Video> {
       id: id ?? this.id,
       sourceId: sourceId ?? this.sourceId,
       apiId: apiId ?? this.apiId,
+      sourceKey: sourceKey ?? this.sourceKey,
       title: title ?? this.title,
       coverUrl: coverUrl ?? this.coverUrl,
       thumbUrl: thumbUrl ?? this.thumbUrl,
@@ -1302,6 +1358,9 @@ class VideosCompanion extends UpdateCompanion<Video> {
     }
     if (apiId.present) {
       map['api_id'] = Variable<int>(apiId.value);
+    }
+    if (sourceKey.present) {
+      map['source_key'] = Variable<String>(sourceKey.value);
     }
     if (title.present) {
       map['title'] = Variable<String>(title.value);
@@ -1388,6 +1447,7 @@ class VideosCompanion extends UpdateCompanion<Video> {
           ..write('id: $id, ')
           ..write('sourceId: $sourceId, ')
           ..write('apiId: $apiId, ')
+          ..write('sourceKey: $sourceKey, ')
           ..write('title: $title, ')
           ..write('coverUrl: $coverUrl, ')
           ..write('thumbUrl: $thumbUrl, ')
@@ -6075,6 +6135,17 @@ class $AppSettingsTable extends AppSettings
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _disabledDataSourceIdsMeta =
+      const VerificationMeta('disabledDataSourceIds');
+  @override
+  late final GeneratedColumn<String> disabledDataSourceIds =
+      GeneratedColumn<String>(
+        'disabled_data_source_ids',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _showPetMeta = const VerificationMeta(
     'showPet',
   );
@@ -6170,6 +6241,7 @@ class $AppSettingsTable extends AppSettings
     playerPipY,
     locale,
     searchHistory,
+    disabledDataSourceIds,
     showPet,
     petWindowX,
     petWindowY,
@@ -6345,6 +6417,15 @@ class $AppSettingsTable extends AppSettings
         ),
       );
     }
+    if (data.containsKey('disabled_data_source_ids')) {
+      context.handle(
+        _disabledDataSourceIdsMeta,
+        disabledDataSourceIds.isAcceptableOrUnknown(
+          data['disabled_data_source_ids']!,
+          _disabledDataSourceIdsMeta,
+        ),
+      );
+    }
     if (data.containsKey('show_pet')) {
       context.handle(
         _showPetMeta,
@@ -6481,6 +6562,10 @@ class $AppSettingsTable extends AppSettings
         DriftSqlType.string,
         data['${effectivePrefix}search_history'],
       ),
+      disabledDataSourceIds: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}disabled_data_source_ids'],
+      ),
       showPet: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}show_pet'],
@@ -6551,6 +6636,14 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   /// ordered list with no queries against it.
   final String? searchHistory;
 
+  /// Data sources the user has switched off, comma-joined ids.
+  ///
+  /// A string rather than a list converter because it is read through a
+  /// riverpod `select` on every rebuild: a String compares by value, so an
+  /// unrelated settings write (download path, theme) does not look like a
+  /// change and does not tear down the catalog. Null or empty = all on.
+  final String? disabledDataSourceIds;
+
   /// Whether the desktop pet window comes up with the app. Off by default:
   /// an always-on-top window that appears uninvited on first launch is a
   /// thing to close, not a thing to like.
@@ -6599,6 +6692,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     this.playerPipY,
     this.locale,
     this.searchHistory,
+    this.disabledDataSourceIds,
     required this.showPet,
     this.petWindowX,
     this.petWindowY,
@@ -6657,6 +6751,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     }
     if (!nullToAbsent || searchHistory != null) {
       map['search_history'] = Variable<String>(searchHistory);
+    }
+    if (!nullToAbsent || disabledDataSourceIds != null) {
+      map['disabled_data_source_ids'] = Variable<String>(disabledDataSourceIds);
     }
     map['show_pet'] = Variable<bool>(showPet);
     if (!nullToAbsent || petWindowX != null) {
@@ -6724,6 +6821,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       searchHistory: searchHistory == null && nullToAbsent
           ? const Value.absent()
           : Value(searchHistory),
+      disabledDataSourceIds: disabledDataSourceIds == null && nullToAbsent
+          ? const Value.absent()
+          : Value(disabledDataSourceIds),
       showPet: Value(showPet),
       petWindowX: petWindowX == null && nullToAbsent
           ? const Value.absent()
@@ -6776,6 +6876,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       playerPipY: serializer.fromJson<double?>(json['playerPipY']),
       locale: serializer.fromJson<String?>(json['locale']),
       searchHistory: serializer.fromJson<String?>(json['searchHistory']),
+      disabledDataSourceIds: serializer.fromJson<String?>(
+        json['disabledDataSourceIds'],
+      ),
       showPet: serializer.fromJson<bool>(json['showPet']),
       petWindowX: serializer.fromJson<double?>(json['petWindowX']),
       petWindowY: serializer.fromJson<double?>(json['petWindowY']),
@@ -6809,6 +6912,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       'playerPipY': serializer.toJson<double?>(playerPipY),
       'locale': serializer.toJson<String?>(locale),
       'searchHistory': serializer.toJson<String?>(searchHistory),
+      'disabledDataSourceIds': serializer.toJson<String?>(
+        disabledDataSourceIds,
+      ),
       'showPet': serializer.toJson<bool>(showPet),
       'petWindowX': serializer.toJson<double?>(petWindowX),
       'petWindowY': serializer.toJson<double?>(petWindowY),
@@ -6838,6 +6944,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     Value<double?> playerPipY = const Value.absent(),
     Value<String?> locale = const Value.absent(),
     Value<String?> searchHistory = const Value.absent(),
+    Value<String?> disabledDataSourceIds = const Value.absent(),
     bool? showPet,
     Value<double?> petWindowX = const Value.absent(),
     Value<double?> petWindowY = const Value.absent(),
@@ -6884,6 +6991,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     searchHistory: searchHistory.present
         ? searchHistory.value
         : this.searchHistory,
+    disabledDataSourceIds: disabledDataSourceIds.present
+        ? disabledDataSourceIds.value
+        : this.disabledDataSourceIds,
     showPet: showPet ?? this.showPet,
     petWindowX: petWindowX.present ? petWindowX.value : this.petWindowX,
     petWindowY: petWindowY.present ? petWindowY.value : this.petWindowY,
@@ -6948,6 +7058,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       searchHistory: data.searchHistory.present
           ? data.searchHistory.value
           : this.searchHistory,
+      disabledDataSourceIds: data.disabledDataSourceIds.present
+          ? data.disabledDataSourceIds.value
+          : this.disabledDataSourceIds,
       showPet: data.showPet.present ? data.showPet.value : this.showPet,
       petWindowX: data.petWindowX.present
           ? data.petWindowX.value
@@ -6989,6 +7102,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           ..write('playerPipY: $playerPipY, ')
           ..write('locale: $locale, ')
           ..write('searchHistory: $searchHistory, ')
+          ..write('disabledDataSourceIds: $disabledDataSourceIds, ')
           ..write('showPet: $showPet, ')
           ..write('petWindowX: $petWindowX, ')
           ..write('petWindowY: $petWindowY, ')
@@ -7020,6 +7134,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     playerPipY,
     locale,
     searchHistory,
+    disabledDataSourceIds,
     showPet,
     petWindowX,
     petWindowY,
@@ -7050,6 +7165,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           other.playerPipY == this.playerPipY &&
           other.locale == this.locale &&
           other.searchHistory == this.searchHistory &&
+          other.disabledDataSourceIds == this.disabledDataSourceIds &&
           other.showPet == this.showPet &&
           other.petWindowX == this.petWindowX &&
           other.petWindowY == this.petWindowY &&
@@ -7078,6 +7194,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<double?> playerPipY;
   final Value<String?> locale;
   final Value<String?> searchHistory;
+  final Value<String?> disabledDataSourceIds;
   final Value<bool> showPet;
   final Value<double?> petWindowX;
   final Value<double?> petWindowY;
@@ -7104,6 +7221,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.playerPipY = const Value.absent(),
     this.locale = const Value.absent(),
     this.searchHistory = const Value.absent(),
+    this.disabledDataSourceIds = const Value.absent(),
     this.showPet = const Value.absent(),
     this.petWindowX = const Value.absent(),
     this.petWindowY = const Value.absent(),
@@ -7131,6 +7249,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.playerPipY = const Value.absent(),
     this.locale = const Value.absent(),
     this.searchHistory = const Value.absent(),
+    this.disabledDataSourceIds = const Value.absent(),
     this.showPet = const Value.absent(),
     this.petWindowX = const Value.absent(),
     this.petWindowY = const Value.absent(),
@@ -7158,6 +7277,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Expression<double>? playerPipY,
     Expression<String>? locale,
     Expression<String>? searchHistory,
+    Expression<String>? disabledDataSourceIds,
     Expression<bool>? showPet,
     Expression<double>? petWindowX,
     Expression<double>? petWindowY,
@@ -7189,6 +7309,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       if (playerPipY != null) 'player_pip_y': playerPipY,
       if (locale != null) 'locale': locale,
       if (searchHistory != null) 'search_history': searchHistory,
+      if (disabledDataSourceIds != null)
+        'disabled_data_source_ids': disabledDataSourceIds,
       if (showPet != null) 'show_pet': showPet,
       if (petWindowX != null) 'pet_window_x': petWindowX,
       if (petWindowY != null) 'pet_window_y': petWindowY,
@@ -7218,6 +7340,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Value<double?>? playerPipY,
     Value<String?>? locale,
     Value<String?>? searchHistory,
+    Value<String?>? disabledDataSourceIds,
     Value<bool>? showPet,
     Value<double?>? petWindowX,
     Value<double?>? petWindowY,
@@ -7248,6 +7371,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       playerPipY: playerPipY ?? this.playerPipY,
       locale: locale ?? this.locale,
       searchHistory: searchHistory ?? this.searchHistory,
+      disabledDataSourceIds:
+          disabledDataSourceIds ?? this.disabledDataSourceIds,
       showPet: showPet ?? this.showPet,
       petWindowX: petWindowX ?? this.petWindowX,
       petWindowY: petWindowY ?? this.petWindowY,
@@ -7323,6 +7448,11 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     if (searchHistory.present) {
       map['search_history'] = Variable<String>(searchHistory.value);
     }
+    if (disabledDataSourceIds.present) {
+      map['disabled_data_source_ids'] = Variable<String>(
+        disabledDataSourceIds.value,
+      );
+    }
     if (showPet.present) {
       map['show_pet'] = Variable<bool>(showPet.value);
     }
@@ -7366,6 +7496,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
           ..write('playerPipY: $playerPipY, ')
           ..write('locale: $locale, ')
           ..write('searchHistory: $searchHistory, ')
+          ..write('disabledDataSourceIds: $disabledDataSourceIds, ')
           ..write('showPet: $showPet, ')
           ..write('petWindowX: $petWindowX, ')
           ..write('petWindowY: $petWindowY, ')
@@ -7448,6 +7579,7 @@ typedef $$VideosTableCreateCompanionBuilder =
       Value<int> id,
       Value<String?> sourceId,
       required int apiId,
+      Value<String?> sourceKey,
       required String title,
       required String coverUrl,
       Value<String?> thumbUrl,
@@ -7478,6 +7610,7 @@ typedef $$VideosTableUpdateCompanionBuilder =
       Value<int> id,
       Value<String?> sourceId,
       Value<int> apiId,
+      Value<String?> sourceKey,
       Value<String> title,
       Value<String> coverUrl,
       Value<String?> thumbUrl,
@@ -7525,6 +7658,11 @@ class $$VideosTableFilterComposer
 
   ColumnFilters<int> get apiId => $composableBuilder(
     column: $table.apiId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceKey => $composableBuilder(
+    column: $table.sourceKey,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7679,6 +7817,11 @@ class $$VideosTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get sourceKey => $composableBuilder(
+    column: $table.sourceKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get title => $composableBuilder(
     column: $table.title,
     builder: (column) => ColumnOrderings(column),
@@ -7818,6 +7961,9 @@ class $$VideosTableAnnotationComposer
   GeneratedColumn<int> get apiId =>
       $composableBuilder(column: $table.apiId, builder: (column) => column);
 
+  GeneratedColumn<String> get sourceKey =>
+      $composableBuilder(column: $table.sourceKey, builder: (column) => column);
+
   GeneratedColumn<String> get title =>
       $composableBuilder(column: $table.title, builder: (column) => column);
 
@@ -7926,6 +8072,7 @@ class $$VideosTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<String?> sourceId = const Value.absent(),
                 Value<int> apiId = const Value.absent(),
+                Value<String?> sourceKey = const Value.absent(),
                 Value<String> title = const Value.absent(),
                 Value<String> coverUrl = const Value.absent(),
                 Value<String?> thumbUrl = const Value.absent(),
@@ -7954,6 +8101,7 @@ class $$VideosTableTableManager
                 id: id,
                 sourceId: sourceId,
                 apiId: apiId,
+                sourceKey: sourceKey,
                 title: title,
                 coverUrl: coverUrl,
                 thumbUrl: thumbUrl,
@@ -7984,6 +8132,7 @@ class $$VideosTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<String?> sourceId = const Value.absent(),
                 required int apiId,
+                Value<String?> sourceKey = const Value.absent(),
                 required String title,
                 required String coverUrl,
                 Value<String?> thumbUrl = const Value.absent(),
@@ -8012,6 +8161,7 @@ class $$VideosTableTableManager
                 id: id,
                 sourceId: sourceId,
                 apiId: apiId,
+                sourceKey: sourceKey,
                 title: title,
                 coverUrl: coverUrl,
                 thumbUrl: thumbUrl,
@@ -10200,6 +10350,7 @@ typedef $$AppSettingsTableCreateCompanionBuilder =
       Value<double?> playerPipY,
       Value<String?> locale,
       Value<String?> searchHistory,
+      Value<String?> disabledDataSourceIds,
       Value<bool> showPet,
       Value<double?> petWindowX,
       Value<double?> petWindowY,
@@ -10228,6 +10379,7 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
       Value<double?> playerPipY,
       Value<String?> locale,
       Value<String?> searchHistory,
+      Value<String?> disabledDataSourceIds,
       Value<bool> showPet,
       Value<double?> petWindowX,
       Value<double?> petWindowY,
@@ -10337,6 +10489,11 @@ class $$AppSettingsTableFilterComposer
 
   ColumnFilters<String> get searchHistory => $composableBuilder(
     column: $table.searchHistory,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get disabledDataSourceIds => $composableBuilder(
+    column: $table.disabledDataSourceIds,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -10475,6 +10632,11 @@ class $$AppSettingsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get disabledDataSourceIds => $composableBuilder(
+    column: $table.disabledDataSourceIds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get showPet => $composableBuilder(
     column: $table.showPet,
     builder: (column) => ColumnOrderings(column),
@@ -10604,6 +10766,11 @@ class $$AppSettingsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get disabledDataSourceIds => $composableBuilder(
+    column: $table.disabledDataSourceIds,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<bool> get showPet =>
       $composableBuilder(column: $table.showPet, builder: (column) => column);
 
@@ -10683,6 +10850,7 @@ class $$AppSettingsTableTableManager
                 Value<double?> playerPipY = const Value.absent(),
                 Value<String?> locale = const Value.absent(),
                 Value<String?> searchHistory = const Value.absent(),
+                Value<String?> disabledDataSourceIds = const Value.absent(),
                 Value<bool> showPet = const Value.absent(),
                 Value<double?> petWindowX = const Value.absent(),
                 Value<double?> petWindowY = const Value.absent(),
@@ -10709,6 +10877,7 @@ class $$AppSettingsTableTableManager
                 playerPipY: playerPipY,
                 locale: locale,
                 searchHistory: searchHistory,
+                disabledDataSourceIds: disabledDataSourceIds,
                 showPet: showPet,
                 petWindowX: petWindowX,
                 petWindowY: petWindowY,
@@ -10737,6 +10906,7 @@ class $$AppSettingsTableTableManager
                 Value<double?> playerPipY = const Value.absent(),
                 Value<String?> locale = const Value.absent(),
                 Value<String?> searchHistory = const Value.absent(),
+                Value<String?> disabledDataSourceIds = const Value.absent(),
                 Value<bool> showPet = const Value.absent(),
                 Value<double?> petWindowX = const Value.absent(),
                 Value<double?> petWindowY = const Value.absent(),
@@ -10763,6 +10933,7 @@ class $$AppSettingsTableTableManager
                 playerPipY: playerPipY,
                 locale: locale,
                 searchHistory: searchHistory,
+                disabledDataSourceIds: disabledDataSourceIds,
                 showPet: showPet,
                 petWindowX: petWindowX,
                 petWindowY: petWindowY,

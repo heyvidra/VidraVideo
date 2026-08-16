@@ -16,6 +16,8 @@ import '../../../config/reduce_effects.dart';
 import '../../../core/telemetry/telemetry.dart';
 import '../../favorites/presentation/favorites_provider.dart';
 import '../../subscription/presentation/subscription_provider.dart';
+import '../../video/data/video_repository.dart'
+    show allDataSourcesProvider, disabledDataSourceIdsProvider;
 import '../../video/presentation/play_history_provider.dart';
 import 'settings_provider.dart';
 import '../../../common/screen_chrome.dart';
@@ -65,6 +67,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                   _buildCookieFileSetting(context, settings, settingsRepo),
                 ],
+              ),
+              const SizedBox(height: 26),
+              _section(
+                context,
+                title: tr('settings.sources.title'),
+                children: [_buildDataSourceToggles(context)],
               ),
               const SizedBox(height: 26),
               _section(
@@ -209,6 +217,64 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   /// A settings group. The card and its eyebrow come from [ScreenSection], so
   /// this shape matches every other grouped list in the app.
+  /// One switch per data source.
+  ///
+  /// Switching one off hides its catalog, its entry in the source switcher,
+  /// and its rows in 最近观看 / 想看 / 订阅. Nothing is deleted: the rows stay
+  /// in the database and come back with the switch, which is why the copy says
+  /// 隐藏 rather than anything that sounds like removal.
+  Widget _buildDataSourceToggles(BuildContext context) {
+    final sources = ref.watch(allDataSourcesProvider);
+    final disabled = ref.watch(disabledDataSourceIdsProvider);
+    // The last one standing cannot be switched off — the catalog, the source
+    // switcher and the repository all reach for `sources.first`, and every
+    // screen in the app would have nothing to show.
+    final enabledCount = sources.where((s) => !disabled.contains(s.id)).length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final source in sources)
+          ListTile(
+            // No contentPadding override: every other row on this screen uses
+            // the ListTile default, and zeroing it here pinned the switches to
+            // the card's edge while 存储 and 性能 sat inset beside them.
+            title: Text(source.name),
+            subtitle: Text(
+              source.id,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            trailing: Switch(
+              value: !disabled.contains(source.id),
+              onChanged: (enabled) async {
+                if (!enabled && enabledCount <= 1) {
+                  _snack(context, tr('settings.sources.keep_one'));
+                  return;
+                }
+                await ref
+                    .read(disabledDataSourceIdsProvider.notifier)
+                    .setEnabled(source.id, enabled);
+              },
+            ),
+          ),
+        // 16 horizontal is the ListTile default the rows above resolve to, so
+        // the note starts on the same line as their titles instead of hanging
+        // off the card's edge.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+          child: Text(
+            tr('settings.sources.desc'),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _section(
     BuildContext context, {
     required String title,

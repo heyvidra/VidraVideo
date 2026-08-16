@@ -235,7 +235,11 @@ class _FactPills extends StatelessWidget {
       spacing: 6,
       runSpacing: 6,
       children: [
-        if (video.rating > 0) _Pill(label: '★ ${video.rating}', mono: true),
+        // Formatted, never interpolated raw: a rating derived by arithmetic
+        // rather than parsed from a string carries binary-float noise, and
+        // "★ 4.6999999999999999" duly reached the page.
+        if (video.rating > 0)
+          _Pill(label: '★ ${video.rating.toStringAsFixed(1)}', mono: true),
         if ((video.year ?? '').isNotEmpty) _Pill(label: video.year!),
         if (video.type.isNotEmpty) _Pill(label: video.type),
         // Deliberately NO "全 N 集": that number was `urls.length`, which is

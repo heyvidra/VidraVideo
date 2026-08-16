@@ -55,6 +55,10 @@ class AppSettings {
   /// See [PlayerWindowMode] for the resolution.
   String? playerWindowMode;
 
+  /// Data sources the user switched off, comma-joined ids. Null = all on.
+  /// Read with [parseSourceIds], written with [formatSourceIds].
+  String? disabledDataSourceIds;
+
   AppSettings({
     this.downloadPath,
     this.maxConcurrentDownloads = 3,
@@ -72,4 +76,24 @@ class AppSettings {
     this.showPet = false,
     this.telemetryEnabled = true,
   });
+}
+
+/// Splits the stored form of a source-id set. Tolerant of the shapes a hand
+/// edit or an interrupted write can leave: blanks and stray spaces drop out.
+Set<String> parseSourceIds(String? stored) {
+  if (stored == null || stored.isEmpty) return const {};
+  return stored
+      .split(',')
+      .map((e) => e.trim())
+      .where((e) => e.isNotEmpty)
+      .toSet();
+}
+
+/// The stored form of [ids]. Sorted, so the same set always produces the same
+/// string and a settings row does not churn on rewrites. Empty is stored as
+/// null, so "nothing disabled" has one representation rather than two.
+String? formatSourceIds(Set<String> ids) {
+  if (ids.isEmpty) return null;
+  final sorted = ids.toList()..sort();
+  return sorted.join(',');
 }

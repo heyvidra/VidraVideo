@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/log.dart';
 import '../../../window/pet_window.dart';
 import '../../settings/presentation/settings_provider.dart';
+import '../../video/data/video_repository.dart'
+    show disabledDataSourceIdsProvider;
 import '../../video/domain/video_collection.dart';
 import '../data/subscription_notifier_service.dart';
 import '../data/subscription_repository.dart';
@@ -17,10 +19,29 @@ final subscriptionsProvider =
       SubscriptionNotifier.new,
     );
 
+/// What 订阅 lists: followed shows minus the sources the user switched off.
+///
+/// Derived, not filtered in the notifier: unfollowing walks every row for a
+/// show across sources, and hiding rows from that walk would leave the show
+/// still followed under the other catalog. Nothing is deleted — switching the
+/// source back on brings the entries back, unread flags included.
+final visibleSubscriptionsProvider = Provider<AsyncValue<List<Subscription>>>((
+  ref,
+) {
+  final disabled = ref.watch(disabledDataSourceIdsProvider);
+  return ref
+      .watch(subscriptionsProvider)
+      .whenData(
+        (all) => all.where((s) => !disabled.contains(s.sourceId)).toList(),
+      );
+});
+
 /// Unread count for the titlebar badge. Derived rather than queried again, so
-/// the badge and the list can never disagree about what is unread.
+/// the badge and the list can never disagree about what is unread — which is
+/// why it counts the VISIBLE list: a badge promising updates that the screen
+/// below it does not show is the one way those two can still diverge.
 final unreadSubscriptionCountProvider = Provider<int>((ref) {
-  final subs = ref.watch(subscriptionsProvider).value ?? const [];
+  final subs = ref.watch(visibleSubscriptionsProvider).value ?? const [];
   return subs.where((s) => s.unread).length;
 });
 

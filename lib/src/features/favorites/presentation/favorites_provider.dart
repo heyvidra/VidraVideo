@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../video/data/video_repository.dart'
+    show disabledDataSourceIdsProvider;
 import '../../video/domain/play_history.dart' show crossSourceKey;
 import '../../video/domain/video_collection.dart';
 import '../data/favorites_repository.dart';
@@ -7,6 +9,26 @@ import '../data/favorites_repository.dart';
 final favoritesProvider = AsyncNotifierProvider<FavoritesNotifier, List<Video>>(
   FavoritesNotifier.new,
 );
+
+/// What the 想看 screen lists: saved shows minus the ones on sources the user
+/// switched off.
+///
+/// Derived rather than filtered inside the notifier, and that is load-bearing.
+/// [FavoritesNotifier.toggle] and [FavoritesNotifier.remove] read `state` to
+/// find every row for a show and delete them ALL, across sources — that is
+/// what stops one un-save leaving the show still listed under the other
+/// catalog. Filtering the state itself would hide those rows from the code
+/// that has to delete them, so the notifier keeps the whole truth and only the
+/// screen sees less. Nothing is deleted: switching the source back on brings
+/// the entries straight back.
+final visibleFavoritesProvider = Provider<AsyncValue<List<Video>>>((ref) {
+  final disabled = ref.watch(disabledDataSourceIdsProvider);
+  return ref
+      .watch(favoritesProvider)
+      .whenData(
+        (all) => all.where((v) => !disabled.contains(v.sourceId)).toList(),
+      );
+});
 
 /// Whether one show is saved, for the detail page's button.
 ///

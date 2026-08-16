@@ -88,6 +88,18 @@ class Videos extends Table {
   TextColumn get sourceId => text().nullable()(); // Removed unique()
   IntColumn get apiId => integer()();
 
+  /// The source's OWN identifier for this show, when [apiId] is not it.
+  ///
+  /// olevod and dbku number their shows, so their `apiId` IS the id the API
+  /// takes and this stays null. yfsp keys shows by an 11-character base62
+  /// token ("PwLAKyPFpPE") — 66 bits, which does not fit an int and which no
+  /// endpoint will trade back for a number — so its `apiId` is only a local
+  /// handle and the token has to travel with the row. Without it a cold start
+  /// straight into a favourite could look the show up locally but never
+  /// refresh it. See [VideoRepository.getVideo], which reads this back out and
+  /// hands it to [VideoDataSource.getVideoDetail].
+  TextColumn get sourceKey => text().nullable()();
+
   TextColumn get title => text()();
   TextColumn get coverUrl => text()();
   TextColumn get thumbUrl => text().nullable()();
@@ -363,6 +375,10 @@ class AppSettings extends Table {
   /// ordered list with no queries against it.
   TextColumn get searchHistory => text().nullable()();
 
+  /// Data sources the user has switched off, comma-joined ids. Null or empty
+  /// = all on, which is what every row predating this reads as.
+  TextColumn get disabledDataSourceIds => text().nullable()();
+
   /// Whether the desktop pet window comes up with the app. Off by default:
   /// an always-on-top window that appears uninvited on first launch is a
   /// thing to close, not a thing to like.
@@ -414,7 +430,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 17;
+  int get schemaVersion => 19;
 
   /// True when [table] already has a column named [name].
   ///
@@ -557,6 +573,27 @@ class AppDatabase extends _$AppDatabase {
             m,
             appSettings,
             appSettings.playerWindowMode,
+          );
+        }
+        // v18: the source's own show identifier, for sources whose ids are
+        // not numbers (yfsp). Null on every existing row, which is correct —
+        // the sources that shipped before this all key on apiId.
+        //
+        // Was written as v17 on a branch cut before v17 existed, which is the
+        // one collision this ladder cannot survive: two different ALTERs under
+        // one number leaves whichever install stopped at 17 believing it is
+        // done, and the column it missed never arrives. Renumbered on the
+        // rebase; nothing had shipped under the old number.
+        if (from < 18 && to >= 18) {
+          await _addColumnIfAbsent(m, videos, videos.sourceKey);
+        }
+        // v19: which data sources the user switched off. Null on every
+        // existing row, which reads as "all on" — the behaviour they had.
+        if (from < 19 && to >= 19) {
+          await _addColumnIfAbsent(
+            m,
+            appSettings,
+            appSettings.disabledDataSourceIds,
           );
         }
       });

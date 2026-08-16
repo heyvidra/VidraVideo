@@ -89,6 +89,11 @@
         "desc": "从已登录浏览器导出的 Netscape cookies.txt。下载需登录/年龄限制的视频（如 YouTube）时需要。"
       }
     },
+    "sources": {
+      "title": "数据源",
+      "desc": "关闭后，该数据源的片库、源切换、最近观看、想看和订阅都不再显示。记录不会删除，重新开启即恢复。",
+      "keep_one": "至少要保留一个数据源"
+    },
     "storage": {
       "title": "存储",
       "cache": "缓存",
@@ -374,5 +379,9 @@
     "dismiss": "知道了",
     "mark_all_read": "全部已读",
     "pet_bubble": "{} 更新啦"
+  },
+  "source": {
+    "latency_ms": "{} ms",
+    "latency_unreachable": "不可达"
   }
 }
