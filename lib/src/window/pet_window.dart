@@ -327,19 +327,33 @@ class _PetState extends State<Pet> {
   Offset? _grabbedAt;
   bool _moved = false;
 
-  /// Where the context menu was summoned, in window coordinates. Null when
-  /// no menu is open.
-  Offset? _menuAt;
-
   void _onPointerDown(PointerDownEvent event) {
     if (event.buttons == kSecondaryMouseButton) {
       // No drag from a right press: the menu is the whole gesture.
       _grabbedAt = null;
-      setState(() => _menuAt = event.localPosition);
+      _openMenu(event.localPosition);
       return;
     }
     _grabbedAt = event.localPosition;
     _moved = false;
+  }
+
+  /// The pet's context menu, drawn by the OS.
+  ///
+  /// It used to be a panel painted inside this window, and the window is
+  /// 130x150 — so the menu had to be small enough to fit the pet, and was
+  /// clamped away from the edges to avoid being clipped by them. A native menu
+  /// is not part of this window's surface and so is not bounded by it: the
+  /// size constraint and the clamping both stop existing.
+  ///
+  /// No dismiss layer either. `popUp` spins its own run loop and returns only
+  /// once the menu closes, which is also what stops the press underneath from
+  /// starting a drag.
+  Future<void> _openMenu(Offset at) async {
+    final picked = await showNativeMenu([
+      NativeMenuItem('close', tr('common.close')),
+    ], position: at);
+    if (picked == 'close') appWindow.close();
   }
 
   void _onPointerMove(PointerMoveEvent event) {
@@ -387,7 +401,6 @@ class _PetState extends State<Pet> {
 
   @override
   Widget build(BuildContext context) {
-    final menuAt = _menuAt;
     return Stack(
       children: [
         // Listener, not GestureDetector: a pan recogniser only fires after
@@ -416,21 +429,6 @@ class _PetState extends State<Pet> {
             ),
           ),
         ),
-        if (menuAt != null) ...[
-          // Above the pet, so an open menu also stops the press underneath it
-          // from starting a drag. Any button dismisses.
-          Positioned.fill(
-            child: Listener(
-              behavior: HitTestBehavior.opaque,
-              onPointerDown: (_) => setState(() => _menuAt = null),
-            ),
-          ),
-          _PetMenu(
-            at: menuAt,
-            bounds: PetWindowLauncher.petSize,
-            onClose: () => appWindow.close(),
-          ),
-        ],
       ],
     );
   }
@@ -492,65 +490,6 @@ class _SpeechBubble extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// The pet's context menu. Lives inside the pet's own window, so it has to
-/// fit in 130x150 — which is why it is a plain panel rather than showMenu().
-class _PetMenu extends StatelessWidget {
-  const _PetMenu({
-    required this.at,
-    required this.bounds,
-    required this.onClose,
-  });
-
-  final Offset at;
-  final Size bounds;
-  final VoidCallback onClose;
-
-  static const _width = 92.0;
-  static const _height = 34.0;
-
-  @override
-  Widget build(BuildContext context) {
-    return Positioned(
-      // Clamped, so a right-click near an edge still shows the whole menu
-      // instead of half of it clipped off the window.
-      left: at.dx.clamp(0.0, bounds.width - _width),
-      top: at.dy.clamp(0.0, bounds.height - _height),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onClose,
-        child: Container(
-          width: _width,
-          height: _height,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            // Translucent white. No BackdropFilter behind it: the desktop
-            // showing through a transparent window is not part of Flutter's
-            // scene, so there is nothing for a blur to sample.
-            color: const Color(0xE6FFFFFF),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0x1F000000)),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x33000000),
-                blurRadius: 10,
-                offset: Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Text(
-            tr('common.close'),
-            style: const TextStyle(
-              fontSize: 12,
-              height: 1.4,
-              color: Color(0xFF1B2340),
-            ),
-          ),
         ),
       ),
     );

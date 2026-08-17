@@ -9,10 +9,20 @@ import '../utils/window.dart';
 
 class BitsdojoWindowDelegate implements WindowDelegate {
   static const _pipTransitionDuration = Duration(milliseconds: 280);
+
+  /// Windows keeps its shorter travel — it was tuned against the flash this
+  /// used to work around, and the shorter the move the less there is to see.
+  ///
+  /// It used to resolve to ZERO here, because the whole transition was
+  /// hand-rolled below for Windows and this value only fed the other
+  /// platforms. `animateTo` splits resize from travel itself now, so a real
+  /// duration reaches it — and zero would have quietly cost Windows the eased
+  /// reposition it always had.
   static const _windowsPipTransitionDuration = Duration(milliseconds: 140);
 
-  Duration get _resolvedPipTransitionDuration =>
-      Platform.isWindows ? Duration.zero : _pipTransitionDuration;
+  Duration get _resolvedPipTransitionDuration => Platform.isWindows
+      ? _windowsPipTransitionDuration
+      : _pipTransitionDuration;
 
   @override
   Future<void> close() async {
@@ -80,15 +90,6 @@ class BitsdojoWindowDelegate implements WindowDelegate {
       appWindow.alwaysOnTop = true;
       WindowHelper.isPip = true;
 
-      if (Platform.isWindows) {
-        await _animateWindowsPipTransition(
-          targetSize: targetSize,
-          targetAlignment: pipTarget == null ? Alignment.bottomRight : null,
-          targetPosition: pipTarget,
-        );
-        return;
-      }
-
       await appWindow.animateTo(
         size: targetSize,
         alignment: pipTarget == null ? Alignment.bottomRight : null,
@@ -118,16 +119,6 @@ class BitsdojoWindowDelegate implements WindowDelegate {
       appWindow.minSize = AppConfig.playerMiniSize;
       WindowHelper.isPip = false;
 
-      if (Platform.isWindows) {
-        await _animateWindowsPipTransition(
-          targetSize: targetSize,
-          targetAlignment: normalTarget == null ? Alignment.center : null,
-          targetPosition: normalTarget,
-        );
-        appWindow.alwaysOnTop = false;
-        return;
-      }
-
       await appWindow.animateTo(
         size: targetSize,
         alignment: normalTarget == null ? Alignment.center : null,
@@ -148,33 +139,4 @@ class BitsdojoWindowDelegate implements WindowDelegate {
     WindowHelper.transitionInProgress = false;
   }
 
-  Future<void> _animateWindowsPipTransition({
-    required Size targetSize,
-    Alignment? targetAlignment,
-    Offset? targetPosition,
-  }) async {
-    // On Windows, animating size and position together tends to flash a white
-    // background during DWM/compositor repaints. Keep the resize immediate and
-    // only ease the final repositioning.
-    //
-    // Resize via the rect setter, not the size setter: when no alignment is
-    // anchored (the restored-position paths) the size setter passes logical
-    // pixels to SetWindowPos unscaled, shrinking the window by the DPI factor
-    // — the halved slot values documented in WindowHelper came from exactly
-    // this. The rect setter speaks physical pixels end to end.
-    final scale = WindowHelper.currentScale();
-    final current = appWindow.rect;
-    appWindow.rect = Rect.fromLTWH(
-      current.left,
-      current.top,
-      targetSize.width * scale,
-      targetSize.height * scale,
-    );
-    await appWindow.animateTo(
-      alignment: targetAlignment,
-      position: targetPosition,
-      duration: _windowsPipTransitionDuration,
-      curve: Curves.easeOutCubic,
-    );
-  }
 }

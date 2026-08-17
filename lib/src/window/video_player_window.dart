@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter/material.dart';
@@ -42,11 +43,29 @@ class VideoPlayerWindowApp extends ConsumerStatefulWidget {
 class _VideoPlayerWindowAppState extends ConsumerState<VideoPlayerWindowApp> {
   final _closeController = VideoPlayerWindowCloseController();
   Map<String, dynamic>? _currentArguments;
+  StreamSubscription<WindowEvent>? _windowEvents;
 
   @override
   void initState() {
     super.initState();
     _currentArguments = widget.arguments ?? appWindow.arguments;
+    // Dragging the window emits no metric events, so [didChangeMetrics] never
+    // hears a pure MOVE — which left the close handler as the only thing that
+    // ever recorded one. A move that ended in a crash, a force quit, or a log
+    // out was simply lost, and the window came back where it was two sessions
+    // ago. This is the signal that was missing.
+    //
+    // Same debounced entry point as a resize: a drag emits a move per frame,
+    // and only where it comes to rest is worth a write.
+    _windowEvents = appWindow.events.listen((event) {
+      if (event is WindowMoved) WindowHelper.saveWindowSize();
+    });
+  }
+
+  @override
+  void dispose() {
+    _windowEvents?.cancel();
+    super.dispose();
   }
 
   Future<bool> _handleCloseRequest(

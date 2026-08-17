@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:local_notifier/local_notifier.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:vidra_player/vidra_player.dart';
 import 'package:vidra_player_kit/vidra_player_kit.dart';
 
@@ -334,7 +333,6 @@ class MyApp extends ConsumerStatefulWidget {
 
 class _MyAppState extends ConsumerState<MyApp> {
   bool _isExitDialogShowing = false;
-  GoRouter? _router;
 
   Future<bool> _handleMainWindowClose(
     BuildContext context,
@@ -349,30 +347,20 @@ class _MyAppState extends ConsumerState<MyApp> {
 
     _isExitDialogShowing = true;
     window.show();
-    final dialogContext = _router?.routerDelegate.navigatorKey.currentContext;
 
-    final shouldClose =
-        await showDialog<bool>(
-          context: dialogContext ?? context,
-          barrierDismissible: false,
-          builder: (context) {
-            return AlertDialog(
-              title: Text(tr('dashboard.exit_dialog.title')),
-              content: Text(tr('dashboard.exit_dialog.content')),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: Text(tr('dashboard.exit_dialog.cancel')),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  child: Text(tr('dashboard.exit_dialog.confirm')),
-                ),
-              ],
-            );
-          },
-        ) ??
-        false;
+    // The OS draws this one, which is why it needs no BuildContext.
+    //
+    // The Flutter dialog it replaces had to go hunting for a context — the
+    // router's navigator, falling back to whatever the callback was handed —
+    // because this runs while the window is being torn down, and the tree
+    // that would host a dialog is exactly what is going away. A native alert
+    // has no such dependency: it is not part of the scene it is asking about.
+    final shouldClose = await showNativeConfirm(
+      title: tr('dashboard.exit_dialog.title'),
+      message: tr('dashboard.exit_dialog.content'),
+      confirmLabel: tr('dashboard.exit_dialog.confirm'),
+      cancelLabel: tr('dashboard.exit_dialog.cancel'),
+    );
 
     if (mounted) {
       setState(() {
@@ -393,7 +381,6 @@ class _MyAppState extends ConsumerState<MyApp> {
   @override
   Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
-    _router = router;
     final themeMode = ref.watch(themeModeProvider);
     return MaterialApp.router(
       title: 'Vidra',

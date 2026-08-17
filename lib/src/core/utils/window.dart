@@ -33,19 +33,14 @@ class WindowHelper {
     _repository = repository;
   }
 
-  /// Physical-to-logical ratio of the current window, recovered from the two
-  /// getters the platform interface already exposes: on Windows
-  /// `appWindow.rect` is physical pixels while `appWindow.size` is logical,
-  /// so their width ratio is the DPI scale. On macOS/Linux both are points
-  /// and the ratio is 1. Falls back to 1 when the window cannot be measured.
-  static double currentScale() {
-    final logical = appWindow.size;
-    final physical = appWindow.rect;
-    if (logical.width <= 0 || physical.width <= 0) return 1.0;
-    final scale = physical.width / logical.width;
-    if (!scale.isFinite || scale <= 0) return 1.0;
-    return scale;
-  }
+  /// Physical-to-logical ratio of the current window.
+  ///
+  /// Was derived here from `rect.width / size.width`; that same derivation
+  /// also lived inside bitsdojo's own animation code, so two copies of one
+  /// platform quirk had to agree. It is `appWindow.coordinateScale` now — and
+  /// deliberately NOT `appWindow.scaleFactor`, which reports the display's
+  /// Retina backing scale on macOS and would halve every coordinate here.
+  static double currentScale() => appWindow.coordinateScale;
 
   /// Convert a stored LOGICAL point to the physical pixels the in-engine
   /// window APIs (`position`, `animateTo`) speak on Windows. Identity on
@@ -92,7 +87,7 @@ class WindowHelper {
   static Future<Offset?> savedPlayerPosition() async {
     if (_repository == null) return null;
     final settings = await _repository!.getSettings();
-    return _sanePosition(settings.playerWindowX, settings.playerWindowY);
+    return _positionOnADisplay(settings.playerWindowX, settings.playerWindowY);
   }
 
   /// Where the user last parked the pip window (LOGICAL, global
@@ -102,7 +97,7 @@ class WindowHelper {
   static Future<Offset?> savedPipPosition() async {
     if (_repository == null) return null;
     final settings = await _repository!.getSettings();
-    return _sanePosition(settings.playerPipX, settings.playerPipY);
+    return _positionOnADisplay(settings.playerPipX, settings.playerPipY);
   }
 
   /// Where the user last parked the pet: its window's BOTTOM-RIGHT corner
@@ -111,7 +106,7 @@ class WindowHelper {
   static Future<Offset?> savedPetAnchor() async {
     if (_repository == null) return null;
     final settings = await _repository!.getSettings();
-    return _sanePosition(settings.petWindowX, settings.petWindowY);
+    return _positionOnADisplay(settings.petWindowX, settings.petWindowY);
   }
 
   /// Persists the pet window's bottom-right corner. Best-effort, like every
@@ -135,6 +130,52 @@ class WindowHelper {
     }
     return Offset(x, y);
   }
+
+  /// [_sanePosition], then: is that point still on a monitor?
+  ///
+  /// The clamp-band check above only recognises coordinates no user could have
+  /// parked at. It says nothing about a perfectly ordinary position on a
+  /// display that has since been unplugged — park the player on a second
+  /// monitor, detach it, relaunch, and the window is restored somewhere the
+  /// desktop no longer reaches. Nothing brings it back but clearing the row.
+  ///
+  /// The stored coordinate is LOGICAL, and display geometry is not logical
+  /// everywhere, so the comparison uses Display.logicalBounds. Comparing raw would
+  /// reject a perfectly good position on any scaled Windows display, which is
+  /// the very failure this exists to prevent.
+  ///
+  /// Answers the position unchanged when the platform lists no displays —
+  /// that is "we could not check", not "there are no monitors", and the old
+  /// behaviour is the right thing to fall back to.
+  static Future<Offset?> _positionOnADisplay(double? x, double? y) async {
+    final at = _sanePosition(x, y);
+    if (at == null) return null;
+    try {
+      final displays = await getDisplays();
+      if (displays.isEmpty) return at;
+      // logicalBounds/logicalWorkArea, not the raw rects: display geometry is
+      // device pixels on Windows and points on macOS, and the conversion is
+      // the library's to know — see Display. Doing it here is what an earlier
+      // draft of this got wrong.
+      final onScreen = displays.any(
+        (d) => _covers(d.logicalWorkArea, at) || _covers(d.logicalBounds, at),
+      );
+      return onScreen ? at : null;
+    } catch (e) {
+      logD('WindowHelper', '读取显示器失败,保留已存位置: $e');
+      return at;
+    }
+  }
+
+  /// [Rect.contains] with the far edges included.
+  ///
+  /// The pet stores its BOTTOM-RIGHT corner, and the pet is habitually parked
+  /// flush into the bottom-right of a screen — where that corner equals the
+  /// display's own maximum. `Rect.contains` treats right/bottom as exclusive,
+  /// so the exclusive test would throw away the single most common position
+  /// this is meant to protect.
+  static bool _covers(Rect r, Offset p) =>
+      p.dx >= r.left && p.dx <= r.right && p.dy >= r.top && p.dy <= r.bottom;
 
   static Size windowSize() {
     return appWindow.size;
