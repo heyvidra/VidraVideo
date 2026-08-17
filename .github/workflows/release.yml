@@ -383,6 +383,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          # Tags and history, because the notes step derives the PREVIOUS tag
+          # with `git describe` to build a compare link. The default shallow
+          # checkout has neither, and the fallback would silently degrade to
+          # linking every commit reachable from this tag.
+          fetch-depth: 0
 
       # 下载所有构建产物
       - name: Download Windows MSI
@@ -411,8 +417,10 @@ jobs:
       # release_notes/<版本>.md。写在提交里,跟着 tag 走,发版前就能review;
       # 写在这个 heredoc 里的话,改一次说明就要改一次 workflow。
       #
-      # 缺这个文件时退回占位文案:忘了写说明不该让一次发版失败。下载表和安装
-      # 说明留在这里,它们每版都一样。
+      # 缺这个文件时退回提交对比链接,而不是一句"bug 修复与性能改进":那句话
+      # 每版都成立,所以每版都没有信息,而这个项目的说明本来就写在提交里。忘了
+      # 写说明不该让一次发版失败,但也不该让 Release 正文假装说了点什么。
+      # 下载表和安装说明留在这里,它们每版都一样。
       - name: Generate Release Notes
         id: notes
         run: |
@@ -434,16 +442,17 @@ jobs:
             echo "Using release_notes/${VERSION}.md"
             cat "release_notes/${VERSION}.md" >> release_notes.md
           else
-            echo "::warning::release_notes/${VERSION}.md not found, using placeholder"
-            cat >> release_notes.md << 'EOF'
-          ### 🚀 What's New
-
-          - Bug fixes and performance improvements
-
-          ### 🐛 Known Issues
-
-          - None currently
-          EOF
+            echo "::notice::no release_notes/${VERSION}.md — linking the commit range"
+            PREV="$(git describe --tags --abbrev=0 "v${VERSION}^" 2>/dev/null || true)"
+            {
+              echo "### 变更"
+              echo
+              if [ -n "$PREV" ]; then
+                echo "[\`$PREV...v${VERSION}\`](https://github.com/${GITHUB_REPOSITORY}/compare/$PREV...v${VERSION})"
+              else
+                echo "[\`v${VERSION}\`](https://github.com/${GITHUB_REPOSITORY}/commits/v${VERSION})"
+              fi
+            } >> release_notes.md
           fi
 
           cat >> release_notes.md << 'EOF'
