@@ -84,6 +84,15 @@ class DownloadManager {
     await _loadTasks();
 
     if (startProcessing) {
+      // Before anything starts downloading, and ONLY in the engine that owns
+      // downloading. Three engines run at once — dashboard, player, pet — and
+      // each calls initialize(); a sweep in the other two would be scanning a
+      // folder they have no idea about the state of. `startProcessing` is
+      // already the flag main.dart uses to mean "this is the main window".
+      //
+      // Not awaited: it is a disk scan, and nothing about starting the queue
+      // depends on its result. A failure inside is swallowed and logged.
+      unawaited(_downloadService.sweepOrphanedResumeFiles());
       _startProcessing();
     } else if (watchDb) {
       _listenToDbChanges();
