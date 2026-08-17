@@ -54,12 +54,15 @@ dependencies:
     git:
       url: https://github.com/heyvidra/bitsdojo_window_plus.git
       path: bitsdojo_window
-      # v0.4.2: traffic lights are no longer clipped to half their height on
-      # macOS 13 and older — the taller-than-standard titlebar centres them
-      # past NSTitlebarView's bounds, and only macOS 14+ leaves overflow
-      # unclipped. (0.4.1: the hide-on-startup latch; 0.4.0: window
-      # lifecycle by name.)
-      ref: v0.4.3
+      # v0.5.1: the Windows `size` setter no longer shrinks the window by the
+      # DPI factor, Display gains logical-unit accessors, and animateTo owns
+      # the Windows resize-and-move flash this app used to hand-roll. (0.5.0:
+      # window events, displays, native menus and alerts; 0.4.3: traffic
+      # lights no longer clipped to half their height on macOS 13 and older.)
+      #
+      # Plain tag, no `^{}` dance: these tags are LIGHTWEIGHT, unlike
+      # vidra_player's, so the ref and the commit are the same object.
+      ref: v0.5.1
 
   # git, not path: this repo is developed from worktrees as well as from its
   # own checkout, and a relative path resolves differently in each.
