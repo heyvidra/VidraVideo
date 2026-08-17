@@ -408,6 +408,12 @@ class AppStatusBar extends ConsumerWidget {
                     Text(source.name, style: style),
                   ],
                 ),
+            // After the chips, not before: it acts on the row to its left.
+            // Only offered once there are numbers to re-measure — during the
+            // first probe the fallback dot is showing and there is nothing to
+            // refresh yet.
+            if (ref.watch(sourceLatencyProvider).hasValue)
+              const _LatencyRefreshButton(),
             if (active > 0) ...[
               const SizedBox(width: 18),
               Text(
@@ -422,6 +428,112 @@ class AppStatusBar extends ConsumerWidget {
                 style: style.copyWith(color: t.amber),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Re-measures every source's round trip, at most once a minute.
+///
+/// The rule itself lives in [SourceLatencyNotifier.cooldown] — this only
+/// mirrors it, because a disabled-looking button that still fires is worse
+/// than either half alone. What this widget owns is the moment the button
+/// comes BACK: nothing emits an event when a cooldown lapses, so it holds a
+/// timer whose only job is to rebuild then.
+class _LatencyRefreshButton extends ConsumerStatefulWidget {
+  const _LatencyRefreshButton();
+
+  @override
+  ConsumerState<_LatencyRefreshButton> createState() =>
+      _LatencyRefreshButtonState();
+}
+
+class _LatencyRefreshButtonState extends ConsumerState<_LatencyRefreshButton>
+    with SingleTickerProviderStateMixin {
+  Timer? _cooldownTimer;
+
+  /// Spins while a probe is in flight.
+  ///
+  /// Driven from here rather than off the provider's `isLoading`: [refresh]
+  /// assigns `AsyncData` straight over the old value on purpose, so the last
+  /// numbers stay on screen instead of blanking, and the provider therefore
+  /// never reports loading at all. The one thing that DOES know a probe is
+  /// running is the await below.
+  late final AnimationController _spin = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  );
+  bool _probing = false;
+
+  @override
+  void dispose() {
+    _cooldownTimer?.cancel();
+    _spin.dispose();
+    super.dispose();
+  }
+
+  /// Rebuilds when the current cooldown ends, so the icon un-dims by itself
+  /// instead of waiting for the next unrelated rebuild of this bar.
+  void _armFor(DateTime until) {
+    _cooldownTimer?.cancel();
+    final left = until.difference(DateTime.now());
+    if (left.isNegative) return;
+    _cooldownTimer = Timer(left, () {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = VidraTokens.of(context);
+    final notifier = ref.read(sourceLatencyProvider.notifier);
+    // Watched so a probe finishing elsewhere — the enabled set changing, say,
+    // which re-stamps the cooldown — reaches this button without it having to
+    // be told.
+    ref.watch(sourceLatencyProvider);
+    final until = notifier.nextRefreshAt;
+    final enabled = until == null && !_probing;
+    if (until != null) _armFor(until);
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 16),
+      child: Tooltip(
+        message: enabled
+            ? tr('dashboard.latency.refresh')
+            : tr('dashboard.latency.refresh_wait'),
+        child: MouseRegion(
+          cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
+          child: GestureDetector(
+            onTap: enabled
+                ? () async {
+                    setState(() => _probing = true);
+                    _spin.repeat();
+                    try {
+                      await notifier.refresh();
+                    } finally {
+                      _spin.stop();
+                      // Back to upright, so the icon never rests at whatever
+                      // angle the probe happened to finish on.
+                      _spin.value = 0;
+                      final next = notifier.nextRefreshAt;
+                      if (next != null) _armFor(next);
+                      if (mounted) setState(() => _probing = false);
+                    }
+                  }
+                : null,
+            child: RotationTransition(
+              turns: _spin,
+              child: Icon(
+                Icons.refresh_rounded,
+                size: 13,
+                // Dimmed rather than hidden: a control that vanishes for a
+                // minute reads as a glitch, and its absence would also shuffle
+                // everything on this row sideways twice a minute.
+                color: enabled ? t.fg2 : t.fg3.withValues(alpha: 0.45),
+              ),
+            ),
+          ),
         ),
       ),
     );

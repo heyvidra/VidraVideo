@@ -64,7 +64,11 @@
     },
     "minimize": "Minimise",
     "maximize": "Maximise",
-    "restore": "Restore"
+    "restore": "Restore",
+    "latency": {
+      "refresh": "Re-measure latency",
+      "refresh_wait": "Once a minute"
+    }
   },
   "search": {
     "placeholder": "Enter search keywords",

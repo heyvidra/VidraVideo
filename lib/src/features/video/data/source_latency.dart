@@ -49,17 +49,47 @@ class SourceLatencyNotifier extends AsyncNotifier<List<SourceLatency>> {
     return _probeAll(sources);
   }
 
+  /// The shortest gap between two measurements.
+  ///
+  /// The button this throttles is one click away from opening a connection to
+  /// every source at once. Held here rather than in the button so a second
+  /// caller — another widget, a later feature — cannot get a faster probe by
+  /// not knowing about the rule.
+  static const cooldown = Duration(minutes: 1);
+
+  DateTime? _lastProbeAt;
+
+  /// When the next measurement is allowed, or null when one is allowed now.
+  DateTime? get nextRefreshAt {
+    final last = _lastProbeAt;
+    if (last == null) return null;
+    final at = last.add(cooldown);
+    return at.isAfter(DateTime.now()) ? at : null;
+  }
+
+  bool get canRefresh => nextRefreshAt == null;
+
   /// Measure again, keeping the previous numbers on screen meanwhile.
   ///
   /// Deliberately manual: nothing here polls. A status bar that re-probed on a
   /// timer would open connections to every source forever, including while the
   /// app sits untouched in the background.
+  ///
+  /// A call inside the cooldown is a no-op rather than an error — the caller
+  /// asked for fresh numbers and the numbers on screen are as fresh as this
+  /// is willing to make them.
   Future<void> refresh() async {
+    if (!canRefresh) return;
     final sources = ref.read(availableDataSourcesProvider);
     state = AsyncData(await _probeAll(sources));
   }
 
   Future<List<SourceLatency>> _probeAll(List<VideoDataSource> sources) async {
+    // Stamped here rather than in [refresh], so the cooldown counts from ANY
+    // measurement. The first build probes too, and a toggle in settings
+    // rebuilds and probes again — without this, a source switched on would
+    // hand out a free extra probe a moment later.
+    _lastProbeAt = DateTime.now();
     return Future.wait(sources.map(_probe));
   }
 

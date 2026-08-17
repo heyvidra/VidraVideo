@@ -64,7 +64,11 @@
     },
     "minimize": "最小化",
     "maximize": "最大化",
-    "restore": "还原"
+    "restore": "还原",
+    "latency": {
+      "refresh": "刷新延迟",
+      "refresh_wait": "1 分钟内只能刷新一次"
+    }
   },
   "search": {
     "placeholder": "请输入搜索关键词",
