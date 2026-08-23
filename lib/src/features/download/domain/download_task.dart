@@ -228,8 +228,13 @@ class DownloadTask {
   /// Aggregate download speed in bytes/second across ALL concurrently
   /// downloading episodes (not just the first — the pool runs many at once).
   double? get downloadSpeed {
+    // A remuxing episode has stopped moving bytes; counting it would show a
+    // stale long-run average next to the "转码中" label.
     final downloading = episodes.where(
-      (e) => e.status == DownloadStatus.downloading && e.startTime != null,
+      (e) =>
+          e.status == DownloadStatus.downloading &&
+          e.phase != 'remuxing' &&
+          e.startTime != null,
     );
     if (downloading.isEmpty) return null;
 
