@@ -62,7 +62,7 @@ class AppSettings {
   AppSettings({
     this.downloadPath,
     this.maxConcurrentDownloads = 3,
-    this.segmentConcurrency = 6,
+    this.segmentConcurrency = 8,
     this.themeMode = ThemeMode.dark,
     this.playerNormalWidth,
     this.playerNormalHeight,

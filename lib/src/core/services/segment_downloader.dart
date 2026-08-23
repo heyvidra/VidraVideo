@@ -41,7 +41,7 @@ abstract class SegmentDownloader {
 /// pure-Dart fallback as its sliding-window size). [configJson] is the vidraDlp
 /// client config (e.g. cookie_file); the pure-Dart fallback ignores it.
 SegmentDownloader createSegmentDownloader({
-  int segmentConcurrency = 6,
+  int segmentConcurrency = 8,
   String? configJson,
 }) {
   if (vidradlpLibraryAvailable()) {

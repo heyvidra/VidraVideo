@@ -31,7 +31,7 @@ class DownloadService {
       // Resolve downloads directory + segment concurrency + cookie config from
       // settings (one read).
       Directory downloadsDir;
-      int segmentConcurrency = 6;
+      int segmentConcurrency = 8;
       String? configJson;
       final settingsRepo = _settingsRepo;
       if (settingsRepo != null) {
