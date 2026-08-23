@@ -62,11 +62,15 @@ class DownloadService {
         await downloadsDir.create(recursive: true);
       }
 
-      // Target extension. Extractor downloads (formatId set — YouTube etc.) are
-      // http/DASH mp4, so write `.mp4` directly. Catalog HLS (formatId null)
-      // writes `.ts` and lets vidraDlp remux TS→MP4 in-SDK — that in-SDK remux
-      // only fires for a `.ts` target, so keep it for that path.
-      final ext = formatId != null ? 'mp4' : 'ts';
+      // Target extension. Extractor downloads (formatId set — YouTube etc.)
+      // are http/DASH mp4, so write `.mp4` directly. Catalog downloads
+      // (formatId null) pass the SDK's `%(ext)s` template so the file is
+      // named by the ACTUAL container: m3u8 resolves to `.ts` (and the
+      // in-SDK TS→MP4 remux fires as before), a direct-mp4 source resolves
+      // to `.mp4` with no remux — the old hardcoded `.ts` sent MP4 bytes
+      // into a doomed TS parse. The SDK reports the resolved path in the
+      // finished event.
+      final ext = formatId != null ? 'mp4' : '%(ext)s';
       outputPath = '${downloadsDir.path}/$filename.$ext';
 
       // Delete any stale outputs (both possible extensions).

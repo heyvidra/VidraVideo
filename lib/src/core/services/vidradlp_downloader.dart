@@ -57,9 +57,13 @@ class VidraDlpDownloader implements SegmentDownloader {
     final client = _sharedClient(configJson);
     final completer = Completer<String>();
 
-    // The SDK downloads to `outputPath` (.ts) and, with remux_to=mp4, produces
-    // the sibling `.mp4`. That is the file we return.
-    final mp4Path = p.setExtension(outputPath, '.mp4');
+    // The SDK downloads to `outputPath` (a concrete path, or a `%(ext)s`
+    // template resolved by the extractor) and, with remux_to=mp4, produces a
+    // sibling `.mp4`. The finished event reports the resolved path; these
+    // are the legacy fallbacks.
+    final mp4Path = outputPath.contains('%(')
+        ? outputPath.replaceAll('%(ext)s', 'mp4')
+        : p.setExtension(outputPath, '.mp4');
 
     int? jobId;
     Timer? cancelPoll;
@@ -106,11 +110,21 @@ class VidraDlpDownloader implements SegmentDownloader {
           }
           break;
         case 'finished':
+          final reported = event['output_path'] as String?;
           finish(() {
-            // Prefer the remuxed .mp4; fall back to the raw output if remux
-            // didn't apply (e.g. non-TS source).
+            // The SDK reports the final path authoritatively (needed with
+            // `%(ext)s` templates); older engines fall back to inference.
+            if (reported != null && File(reported).existsSync()) {
+              return reported;
+            }
             if (File(mp4Path).existsSync()) return mp4Path;
             if (File(outputPath).existsSync()) return outputPath;
+            if (outputPath.contains('%(')) {
+              for (final ext in ['mp4', 'ts']) {
+                final cand = outputPath.replaceAll('%(ext)s', ext);
+                if (File(cand).existsSync()) return cand;
+              }
+            }
             throw Exception('vidraDlp finished but no output file found');
           });
           break;
