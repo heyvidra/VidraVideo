@@ -92,6 +92,7 @@ class VidraDlpDownloader implements SegmentDownloader {
             if (stage == 'remuxing' || stage == 'merging') {
               // All bytes are down; the in-SDK remux/merge is running. The
               // event carries no byte counts — the consumer keeps its own.
+              logD('VidraDlpDownloader', 'stage=$stage — surfacing remux state');
               onProgress(1.0, 0, null, 'Remuxing');
               break;
             }

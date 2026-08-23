@@ -330,6 +330,13 @@ class _DownloadTaskCardState extends ConsumerState<DownloadTaskCard> {
     const dot = '  ·  ';
 
     if (isDownloading) {
+      final remuxing = task.episodes.any(
+        (e) => e.status == DownloadStatus.downloading && e.phase == 'remuxing',
+      );
+      if (remuxing) {
+        add(tr('download.remuxing'), c: theme.colorScheme.primary);
+        add(dot);
+      }
       add(
         '${formatBytes(task.totalBytesDownloaded)} / ${formatBytes(task.totalBytes)}',
       );
