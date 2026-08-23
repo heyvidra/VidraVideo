@@ -73,7 +73,11 @@ jobs:
           # Unpinning trades reproducibility for freshness, so the resolved tag
           # is echoed and written to the step summary: an unpinned build must at
           # least be able to answer which library it contains.
-          TAG="$(gh release view -R heyvidra/VidraDlp --json tagName -q .tagName)"
+          TAG="$(cat ENGINE_VERSION)"
+          # Pinned via the ENGINE_VERSION file — fetching "latest" raced the
+          # engine's own release pipeline and silently shipped the previous
+          # engine when the app tag landed first. A missing pinned release
+          # now fails loudly instead.
           echo "vidraDlp release: $TAG"
           echo "vidraDlp: \`$TAG\`" >> "$GITHUB_STEP_SUMMARY"
           gh release download "$TAG" -R heyvidra/VidraDlp \
@@ -242,7 +246,11 @@ jobs:
           set -e
           # Newest release, not a pin — see the Windows job for why, and for
           # what the echoed tag is protecting against.
-          TAG="$(gh release view -R heyvidra/VidraDlp --json tagName -q .tagName)"
+          TAG="$(cat ENGINE_VERSION)"
+          # Pinned via the ENGINE_VERSION file — fetching "latest" raced the
+          # engine's own release pipeline and silently shipped the previous
+          # engine when the app tag landed first. A missing pinned release
+          # now fails loudly instead.
           echo "vidraDlp release: $TAG"
           echo "vidraDlp: \`$TAG\`" >> "$GITHUB_STEP_SUMMARY"
           # Every darwin asset, not the first one that sorts. The old glob
