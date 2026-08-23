@@ -1,7 +1,7 @@
 name: vidra
 description: "Vidra - Video Streaming App"
 publish_to: "none"
-version: 1.16.1+43
+version: 1.16.2+44
 
 environment:
   sdk: ^3.10.1
