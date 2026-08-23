@@ -319,7 +319,8 @@
     "episode_fallback": "Episode",
     "time_left": "{} left",
     "active_count": "{} downloading",
-    "pet_bubble": "{} finished downloading"
+    "pet_bubble": "{} finished downloading",
+    "remuxing": "Remuxing…"
   },
   "filter": {
     "all_types": "All Types",

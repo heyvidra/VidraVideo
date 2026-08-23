@@ -116,8 +116,10 @@ class _DownloadTaskCardState extends ConsumerState<DownloadTaskCard> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                '${formatBytes(episode.bytesDownloaded)} / ${formatBytes(episode.totalBytes)}'
-                                '${task.estimatedTimeRemaining != null ? " · ${tr('download.time_left', args: [formatDuration(task.estimatedTimeRemaining!)])}" : ""}',
+                                episode.phase == 'remuxing'
+                                    ? tr('download.remuxing')
+                                    : '${formatBytes(episode.bytesDownloaded)} / ${formatBytes(episode.totalBytes)}'
+                                          '${task.estimatedTimeRemaining != null ? " · ${tr('download.time_left', args: [formatDuration(task.estimatedTimeRemaining!)])}" : ""}',
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: theme.colorScheme.onSurfaceVariant,

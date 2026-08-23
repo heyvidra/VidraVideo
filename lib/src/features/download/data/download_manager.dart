@@ -509,6 +509,16 @@ class DownloadManager {
             final ep = _episodeAt(taskId, i);
             // Drop progress ticks that race a status change.
             if (ep == null || ep.status != DownloadStatus.downloading) return;
+            if (status == 'Remuxing') {
+              // Bytes are all down; the remux event carries no counters —
+              // keep the ones we have and flag the phase for the UI.
+              _updateEpisode(
+                taskId,
+                i,
+                ep.copyWith(progress: 1.0, phase: 'remuxing'),
+              );
+              return;
+            }
             _updateEpisode(
               taskId,
               i,

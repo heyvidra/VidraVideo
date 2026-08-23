@@ -86,6 +86,15 @@ class VidraDlpDownloader implements SegmentDownloader {
       switch (event['event'] as String?) {
         case 'progress':
           if (onProgress != null) {
+            final diag = event['diagnostics'];
+            final stage =
+                (diag is Map ? diag['stage'] : event['stage']) as String?;
+            if (stage == 'remuxing' || stage == 'merging') {
+              // All bytes are down; the in-SDK remux/merge is running. The
+              // event carries no byte counts — the consumer keeps its own.
+              onProgress(1.0, 0, null, 'Remuxing');
+              break;
+            }
             final downloaded =
                 (event['downloaded_bytes'] as num?)?.toInt() ?? 0;
             final total = (event['total_bytes'] as num?)?.toInt();

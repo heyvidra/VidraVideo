@@ -319,7 +319,8 @@
     "episode_fallback": "剧集",
     "time_left": "剩 {}",
     "active_count": "{} 项下载中",
-    "pet_bubble": "《{}》下载好啦"
+    "pet_bubble": "《{}》下载好啦",
+    "remuxing": "转码中…"
   },
   "filter": {
     "all_types": "全部类型",

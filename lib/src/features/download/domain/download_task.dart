@@ -20,6 +20,12 @@ class EpisodeDownloadInfo {
   /// used by catalog HLS downloads; the pasted-URL flow sets it explicitly.
   final String? formatId;
   final DownloadStatus status;
+
+  /// Transient sub-state while [status] is [DownloadStatus.downloading]:
+  /// 'remuxing' when the bytes are all down and the in-SDK TS→MP4 remux is
+  /// running (serialized process-wide, so the wait is visible). Not
+  /// persisted — meaningless across a restart.
+  final String? phase;
   final double progress; // 0.0 to 1.0
   final int bytesDownloaded;
   final int totalBytes;
@@ -34,6 +40,7 @@ class EpisodeDownloadInfo {
     this.outputPath,
     this.formatId,
     this.status = DownloadStatus.queued,
+    this.phase,
     this.progress = 0.0,
     this.bytesDownloaded = 0,
     this.totalBytes = 0,
@@ -49,6 +56,7 @@ class EpisodeDownloadInfo {
     String? outputPath,
     String? formatId,
     DownloadStatus? status,
+    String? phase,
     double? progress,
     int? bytesDownloaded,
     int? totalBytes,
@@ -63,6 +71,7 @@ class EpisodeDownloadInfo {
       outputPath: outputPath ?? this.outputPath,
       formatId: formatId ?? this.formatId,
       status: status ?? this.status,
+      phase: phase ?? this.phase,
       progress: progress ?? this.progress,
       bytesDownloaded: bytesDownloaded ?? this.bytesDownloaded,
       totalBytes: totalBytes ?? this.totalBytes,
