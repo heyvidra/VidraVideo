@@ -12,6 +12,7 @@ import 'package:vidra/src/common/skeleton/skeleton_box.dart';
 import 'package:vidra/src/common/skeleton/video_card_skeleton.dart';
 import 'package:vidra/src/features/video/domain/category.dart';
 import 'package:vidra/src/features/video/data/video_repository.dart';
+import 'package:vidra/src/features/video/data/yfsp/yfsp_challenge.dart';
 
 class VideoListScreen extends HookConsumerWidget {
   const VideoListScreen({super.key});
@@ -38,6 +39,12 @@ class VideoListScreen extends HookConsumerWidget {
     final scrollController = useScrollController();
     useEffect(() {
       scrollController.addListener(() {
+        // Only PAGINATE an existing list. With an empty list — first load, or
+        // an error screen — maxScrollExtent collapses to ~0, so this threshold
+        // is always met and every scroll/layout tick re-fires loadNextPage;
+        // against a rate-limited source that is a self-inflicted hammering.
+        // The first page is driven by the notifier's build(), not by scroll.
+        if (ref.read(videoListProvider).videos.isEmpty) return;
         if (scrollController.position.pixels >=
             scrollController.position.maxScrollExtent - 200) {
           ref.read(videoListProvider.notifier).loadNextPage();
@@ -164,17 +171,38 @@ class VideoListScreen extends HookConsumerWidget {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 12),
-                        TextButton(
-                          // Retries the LIST only. Invalidating categories here
-                          // looks helpful but rebuilds VideoListFilterNotifier,
-                          // which resets the selection to categories.first and
-                          // drops the user's area/year — so "refresh" would
-                          // silently discard the very filter that failed.
-                          // Category failures get their own retry above.
-                          onPressed: () =>
-                              ref.read(videoListProvider.notifier).refresh(),
-                          child: Text(tr('common.refresh')),
-                        ),
+                        if (listState.error is ChallengeRequiredException)
+                          // Refresh is useless while Cloudflare's wall is up;
+                          // the only move is a human passing the check, and
+                          // the refresh happens on its own once they do.
+                          TextButton(
+                            onPressed: () async {
+                              // Grab the notifier BEFORE the await: solve()
+                              // opens a native window and the app rebuilds, so
+                              // the captured `context` is unmounted by the time
+                              // it returns — `context.mounted` would be false
+                              // and the refresh silently skipped. The notifier
+                              // reference stays valid across the await.
+                              final notifier = ref.read(
+                                videoListProvider.notifier,
+                              );
+                              if (await YfspBrowser.solve()) notifier.refresh();
+                            },
+                            child: Text(tr('common.human_check')),
+                          )
+                        else
+                          TextButton(
+                            // Retries the LIST only. Invalidating categories
+                            // here looks helpful but rebuilds
+                            // VideoListFilterNotifier, which resets the
+                            // selection to categories.first and drops the
+                            // user's area/year — so "refresh" would silently
+                            // discard the very filter that failed. Category
+                            // failures get their own retry above.
+                            onPressed: () =>
+                                ref.read(videoListProvider.notifier).refresh(),
+                            child: Text(tr('common.refresh')),
+                          ),
                       ],
                     )
                   : Text(
