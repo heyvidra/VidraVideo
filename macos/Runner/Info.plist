@@ -41,5 +41,13 @@
 	     engine active. -->
 	<key>FLTEnableMergedPlatformUIThread</key>
 	<false/>
+	<!-- TEMPORARY: fall back to the Skia renderer. Impeller crashes on the
+	     raster thread when the app is foregrounded after the machine sleeps —
+	     it renders into a Metal texture whose descriptor no longer matches its
+	     size and dereferences a null texture in Canvas::SetupRenderPass
+	     (EXC_BAD_ACCESS). Upstream flutter/flutter#185394, still open; 3.47.1
+	     does not carry the fix. Remove this once a Flutter release lands it. -->
+	<key>FLTEnableImpeller</key>
+	<false/>
 </dict>
 </plist>
