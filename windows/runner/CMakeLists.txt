@@ -11,6 +11,7 @@ add_executable(${BINARY_NAME} WIN32
   "main.cpp"
   "utils.cpp"
   "win32_window.cpp"
+  "yfsp_browser.cpp"
   "${FLUTTER_MANAGED_DIR}/generated_plugin_registrant.cc"
   "Runner.rc"
   "runner.exe.manifest"
@@ -35,6 +36,42 @@ target_compile_definitions(${BINARY_NAME} PRIVATE "NOMINMAX")
 target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app)
 target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
+
+# --- WebView2 SDK, for the yfsp browser transport (yfsp_browser.cpp) ---------
+# Restored from NuGet at configure time. Needs network access on the first
+# Windows build; the package then caches under the build tree.
+set(WEBVIEW2_VERSION "1.0.2210.55")
+find_program(NUGET_EXE NAMES nuget)
+if(NOT NUGET_EXE)
+  set(NUGET_EXE "${CMAKE_BINARY_DIR}/nuget.exe")
+  if(NOT EXISTS "${NUGET_EXE}")
+    message(STATUS "Downloading nuget.exe for the WebView2 SDK")
+    file(DOWNLOAD "https://dist.nuget.org/win-x86-commandline/latest/nuget.exe"
+         "${NUGET_EXE}")
+  endif()
+endif()
+execute_process(
+  COMMAND "${NUGET_EXE}" install "Microsoft.Web.WebView2"
+          -Version "${WEBVIEW2_VERSION}" -ExcludeVersion
+          -OutputDirectory "${CMAKE_BINARY_DIR}/packages"
+  WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
+set(WEBVIEW2_DIR "${CMAKE_BINARY_DIR}/packages/Microsoft.Web.WebView2")
+
+# Map the CMake platform onto WebView2's native lib folder.
+if(CMAKE_GENERATOR_PLATFORM STREQUAL "Win32")
+  set(WEBVIEW2_ARCH "x86")
+elseif(CMAKE_GENERATOR_PLATFORM STREQUAL "ARM64")
+  set(WEBVIEW2_ARCH "arm64")
+else()
+  set(WEBVIEW2_ARCH "x64")
+endif()
+
+target_include_directories(${BINARY_NAME} PRIVATE
+  "${WEBVIEW2_DIR}/build/native/include")
+target_link_libraries(${BINARY_NAME} PRIVATE
+  "${WEBVIEW2_DIR}/build/native/${WEBVIEW2_ARCH}/WebView2LoaderStatic.lib")
+# The static loader and WRL callbacks pull these in.
+target_link_libraries(${BINARY_NAME} PRIVATE "version.lib" "shlwapi.lib")
 
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)
