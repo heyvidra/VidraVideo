@@ -3,6 +3,7 @@
 #include <optional>
 
 #include "flutter/generated_plugin_registrant.h"
+#include "yfsp_browser.h"
 
 FlutterWindow::FlutterWindow(const flutter::DartProject &project)
     : project_(project) {}
@@ -35,6 +36,10 @@ bool FlutterWindow::OnCreate() {
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   RegisterPlugins(flutter_controller_->engine());
+  // Same seam as macOS's MainFlutterWindow.setupFlutter: register the yfsp
+  // WebView transport on every window's engine (bitsdojo builds the player
+  // window from this class too), so the process-wide WebView2 is shared.
+  RegisterYfspBrowser(flutter_controller_->engine());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() { this->Show(); });
 

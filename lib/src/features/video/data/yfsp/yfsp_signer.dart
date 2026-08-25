@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
-import 'package:dio/dio.dart';
 
 import '../../../../core/utils/log.dart';
+import 'yfsp_challenge.dart';
 
 /// Signs yfsp API calls.
 ///
@@ -27,9 +27,7 @@ import '../../../../core/utils/log.dart';
 /// page, cached, and re-scraped when the API says the signature is stale —
 /// there is no expiry to schedule against, only the server's verdict.
 class YfspSigner {
-  YfspSigner(this._dio);
-
-  final Dio _dio;
+  YfspSigner();
 
   /// Any page carries `pConfig`; the drama list is the smallest reliable one.
   static const String _keyPageUrl = 'https://www.yfsp.tv/list/drama';
@@ -86,11 +84,19 @@ class YfspSigner {
   Future<({String pub, String priv})> _resolveKeys() async {
     final cached = _keys ??= _readCache();
     if (cached != null) return cached;
-    final keys = await (_pending ??= _fetchKeys());
-    _pending = null;
-    _keys = keys;
-    _writeCache(keys);
-    return keys;
+    // `_pending` MUST be cleared even when the scrape throws — otherwise a
+    // first attempt that hit the Cloudflare wall leaves this static pointing
+    // at a permanently-failed future, and every later attempt (including the
+    // one right after the human passes the challenge) re-awaits that same
+    // failure instead of scraping again. The `finally` is the whole fix.
+    try {
+      final keys = await (_pending ??= _fetchKeys());
+      _keys = keys;
+      _writeCache(keys);
+      return keys;
+    } finally {
+      _pending = null;
+    }
   }
 
   ({String pub, String priv})? _readCache() {
@@ -198,15 +204,13 @@ class YfspSigner {
     return '$base?$wire&vv=$vv&pub=$pub';
   }
 
+  /// Reads the key pair from the browser's NAVIGATION-loaded key page (see
+  /// [YfspBrowser.readKeys]). Null keys mean the page carried no pConfig, which
+  /// in practice is the Cloudflare wall — surfaced as [ChallengeRequiredException]
+  /// so the caller shows the "human check" button instead of a dead end.
   Future<({String pub, String priv})> _fetchKeys() async {
-    final response = await _dio.get<String>(
-      _keyPageUrl,
-      options: Options(
-        responseType: ResponseType.plain,
-        headers: const {'User-Agent': userAgent},
-      ),
-    );
-    final keys = parseKeys(response.data ?? '');
+    final keys = await YfspBrowser.readKeys();
+    if (keys == null) throw ChallengeRequiredException();
     logD('Yfsp', 'Signing keys refreshed');
     return keys;
   }

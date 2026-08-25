@@ -335,6 +335,7 @@
   },
   "common": {
     "refresh": "Refresh",
+    "human_check": "Verify you're human",
     "language": "Language",
     "zh": "Chinese",
     "en": "English",

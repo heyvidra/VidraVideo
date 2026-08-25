@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -9,6 +10,7 @@ import 'package:vidra/src/features/video/domain/category.dart';
 import 'package:vidra/src/features/video/domain/video_collection.dart';
 import 'package:vidra/src/features/video/data/video_data_source.dart';
 import 'yfsp_categories.dart';
+import 'yfsp_challenge.dart';
 import 'yfsp_dto.dart';
 import 'yfsp_signer.dart';
 
@@ -30,7 +32,7 @@ import 'yfsp_signer.dart';
 ///   are exchanged one at a time by [resolveEpisodeUrl], at the moment
 ///   playback starts.
 class YfspDataSource implements VideoDataSource {
-  YfspDataSource(this._dio) : _signer = YfspSigner(_dio);
+  YfspDataSource(this._dio) : _signer = YfspSigner();
 
   final Dio _dio;
   final YfspSigner _signer;
@@ -379,28 +381,45 @@ class YfspDataSource implements VideoDataSource {
     bool? hadFilters,
     bool retried = false,
   }) async {
-    final Response<dynamic> response;
+    // Made from inside the browser, not by Dio: the API is behind a Cloudflare
+    // challenge whose clearance is bound to the browser's TLS fingerprint, so
+    // only a request originating there gets through. [YfspBrowser.fetch] throws
+    // ChallengeRequiredException while the wall is up — which puts the "human
+    // check" button on the error screen — so that is left to propagate.
+    final String text;
     try {
-      response = await _dio.getUri(
-        Uri.parse(await _signer.sign(base, params)),
-        options: Options(
-          headers: const {
-            'User-Agent': YfspSigner.userAgent,
-            'Referer': YfspSigner.referer,
-          },
-        ),
-      );
-    } on DioException catch (e) {
-      logD('Yfsp', '$endpoint failed: $e');
-      throw ApiException.fromDioException(e);
+      text = await YfspBrowser.fetch(await _signer.sign(base, params));
+    } on ChallengeRequiredException {
+      _report(endpoint, field: 'cf_challenge');
+      rethrow;
     }
 
-    final body = response.data;
-    final data = body is Map<String, dynamic>
-        ? body['data'] as Map<String, dynamic>?
-        : null;
+    final Map<String, dynamic>? body;
+    try {
+      body = jsonDecode(text) as Map<String, dynamic>?;
+    } on FormatException {
+      // Not JSON — almost always the SPA's HTML shell, and that means the
+      // signing keys ROTATED: a stale public key makes the API drop its CORS
+      // headers, the browser fetch throws, and the fallback navigation returns
+      // the shell. The tell never reaches the `签名` branch below (it isn't
+      // JSON at all), so the key refresh has to happen HERE, once.
+      if (!retried) {
+        logD('Yfsp', 'Non-JSON body, re-scraping keys');
+        _signer.invalidate();
+        return _get(
+          base,
+          params,
+          endpoint: endpoint,
+          hadFilters: hadFilters,
+          retried: true,
+        );
+      }
+      _report(endpoint, field: 'not_json');
+      return const [];
+    }
+    final data = body?['data'] as Map<String, dynamic>?;
     if (data == null) {
-      _report(endpoint, field: 'data', extra: {'status': response.statusCode});
+      _report(endpoint, field: 'data');
       return const [];
     }
 
@@ -437,7 +456,6 @@ class YfspDataSource implements VideoDataSource {
       field: 'code',
       extra: {
         'code': code is int ? code : code.runtimeType.toString(),
-        'status': response.statusCode,
         'had_filters': ?hadFilters,
       },
     );
