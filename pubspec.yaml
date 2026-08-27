@@ -59,15 +59,24 @@ dependencies:
     git:
       url: https://github.com/heyvidra/bitsdojo_window_plus.git
       path: bitsdojo_window
-      # v0.5.1: the Windows `size` setter no longer shrinks the window by the
-      # DPI factor, Display gains logical-unit accessors, and animateTo owns
-      # the Windows resize-and-move flash this app used to hand-roll. (0.5.0:
-      # window events, displays, native menus and alerts; 0.4.3: traffic
-      # lights no longer clipped to half their height on macOS 13 and older.)
+      # v0.7.0: the receiver rule — anything acting on THIS window is an
+      # `appWindow` member, anything addressing the process/machine moves to the
+      # new `desktopApp` (closeWindow/hasWindow/windowClosed/displays/...).
+      # Native-UI calls (showNativeAlert/Confirm/Menu) move onto `appWindow`,
+      # and openNewWindow now returns a WindowRef. Every pre-0.7.0 top-level
+      # function stays as a @Deprecated forwarder, so this app's onWindowClosed
+      # / showNativeMenu / showNativeConfirm / getDisplays keep working (warnings
+      # only); the sole hard removal, the `visible` getter/setter, is unused
+      # here. Native setupFlutter is unchanged; MultiWindowManager only grew.
+      # (v0.5.1: Windows `size` no longer shrinks by the DPI factor, animateTo
+      # owns the resize-and-move flash; 0.5.0: window events, displays, native
+      # menus and alerts; 0.4.3: traffic lights no longer clipped on macOS ≤13.)
       #
-      # Plain tag, no `^{}` dance: these tags are LIGHTWEIGHT, unlike
-      # vidra_player's, so the ref and the commit are the same object.
-      ref: v0.5.1
+      # UNLIKE the 0.5.x tags, v0.7.0 is ANNOTATED — `git ls-remote` shows a
+      # `v0.7.0^{}` peel. pub resolves the tag to its commit on checkout, so the
+      # plain ref still works (there is no path-dep to unify by SHA as there is
+      # for vidra_player).
+      ref: v0.7.0
 
   # git, not path: this repo is developed from worktrees as well as from its
   # own checkout, and a relative path resolves differently in each.

@@ -61,47 +61,47 @@ packages:
     dependency: "direct main"
     description:
       path: bitsdojo_window
-      ref: "v0.5.1"
-      resolved-ref: ed8f66cd4309361c4077185accabe192c96180c9
+      ref: "v0.7.0"
+      resolved-ref: ce368009afc123375d16036cf7a90491b9bbd8b9
       url: "https://github.com/heyvidra/bitsdojo_window_plus.git"
     source: git
-    version: "0.5.1"
+    version: "0.7.0"
   bitsdojo_window_linux:
     dependency: transitive
     description:
       path: bitsdojo_window_linux
-      ref: ed8f66cd4309361c4077185accabe192c96180c9
-      resolved-ref: ed8f66cd4309361c4077185accabe192c96180c9
+      ref: ce368009afc123375d16036cf7a90491b9bbd8b9
+      resolved-ref: ce368009afc123375d16036cf7a90491b9bbd8b9
       url: "https://github.com/heyvidra/bitsdojo_window_plus.git"
     source: git
-    version: "0.5.1"
+    version: "0.7.0"
   bitsdojo_window_macos:
     dependency: transitive
     description:
       path: bitsdojo_window_macos
-      ref: ed8f66cd4309361c4077185accabe192c96180c9
-      resolved-ref: ed8f66cd4309361c4077185accabe192c96180c9
+      ref: ce368009afc123375d16036cf7a90491b9bbd8b9
+      resolved-ref: ce368009afc123375d16036cf7a90491b9bbd8b9
       url: "https://github.com/heyvidra/bitsdojo_window_plus.git"
     source: git
-    version: "0.5.1"
+    version: "0.7.0"
   bitsdojo_window_platform_interface:
     dependency: transitive
     description:
       path: bitsdojo_window_platform_interface
-      ref: ed8f66cd4309361c4077185accabe192c96180c9
-      resolved-ref: ed8f66cd4309361c4077185accabe192c96180c9
+      ref: ce368009afc123375d16036cf7a90491b9bbd8b9
+      resolved-ref: ce368009afc123375d16036cf7a90491b9bbd8b9
       url: "https://github.com/heyvidra/bitsdojo_window_plus.git"
     source: git
-    version: "0.5.1"
+    version: "0.7.0"
   bitsdojo_window_windows:
     dependency: transitive
     description:
       path: bitsdojo_window_windows
-      ref: ed8f66cd4309361c4077185accabe192c96180c9
-      resolved-ref: ed8f66cd4309361c4077185accabe192c96180c9
+      ref: ce368009afc123375d16036cf7a90491b9bbd8b9
+      resolved-ref: ce368009afc123375d16036cf7a90491b9bbd8b9
       url: "https://github.com/heyvidra/bitsdojo_window_plus.git"
     source: git
-    version: "0.5.1"
+    version: "0.7.0"
   boolean_selector:
     dependency: transitive
     description:

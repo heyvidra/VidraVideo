@@ -151,7 +151,7 @@ class WindowHelper {
     final at = _sanePosition(x, y);
     if (at == null) return null;
     try {
-      final displays = await getDisplays();
+      final displays = await desktopApp.displays();
       if (displays.isEmpty) return at;
       // logicalBounds/logicalWorkArea, not the raw rects: display geometry is
       // device pixels on Windows and points on macOS, and the conversion is

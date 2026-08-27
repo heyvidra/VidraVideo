@@ -13,6 +13,14 @@ import '../pet/pet_controller.dart';
 import '../pet/pet_state.dart';
 import '../pet/pet_widget.dart';
 
+/// The main window's live subscription to `desktopApp.windowClosed`, parked at
+/// library level so the app-exit interceptor in main() can cancel it without
+/// reaching into the dashboard State that owns it. Successor to bitsdojo's old
+/// single-slot `onWindowClosed` setter (any code could null it): the dashboard
+/// registers it, and a confirmed exit clears it so the pet's close during
+/// shutdown is not misread as "the user turned the pet off".
+StreamSubscription<String>? petWindowClosedSub;
+
 /// A small always-on-top transparent window holding a creature that reacts to
 /// what the app is doing.
 ///
@@ -46,7 +54,7 @@ class PetWindowLauncher {
   }
 
   /// Closes the pet window. A no-op when it is not open.
-  static Future<void> dismiss() => closeWindow(windowName);
+  static Future<void> dismiss() => desktopApp.closeWindow(windowName);
 
   static int _nonce = 0;
 
@@ -350,7 +358,7 @@ class _PetState extends State<Pet> {
   /// once the menu closes, which is also what stops the press underneath from
   /// starting a drag.
   Future<void> _openMenu(Offset at) async {
-    final picked = await showNativeMenu([
+    final picked = await appWindow.showNativeMenu([
       NativeMenuItem('close', tr('common.close')),
     ], position: at);
     if (picked == 'close') appWindow.close();

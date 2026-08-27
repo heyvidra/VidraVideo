@@ -69,8 +69,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     _restorePet();
     // The pet can die outside the settings screen — its own right-click
     // menu. Without this the showPet setting keeps saying "on" and the pet
-    // resurrects on next launch.
-    onWindowClosed = _handleWindowClosed;
+    // resurrects on next launch. The subscription lives at library level
+    // (pet_window.dart) so the exit interceptor can cancel it — see there.
+    petWindowClosedSub = desktopApp.windowClosed.listen(_handleWindowClosed);
     // The pet reacts to app life beyond subscriptions: a finished download
     // and a cast going live each earn a bubble. macOS only, like the pet.
     if (Platform.isMacOS) {
@@ -125,7 +126,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     if (name != PetWindowLauncher.windowName) return;
     // A rapid off->on flip can land this broadcast AFTER the user already
     // reopened the pet; a live pet means the close it reports is old news.
-    if (await hasWindow(PetWindowLauncher.windowName)) return;
+    if (await desktopApp.hasWindow(PetWindowLauncher.windowName)) return;
     final repo = ref.read(settingsRepositoryProvider);
     final settings = await repo.getSettings();
     if (!settings.showPet) return;
@@ -151,7 +152,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       // startup race — no window, no error. Verify and re-ask once; the
       // native side reuses by name, so a retry can never spawn a second pet.
       await Future<void>.delayed(const Duration(seconds: 2));
-      if (!await hasWindow(PetWindowLauncher.windowName)) {
+      if (!await desktopApp.hasWindow(PetWindowLauncher.windowName)) {
         logR('Pet', 'restore: window missing after 2s — retrying once');
         await PetWindowLauncher.show();
       }
@@ -175,7 +176,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     _subscriptionTimer?.cancel();
     _downloadsSub?.close();
     _castSub?.close();
-    if (onWindowClosed == _handleWindowClosed) onWindowClosed = null;
+    petWindowClosedSub?.cancel();
+    petWindowClosedSub = null;
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }

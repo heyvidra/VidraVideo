@@ -355,7 +355,7 @@ class _MyAppState extends ConsumerState<MyApp> {
     // because this runs while the window is being torn down, and the tree
     // that would host a dialog is exactly what is going away. A native alert
     // has no such dependency: it is not part of the scene it is asking about.
-    final shouldClose = await showNativeConfirm(
+    final shouldClose = await appWindow.showNativeConfirm(
       title: tr('dashboard.exit_dialog.title'),
       message: tr('dashboard.exit_dialog.content'),
       confirmLabel: tr('dashboard.exit_dialog.confirm'),
@@ -373,7 +373,10 @@ class _MyAppState extends ConsumerState<MyApp> {
     // A confirmed exit closes every window; the pet's close broadcast must
     // not land on the dying main engine and record "the user closed the pet"
     // — that write would stop the pet auto-restoring next launch.
-    if (shouldClose) onWindowClosed = null;
+    if (shouldClose) {
+      petWindowClosedSub?.cancel();
+      petWindowClosedSub = null;
+    }
 
     return shouldClose;
   }
