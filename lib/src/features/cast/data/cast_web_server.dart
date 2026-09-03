@@ -123,6 +123,19 @@ class CastWebServer {
 
   void Function(CastProgress progress)? onProgress;
 
+  /// Turns a non-http playlist entry into something fetchable, at the moment
+  /// the renderer asks for it. yfsp stores a `yfsp://<key>` placeholder and
+  /// mints the real URL one episode at a time behind a rate limiter, so the
+  /// exchange happens here — when the TV fetches — and never for the whole
+  /// show up front. May answer with an http(s) URL or a LOCAL playlist path
+  /// (yfsp signs every segment and hands back the rewritten file).
+  Future<String?> Function(String url)? resolve;
+
+  /// Headers the current source's CDN must be asked with, replacing the
+  /// browser identity and per-hop Referer [_fetch] sends by default. yfsp's
+  /// CDN answers 520 to a Referer naming itself, which is exactly the default.
+  Map<String, String>? upstreamHeaders;
+
   /// Completes the first time a television asks for the player page.
   Completer<void>? _fetched;
 
@@ -178,9 +191,15 @@ class CastWebServer {
     final base = _baseUrl;
     if (base == null) throw const CastServerException('server not started');
     _playlist = playlist;
+    // Only http(s) entries name an origin; a placeholder (`yfsp://…`) has none
+    // yet, and `.origin` throws on it — which was the whole cast failing.
+    // Its origin is adopted when [resolve] answers.
     _allowedOrigins
       ..clear()
-      ..addAll({for (final item in playlist.items) Uri.parse(item.url).origin});
+      ..addAll({
+        for (final item in playlist.items)
+          if (_isHttp(Uri.tryParse(item.url))) Uri.parse(item.url).origin,
+      });
     _fetched = Completer<void>();
     return '$base/player?t=$_token';
   }
@@ -351,13 +370,38 @@ class CastWebServer {
       await req.response.close();
       return;
     }
-    final target = Uri.tryParse(raw);
-    if (target == null || !_mayFetch(target)) {
+    final parsed = Uri.tryParse(raw);
+    if (parsed == null) {
+      req.response.statusCode = HttpStatus.badRequest;
+      await req.response.close();
+      return;
+    }
+    var target = parsed;
+    // A playlist path on this machine rather than a URL: what [resolve]
+    // answers when the source had to rewrite the playlist before anything
+    // could play it.
+    String? localPlaylist;
+    if (!_isHttp(target) && resolve != null) {
+      final resolved = await resolve!(raw);
+      final fetchable = resolved == null ? null : Uri.tryParse(resolved);
+      if (resolved == null || fetchable == null) {
+        req.response.statusCode = HttpStatus.badGateway;
+        await req.response.close();
+        return;
+      }
+      if (_isHttp(fetchable)) {
+        _adoptOrigin(fetchable);
+        target = fetchable;
+      } else {
+        localPlaylist = resolved;
+      }
+    }
+    if (localPlaylist == null && !_mayFetch(target)) {
       // The playlist said which origins this cast needs. Anything else is
       // someone using us to reach something we were never asked to reach.
       // Scheme and host only: a signed CDN URL's query is a credential, and
       // .origin throws on the schemes worth refusing loudest.
-      logD('cast', 'proxy refused ${target?.scheme}://${target?.host}');
+      logD('cast', 'proxy refused ${target.scheme}://${target.host}');
       req.response.statusCode = HttpStatus.forbidden;
       await req.response.close();
       return;
@@ -371,7 +415,8 @@ class CastWebServer {
     // player treats it as a live playlist, reaches the last surviving segment
     // and waits for a continuation that never comes. Decide by extension
     // BEFORE fetching, because the content type only arrives with the body.
-    final wantsPlaylist = looksLikePlaylist(null, target);
+    final wantsPlaylist =
+        localPlaylist != null || looksLikePlaylist(null, target);
     if (req.headers.value(_featuresRequestHeader)?.trim() == '1') {
       _dlnaHeader(
         req.response,
@@ -388,6 +433,17 @@ class CastWebServer {
     final asked =
         _nptSeconds(req.headers.value(_timeSeekHeader)) ??
         _positiveSeconds(req.uri.queryParameters['start']);
+
+    if (localPlaylist != null) {
+      await _servePlaylist(
+        req,
+        await File(localPlaylist).readAsBytes(),
+        Uri.file(localPlaylist),
+        asked: asked,
+        head: head,
+      );
+      return;
+    }
 
     if (head && !wantsPlaylist) {
       await _headSegment(req, target);
@@ -415,61 +471,7 @@ class CastWebServer {
         await req.response.close();
         return;
       }
-      // allowMalformed: one stray byte in a comment must not end the cast,
-      // and every line that matters here is ASCII.
-      final slice = sliceMediaPlaylist(
-        playlist: utf8.decode(bytes, allowMalformed: true),
-        offsetSeconds: asked ?? 0,
-      );
-      final rewritten = rewriteHlsPlaylist(
-        playlist: slice.playlist,
-        playlistUrl: target,
-        proxyBase: '$_baseUrl/proxy',
-        // A master has no segments to cut, so the offset rides down to the
-        // variant on the URL. A media playlist has already been cut, and
-        // handing the same offset to its segments would mean nothing.
-        extraQuery: !slice.isMedia && asked != null
-            ? 't=$_token&start=${_npt(asked)}'
-            : 't=$_token',
-        onUri: _adoptOrigin,
-      );
-      if (asked != null) {
-        // The echo IS the seek contract: a renderer that asked and got no
-        // TimeSeekRange back concludes the stream cannot be seeked at all,
-        // and one that got a window it did not ask for still learns where in
-        // the episode the body it is about to play begins. A master knows no
-        // durations, so it can only name the point; the variant answers with
-        // the real window a moment later.
-        _dlnaHeader(
-          req.response,
-          _timeSeekHeader,
-          slice.isMedia
-              ? 'npt=${_npt(slice.startSeconds)}-${_npt(slice.totalSeconds)}'
-                    '/${_npt(slice.totalSeconds)}'
-              : 'npt=${_npt(asked)}-/*',
-        );
-      }
-      // 200, not the upstream's status: a rewritten playlist is a different
-      // body of a different length, so a passed-through 206 and its
-      // Content-Range would describe bytes we are not sending.
-      req.response.statusCode = HttpStatus.ok;
-      req.response.headers.set(
-        HttpHeaders.contentTypeHeader,
-        // charset or dart:io encodes the body as latin1, and a Chinese
-        // episode name in an #EXTINF line then throws mid-response — the
-        // television got a 500 for a playlist that was perfectly valid.
-        'application/vnd.apple.mpegurl; charset=utf-8',
-      );
-      final body = utf8.encode(rewritten);
-      // A HEAD gets the length of the body a GET would produce — the
-      // rewritten one, counted, never guessed from the upstream's own length,
-      // which describes a document with different URLs in it.
-      req.response.headers.set(
-        HttpHeaders.contentLengthHeader,
-        '${body.length}',
-      );
-      if (!head) req.response.add(body);
-      await req.response.close();
+      await _servePlaylist(req, bytes, target, asked: asked, head: head);
       return;
     }
     if (head) {
@@ -497,6 +499,72 @@ class CastWebServer {
     }
     await _streamBody(req, target, res);
   }
+
+  /// Rewrites playlist [bytes] so every URI in it comes back through this
+  /// proxy, cut to start at [asked] seconds, and sends it.
+  Future<void> _servePlaylist(
+    HttpRequest req,
+    List<int> bytes,
+    Uri playlistUrl, {
+    double? asked,
+    required bool head,
+  }) async {
+    // allowMalformed: one stray byte in a comment must not end the cast,
+    // and every line that matters here is ASCII.
+    final slice = sliceMediaPlaylist(
+      playlist: utf8.decode(bytes, allowMalformed: true),
+      offsetSeconds: asked ?? 0,
+    );
+    final rewritten = rewriteHlsPlaylist(
+      playlist: slice.playlist,
+      playlistUrl: playlistUrl,
+      proxyBase: '$_baseUrl/proxy',
+      // A master has no segments to cut, so the offset rides down to the
+      // variant on the URL. A media playlist has already been cut, and
+      // handing the same offset to its segments would mean nothing.
+      extraQuery: !slice.isMedia && asked != null
+          ? 't=$_token&start=${_npt(asked)}'
+          : 't=$_token',
+      onUri: _adoptOrigin,
+    );
+    if (asked != null) {
+      // The echo IS the seek contract: a renderer that asked and got no
+      // TimeSeekRange back concludes the stream cannot be seeked at all,
+      // and one that got a window it did not ask for still learns where in
+      // the episode the body it is about to play begins. A master knows no
+      // durations, so it can only name the point; the variant answers with
+      // the real window a moment later.
+      _dlnaHeader(
+        req.response,
+        _timeSeekHeader,
+        slice.isMedia
+            ? 'npt=${_npt(slice.startSeconds)}-${_npt(slice.totalSeconds)}'
+                  '/${_npt(slice.totalSeconds)}'
+            : 'npt=${_npt(asked)}-/*',
+      );
+    }
+    // 200, not the upstream's status: a rewritten playlist is a different
+    // body of a different length, so a passed-through 206 and its
+    // Content-Range would describe bytes we are not sending.
+    req.response.statusCode = HttpStatus.ok;
+    req.response.headers.set(
+      HttpHeaders.contentTypeHeader,
+      // charset or dart:io encodes the body as latin1, and a Chinese
+      // episode name in an #EXTINF line then throws mid-response — the
+      // television got a 500 for a playlist that was perfectly valid.
+      'application/vnd.apple.mpegurl; charset=utf-8',
+    );
+    final body = utf8.encode(rewritten);
+    // A HEAD gets the length of the body a GET would produce — the
+    // rewritten one, counted, never guessed from the upstream's own length,
+    // which describes a document with different URLs in it.
+    req.response.headers.set(HttpHeaders.contentLengthHeader, '${body.length}');
+    if (!head) req.response.add(body);
+    await req.response.close();
+  }
+
+  static bool _isHttp(Uri? url) =>
+      url != null && (url.isScheme('http') || url.isScheme('https'));
 
   /// Answers a HEAD for a media segment: what it is, how long it is, and what
   /// may be done with it — no body at all.
@@ -806,15 +874,22 @@ class CastWebServer {
       }
       final req = await _client.getUrl(url).timeout(_upstreamTimeout);
       req.followRedirects = false;
-      req.headers.set(HttpHeaders.userAgentHeader, _upstreamUa);
       // dart:io asks for gzip whether or not we decompress it, and we do not
       // (autoUncompress is off). A compressed playlist would then reach the
       // rewriter as raw deflate bytes and go to the television as one long
       // line of U+FFFD. Ask for it uncompressed instead.
       req.headers.set(HttpHeaders.acceptEncodingHeader, 'identity');
-      // Per hop, so the Referer always names the host being asked rather
-      // than trailing the origin we started from.
-      req.headers.set(HttpHeaders.refererHeader, '${url.origin}/');
+      final custom = upstreamHeaders;
+      if (custom != null) {
+        // The source said exactly what its CDN wants — and, by omission,
+        // what it must not get.
+        custom.forEach(req.headers.set);
+      } else {
+        req.headers.set(HttpHeaders.userAgentHeader, _upstreamUa);
+        // Per hop, so the Referer always names the host being asked rather
+        // than trailing the origin we started from.
+        req.headers.set(HttpHeaders.refererHeader, '${url.origin}/');
+      }
       if (range != null) req.headers.set(HttpHeaders.rangeHeader, range);
 
       final HttpClientResponse res;

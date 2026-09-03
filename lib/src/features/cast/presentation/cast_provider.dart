@@ -7,6 +7,7 @@ import '../../../core/telemetry/telemetry.dart';
 import '../../../core/utils/log.dart';
 import '../../video/domain/play_history.dart';
 import '../../video/data/history_repository.dart';
+import '../../video/data/video_repository.dart';
 import '../../video/domain/video_collection.dart';
 import '../../video/presentation/play_history_provider.dart';
 import '../data/cast_web_server.dart';
@@ -228,6 +229,13 @@ class CastController extends Notifier<CastState> {
       // TV's interface, and the address it chose may not reach this one.
       await _server.stop();
       await _manager.stopDiscovery();
+      // What the proxy needs to stand in for this source's player: yfsp
+      // hands out `yfsp://` placeholders that are exchanged per episode, and
+      // its CDN wants the player's headers, not the proxy's defaults.
+      final repo = ref.read(videoRepositoryProvider);
+      _server.resolve = (url) =>
+          repo.resolveEpisodeUrl(url, sourceId: video.sourceId);
+      _server.upstreamHeaders = repo.streamHeaders(sourceId: video.sourceId);
       // The ceiling on the whole attempt. Every await under it should be
       // bounded on its own, but the guard above reads `connecting`, so one
       // unbounded call against a wedged TV — accepted the TCP connection,

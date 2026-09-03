@@ -11,9 +11,14 @@ class _FakeCdn {
   String body = '';
   String contentType = 'application/vnd.apple.mpegurl';
 
+  /// What the last request arrived wearing, names lower-cased.
+  final Map<String, String> lastHeaders = {};
+
   Future<String> start() async {
     _server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     _server.listen((req) async {
+      lastHeaders.clear();
+      req.headers.forEach((k, v) => lastHeaders[k] = v.join(','));
       req.response.headers.set(HttpHeaders.contentTypeHeader, contentType);
       req.response.add(utf8.encode(body));
       await req.response.close();
@@ -210,6 +215,63 @@ void main() {
       expect(res.headers.contentType?.charset, 'utf-8');
     });
 
+    // yfsp stores a `yfsp://` placeholder per episode and mints the real URL
+    // at play time; the cast path handed that placeholder to Uri.origin and
+    // threw before the TV was asked anything (Sentry FLUTTER-B).
+    test('a placeholder is resolved when the TV asks, served as a local '
+        'playlist, and fetched with the source\'s own headers', () async {
+      cdn.body = 'segment-bytes';
+      cdn.contentType = 'video/mp2t';
+      final file = File(
+        '${Directory.systemTemp.path}/vidra_cast_test_'
+        '${DateTime.now().microsecondsSinceEpoch}.m3u8',
+      );
+      await file.writeAsString(
+        '#EXTM3U\n#EXTINF:10,\n$origin/seg.ts\n#EXT-X-ENDLIST\n',
+      );
+      addTearDown(file.delete);
+      final asked = <String>[];
+      server
+        ..resolve = (url) async {
+          asked.add(url);
+          return url == 'yfsp://k' ? file.path : null;
+        }
+        ..upstreamHeaders = const {'User-Agent': 'Vidra-test'};
+      try {
+        await server.start(peerHost: '127.0.0.1');
+      } on CastServerException {
+        return;
+      }
+      // The loopback CDN has to be named by an http item: a playlist may
+      // adopt a public origin, never a local one it was not already given.
+      server.serve(
+        CastPlaylist(
+          title: 'T',
+          items: [
+            CastItem(title: 'E1', url: 'yfsp://k', sourceIndex: 0),
+            CastItem(title: 'E2', url: '$origin/e2.m3u8', sourceIndex: 1),
+          ],
+        ),
+      );
+      final client = HttpClient();
+      final res = await (await client.getUrl(
+        Uri.parse(server.proxied('yfsp://k')),
+      )).close();
+      final text = await utf8.decodeStream(res);
+      expect(res.statusCode, 200);
+      expect(asked, ['yfsp://k']);
+      final segment = text
+          .split('\n')
+          .firstWhere((l) => l.contains('/proxy?url='));
+      final segRes = await (await client.getUrl(Uri.parse(segment))).close();
+      final seg = await utf8.decodeStream(segRes);
+      client.close();
+      expect(segRes.statusCode, 200);
+      expect(seg, 'segment-bytes');
+      expect(cdn.lastHeaders['user-agent'], 'Vidra-test');
+      expect(cdn.lastHeaders.containsKey('referer'), isFalse);
+    });
+
     test('an unlisted origin is refused', () async {
       final url = await proxiedPlaylist();
       if (url == null) return;
@@ -293,33 +355,35 @@ void main() {
       return server.proxied('${cdn.origin}$path');
     }
 
-    test('every answer says it is a stream, in the case renderers match on',
-        () async {
-      final url = await proxied('/media.m3u8');
-      if (url == null) return;
-      // Read the raw response: dart:io lower-cases every header name it
-      // writes unless told not to, and a renderer doing a case-sensitive
-      // compare never sees `transfermode.dlna.org`.
-      final at = Uri.parse(url);
-      final socket = await Socket.connect(at.host, at.port);
-      socket.write(
-        'GET ${at.path}?${at.query} HTTP/1.1\r\n'
-        'Host: ${at.host}:${at.port}\r\n'
-        'getcontentFeatures.dlna.org: 1\r\n'
-        'TimeSeekRange.dlna.org: npt=25-\r\n'
-        'Connection: close\r\n\r\n',
-      );
-      final received = <int>[];
-      await for (final chunk in socket) {
-        received.addAll(chunk);
-      }
-      final raw = utf8.decode(received, allowMalformed: true);
-      await socket.close();
+    test(
+      'every answer says it is a stream, in the case renderers match on',
+      () async {
+        final url = await proxied('/media.m3u8');
+        if (url == null) return;
+        // Read the raw response: dart:io lower-cases every header name it
+        // writes unless told not to, and a renderer doing a case-sensitive
+        // compare never sees `transfermode.dlna.org`.
+        final at = Uri.parse(url);
+        final socket = await Socket.connect(at.host, at.port);
+        socket.write(
+          'GET ${at.path}?${at.query} HTTP/1.1\r\n'
+          'Host: ${at.host}:${at.port}\r\n'
+          'getcontentFeatures.dlna.org: 1\r\n'
+          'TimeSeekRange.dlna.org: npt=25-\r\n'
+          'Connection: close\r\n\r\n',
+        );
+        final received = <int>[];
+        await for (final chunk in socket) {
+          received.addAll(chunk);
+        }
+        final raw = utf8.decode(received, allowMalformed: true);
+        await socket.close();
 
-      expect(raw, contains('transferMode.dlna.org: Streaming'));
-      expect(raw, contains('contentFeatures.dlna.org: DLNA.ORG_OP=10'));
-      expect(raw, contains('TimeSeekRange.dlna.org: npt='));
-    });
+        expect(raw, contains('transferMode.dlna.org: Streaming'));
+        expect(raw, contains('contentFeatures.dlna.org: DLNA.ORG_OP=10'));
+        expect(raw, contains('TimeSeekRange.dlna.org: npt='));
+      },
+    );
 
     test('a playlist advertises time-seek, a segment byte-seek', () async {
       final playlist = await proxied('/media.m3u8');
@@ -381,7 +445,9 @@ void main() {
 
       // And what the renderer plays first is a segment it can actually fetch:
       // still through us, still carrying the session token.
-      final first = res.body.split('\n').firstWhere((l) => l.startsWith('http'));
+      final first = res.body
+          .split('\n')
+          .firstWhere((l) => l.startsWith('http'));
       final segment = await _ask(first);
       expect(segment.status, 200);
       expect(segment.body, 'SEGMENT-TWO-BYTES');
@@ -417,33 +483,38 @@ void main() {
       );
     });
 
-    test('a master has no timeline, so the offset rides down to the variant',
-        () async {
-      final url = await proxied('/index.m3u8');
-      if (url == null) return;
-      final onMaster = await _ask(
-        url,
-        headers: {'TimeSeekRange.dlna.org': 'npt=25-'},
-      );
-      // The master names no durations, so it can only say where it was told
-      // to start; the variant answers with the real window a moment later.
-      expect(onMaster.headers.value('TimeSeekRange.dlna.org'), 'npt=25.000-/*');
-      expect(onMaster.body, contains('start=25.000'));
+    test(
+      'a master has no timeline, so the offset rides down to the variant',
+      () async {
+        final url = await proxied('/index.m3u8');
+        if (url == null) return;
+        final onMaster = await _ask(
+          url,
+          headers: {'TimeSeekRange.dlna.org': 'npt=25-'},
+        );
+        // The master names no durations, so it can only say where it was told
+        // to start; the variant answers with the real window a moment later.
+        expect(
+          onMaster.headers.value('TimeSeekRange.dlna.org'),
+          'npt=25.000-/*',
+        );
+        expect(onMaster.body, contains('start=25.000'));
 
-      final variant = onMaster.body
-          .split('\n')
-          .firstWhere((l) => l.startsWith('http'));
-      final onVariant = await _ask(variant);
-      expect(onVariant.body, contains('s2.ts'));
-      expect(onVariant.body, isNot(contains('s1.ts')));
-      expect(
-        onVariant.headers.value('TimeSeekRange.dlna.org'),
-        'npt=20.000-40.000/40.000',
-      );
-      // And the segments in it carry no offset of their own — a cut playlist
-      // is already where it needs to be.
-      expect(onVariant.body, isNot(contains('start=')));
-    });
+        final variant = onMaster.body
+            .split('\n')
+            .firstWhere((l) => l.startsWith('http'));
+        final onVariant = await _ask(variant);
+        expect(onVariant.body, contains('s2.ts'));
+        expect(onVariant.body, isNot(contains('s1.ts')));
+        expect(
+          onVariant.headers.value('TimeSeekRange.dlna.org'),
+          'npt=20.000-40.000/40.000',
+        );
+        // And the segments in it carry no offset of their own — a cut playlist
+        // is already where it needs to be.
+        expect(onVariant.body, isNot(contains('start=')));
+      },
+    );
 
     test('HEAD on a playlist describes the body a GET would send', () async {
       final url = await proxied('/media.m3u8');
