@@ -240,8 +240,11 @@ class CastController extends Notifier<CastState> {
       // bounded on its own, but the guard above reads `connecting`, so one
       // unbounded call against a wedged TV — accepted the TCP connection,
       // answers nothing — would otherwise lock casting out until the app is
-      // restarted. Sized for the slowest honest path: Samsung first-time
-      // pairing (45s) plus the wait for the TV to fetch the page (25s).
+      // restarted. Sized for the slowest honest path, which is now the DLNA
+      // one: three tries at a renderer that wedges, each costing a 15s Play
+      // that never answers plus the stop and reconnect between them, measured
+      // at 51s end to end. Samsung's is close behind — first-time pairing
+      // (45s) plus the wait for the TV to fetch the page (25s).
       final route = await () async {
         _mark('probe');
         final route = await routeFor(device);
@@ -253,7 +256,7 @@ class CastController extends Notifier<CastState> {
         }
         return route;
       }().timeout(
-        const Duration(seconds: 90),
+        const Duration(seconds: 120),
         onTimeout: () => throw const CastException('the TV did not answer'),
       );
       _mark('ready');
@@ -391,7 +394,8 @@ class CastController extends Notifier<CastState> {
     // after it are watched from their beginning.
     final resumeAt = playlist.startPositionSeconds;
     _mark('dlna.play_queue');
-    await _manager.playQueue(
+    await _playQueue(
+      device,
       CastQueue(
         items: [
           for (final (i, item) in playlist.items.indexed)
@@ -408,6 +412,45 @@ class CastController extends Notifier<CastState> {
       ),
     );
     _watchDlnaProgress(video, playlist);
+  }
+
+  /// Hands the renderer the queue, and asks again when it wedges.
+  ///
+  /// Measured against an LG webOS renderer: roughly two casts in five never
+  /// start. Play is accepted and then never answered, the transport sits in
+  /// LG_TRANSITIONING, every SOAP call after it goes unanswered and the
+  /// screen stays dark — and the renderer never comes out of it on its own.
+  /// It is the television and not what we serve it: a sixty-line reference
+  /// server sharing none of this code wedges at the same rate, and so does a
+  /// ten-segment playlist next to a two-hundred-and-forty-segment one. The
+  /// one thing that reliably differs is asking again — eight trials out of
+  /// eight reached playback within three attempts.
+  ///
+  /// Stop and reconnect between attempts, because neither is optional. A
+  /// wedged renderer refuses the next SetAVTransportURI outright with UPnP
+  /// 701, so the queue cannot simply be replayed; and [CastManager.stop]
+  /// drops the session, which [CastManager.playQueue] requires, so the
+  /// manager has to be given a new one before it will try at all.
+  Future<void> _playQueue(CastDevice device, CastQueue queue) async {
+    for (var attempt = 1; ; attempt++) {
+      try {
+        await _manager.playQueue(queue);
+        return;
+      } catch (_) {
+        // Three attempts, then the failure is the viewer's to see. The last
+        // one rethrows what the renderer actually said rather than a summary
+        // of it, so the stage tag and the snack bar stay as they were.
+        if (attempt >= 3) rethrow;
+        _mark('dlna.play_retry', detail: {'attempt': attempt});
+        try {
+          await _manager.stop();
+        } catch (_) {}
+        await Future<void>.delayed(const Duration(seconds: 3));
+        try {
+          await _manager.connect(device);
+        } catch (_) {}
+      }
+    }
   }
 
   /// Mirrors the renderer's position into watch history.
