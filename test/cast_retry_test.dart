@@ -157,4 +157,66 @@ void main() {
     },
     timeout: const Timeout(Duration(seconds: 60)),
   );
+
+  mimeTests();
+}
+
+/// The container the renderer is told about.
+///
+/// A source that stores a placeholder — yfsp keeps `yfsp://<key>` and mints
+/// the stream at play time — has no extension anywhere in the proxy URL, so
+/// the package's own sniffer fell back to video/mp4 over an HLS stream. The
+/// renderer then reports a duration taken from the first segment, and
+/// auto-advance never sees the end of the episode.
+class _HlsRepository implements VideoRepository {
+  final List<String> asked = [];
+
+  @override
+  Future<String?> resolveEpisodeUrl(String url, {String? sourceId}) async {
+    asked.add(url);
+    return url.startsWith('yfsp://') ? '/tmp/vidra_yfsp/abc.m3u8' : url;
+  }
+
+  @override
+  Map<String, String>? streamHeaders({String? sourceId}) => null;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _RecordingManager extends _FakeManager {
+  CastQueue? queue;
+
+  @override
+  Future<void> playQueue(CastQueue q) async {
+    queue = q;
+    return super.playQueue(q);
+  }
+}
+
+void mimeTests() {
+  test('a placeholder stream is declared by what it resolves to', () async {
+    final manager = _RecordingManager();
+    final repo = _HlsRepository();
+    final container = ProviderContainer(
+      overrides: [
+        castManagerProvider.overrideWithValue(manager),
+        videoRepositoryProvider.overrideWithValue(repo),
+      ],
+    );
+    addTearDown(container.dispose);
+    try {
+      await container
+          .read(castStateProvider.notifier)
+          .cast(device: _device, video: _show('yfsp://k'), episodeIndex: 0);
+    } on CastServerException {
+      return; // no LAN address on this machine
+    }
+    expect(repo.asked, ['yfsp://k']);
+    expect(
+      manager.queue?.items.single.estimatedMimeType,
+      'application/vnd.apple.mpegurl',
+      reason: 'video/mp4 over HLS is what stops the TV advancing',
+    );
+  }, timeout: const Timeout(Duration(seconds: 60)));
 }

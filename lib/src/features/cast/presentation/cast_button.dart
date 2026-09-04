@@ -10,6 +10,8 @@ import '../../video/domain/play_history.dart';
 import '../../video/domain/resume_target.dart';
 import '../../video/domain/video_collection.dart';
 import '../../video/presentation/play_history_provider.dart';
+import '../../video/presentation/widgets/cross_source_watch_badge.dart'
+    show crossSourceWatchFor;
 import '../../video/presentation/widgets/detail/video_detail_header.dart'
     show ActionButton;
 import 'cast_provider.dart';
@@ -88,6 +90,18 @@ class CastButton extends ConsumerWidget {
 
   /// Where playback should pick up — the same rule the play button uses, so
   /// the TV opens where the viewer left off rather than at episode one.
+  ///
+  /// "The same rule" includes the one that outranks every local row: a newer
+  /// viewing of this show on ANOTHER catalog. Without it the button beside
+  /// this one offered 第21集 while this one cast 第20集 — the same show, the
+  /// same page, two different answers.
+  ///
+  /// The episode NUMBER is what crosses, not the catalog: progress is shared
+  /// by number everywhere else on this page, and casting this catalog's own
+  /// episode keeps the cast attached to the page — the badge and the hint
+  /// above the grid both read the page's video, and handing the television a
+  /// different catalog's copy would make them vanish the moment it started.
+  /// A number this catalog does not reach is no use, so that falls back.
   ({int index, int seconds}) _resume(WidgetRef ref) {
     final key = (videoId: video.apiId, sourceId: video.sourceId);
     final histories =
@@ -95,6 +109,34 @@ class CastButton extends ConsumerWidget {
         const <int, EpisodeHistory>{};
     final videoHistory = ref.read(videoHistoryProvider(key)).value;
     final episodes = video.urls ?? const <VideoEpisode>[];
+
+    final newer = isEpisodicType(video.type)
+        ? crossSourceResumeOverride(
+            match: crossSourceWatchFor(ref, video),
+            histories: histories,
+            lastWriteAt: videoHistory?.updatedAt,
+          )
+        : null;
+    if (newer != null && newer.lastEpisodeIndex < episodes.length) {
+      final rows =
+          ref
+              .read(
+                episodeHistoriesProvider((
+                  videoId: newer.videoId,
+                  sourceId: newer.sourceId,
+                )),
+              )
+              .value ??
+          const <int, EpisodeHistory>{};
+      final row = rows[newer.lastEpisodeIndex];
+      return (
+        index: newer.lastEpisodeIndex,
+        seconds: row == null || row.durationMillis <= 0
+            ? 0
+            : (row.positionMillis / 1000).round(),
+      );
+    }
+
     final target = resolveResumeTarget(
       histories: histories,
       lastEpisodeIndex: videoHistory?.lastEpisodeIndex,

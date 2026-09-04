@@ -394,6 +394,7 @@ class CastController extends Notifier<CastState> {
     // after it are watched from their beginning.
     final resumeAt = playlist.startPositionSeconds;
     _mark('dlna.play_queue');
+    final mimeType = await _mimeTypeFor(video, playlist);
     await _playQueue(
       device,
       CastQueue(
@@ -402,6 +403,7 @@ class CastController extends Notifier<CastState> {
             PlaylistItem(
               id: item.url,
               title: item.title,
+              mimeType: mimeType,
               mediaUrl: _server.proxied(
                 item.url,
                 startSeconds: i == playlist.startIndex ? resumeAt : 0,
@@ -412,6 +414,44 @@ class CastController extends Notifier<CastState> {
       ),
     );
     _watchDlnaProgress(video, playlist);
+  }
+
+  /// What the renderer should be told this stream is.
+  ///
+  /// It has to be true. A renderer told `video/mp4` builds an mp4 timeline
+  /// over a playlist of segments, and the duration it then reports is
+  /// whatever the first segment implied — which is the number auto-advance
+  /// compares against, so the episode simply ends and the television stops
+  /// rather than moving to the next one.
+  ///
+  /// The package works the type out from the link inside the proxy URL,
+  /// which is right for a catalog storing `…/index.m3u8` and useless for one
+  /// storing a placeholder: `yfsp://<key>` has no extension either, so every
+  /// yfsp cast declared mp4 over HLS. Resolving the episode first is what
+  /// makes the answer honest — one call, cached for the session, and the
+  /// proxy is about to make it anyway when the television asks.
+  ///
+  /// The whole queue gets the answer for the episode being cast: one show on
+  /// one catalog is served in one container, and the alternative is a mint
+  /// per episode against a rate limiter that bans for exactly that.
+  Future<String?> _mimeTypeFor(Video video, CastPlaylist playlist) async {
+    final item = playlist.items.elementAtOrNull(playlist.startIndex);
+    if (item == null) return null;
+    try {
+      final resolved = await ref
+          .read(videoRepositoryProvider)
+          .resolveEpisodeUrl(item.url, sourceId: video.sourceId)
+          .timeout(const Duration(seconds: 15));
+      final path = (Uri.tryParse(resolved ?? '')?.path ?? '').toLowerCase();
+      if (path.endsWith('.m3u8')) return 'application/vnd.apple.mpegurl';
+      if (path.endsWith('.mp4')) return 'video/mp4';
+      if (path.endsWith('.mkv')) return 'video/x-matroska';
+    } catch (e) {
+      // Not worth failing a cast over: null puts the package's own guess
+      // back, which is what shipped before this.
+      logD('cast', 'could not resolve the stream type: $e');
+    }
+    return null;
   }
 
   /// Hands the renderer the queue, and asks again when it wedges.

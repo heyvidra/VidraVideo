@@ -278,6 +278,9 @@ class EpisodeSection extends ConsumerWidget {
             return EpisodeItem(
               videoId: gridVideo.apiId,
               video: gridVideo,
+              // Not gridVideo: an alternate catalog's grid still belongs to
+              // this page, and the cast hint above it speaks for this page.
+              pageVideo: video,
               originalIndex: originalIndex,
               episode: urls[originalIndex],
               isDownloadMode: downloadMode,

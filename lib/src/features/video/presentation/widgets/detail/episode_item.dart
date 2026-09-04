@@ -8,6 +8,7 @@ import 'package:vidra/src/features/video/presentation/widgets/cross_source_watch
 import 'package:vidra/src/features/video/domain/episode_number.dart';
 import 'package:vidra/src/features/video/domain/play_history.dart';
 import 'package:vidra/src/features/video/presentation/widgets/key_art.dart';
+import 'package:vidra/src/features/cast/presentation/cast_button.dart';
 import 'package:vidra/src/features/cast/presentation/cast_provider.dart';
 import 'package:vidra/src/features/download/data/download_provider.dart';
 import 'package:vidra/src/features/download/domain/download_task.dart';
@@ -30,6 +31,17 @@ class EpisodeItem extends ConsumerWidget {
   final VoidCallback? onTap;
   final EpisodeHistory? history;
 
+  /// The show as the PAGE knows it, which is not always [video]: picking
+  /// another catalog's chip rebuilds this grid from that catalog's rows,
+  /// while the header — and therefore the cast badge and the hint promising
+  /// this gesture — still speaks for the page's own.
+  ///
+  /// Whether a tap goes to the television is decided by this one, so the
+  /// promise and the gesture cannot disagree. What gets SENT is [video]:
+  /// tapping an episode of the catalog on screen puts that catalog's episode
+  /// on the TV, which is the whole reason for looking at it.
+  final Video pageVideo;
+
   const EpisodeItem({
     super.key,
     required this.videoId,
@@ -37,6 +49,7 @@ class EpisodeItem extends ConsumerWidget {
     required this.originalIndex,
     required this.episode,
     required this.isDownloadMode,
+    required this.pageVideo,
     this.isSelected = false,
     this.onTap,
     this.history,
@@ -251,14 +264,16 @@ class EpisodeItem extends ConsumerWidget {
     // the resume target happened to be, so watching episode 5 on the TV
     // meant first changing where you had left off.
     //
-    // Only when the cast is THIS show. Casting something else and opening
-    // this page must still open the local player, or a tap here would take
-    // over a television playing something the viewer never left.
+    // Only when the cast is THIS show — judged on the page's own video, the
+    // same one the hint above the grid is judged on, so the promise and the
+    // gesture cannot disagree. Casting something else and opening this page
+    // must still open the local player, or a tap here would take over a
+    // television playing something the viewer never left.
+    //
+    // The catalog on screen is free to be a different one: sending its
+    // episode re-casts from that catalog, which is what picking it asked for.
     final cast = ref.read(castStateProvider);
-    final castingThis =
-        cast.isCasting &&
-        cast.video?.apiId == video.apiId &&
-        cast.video?.sourceId == video.sourceId;
+    final castingThis = CastButton.castsEpisodes(cast, pageVideo);
     if (castingThis && !isDownloadMode) {
       await _castThisEpisode(context, ref, cast);
       return;
