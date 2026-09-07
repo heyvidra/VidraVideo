@@ -10,6 +10,7 @@ import '../../video/domain/play_history.dart';
 import '../../video/domain/resume_target.dart';
 import '../../video/domain/video_collection.dart';
 import '../../video/presentation/play_history_provider.dart';
+import '../data/cast_web_server.dart';
 import '../../video/presentation/widgets/cross_source_watch_badge.dart'
     show crossSourceWatchFor;
 import '../../video/presentation/widgets/detail/video_detail_header.dart'
@@ -58,6 +59,42 @@ class CastButton extends ConsumerWidget {
       message: tr('cast.casting_on', args: [_shortName(cast.device?.name)]),
       child: button,
     );
+  }
+
+  /// The televisions in [devices] that a machine at [lanAddress] could
+  /// actually reach.
+  ///
+  /// A remembered device is offered the instant the picker opens, before
+  /// anything has confirmed it — that is what makes the list appear at once
+  /// instead of after a scan. It is also how a television from another
+  /// network ends up on screen offering a cast that cannot work: the flat
+  /// before this one, the office, a hotel. Discovery drops the ones it can
+  /// prove are gone, but proving takes seconds and cannot prove anything at
+  /// all about a subnet this machine is not on.
+  ///
+  /// The /24 is the same crude rule the proxy picks its own interface with,
+  /// and it is right for the same reason: home networks are /24, and this
+  /// only has to tell "the network I am on" from "somewhere else". No
+  /// address of our own means nothing is reachable, which is the honest
+  /// answer while the machine is off the network.
+  ///
+  /// Public because it is the rule, and a rule is worth asserting on
+  /// directly rather than through a dialog.
+  static List<CastDevice> devicesOn(
+    String? lanAddress,
+    List<CastDevice> devices,
+  ) {
+    final mine = _subnetOf(lanAddress);
+    if (mine == null) return const [];
+    return [
+      for (final d in devices)
+        if (_subnetOf(Uri.tryParse(d.address)?.host) == mine) d,
+    ];
+  }
+
+  static String? _subnetOf(String? host) {
+    final parts = host?.split('.') ?? const <String>[];
+    return parts.length == 4 ? parts.take(3).join('.') : null;
   }
 
   /// Whether a tap on an episode would go to the television rather than the
@@ -229,11 +266,18 @@ class _DevicePickerDialogState extends ConsumerState<_DevicePickerDialog> {
   bool _slow = false;
   Timer? _timer;
 
+  /// This machine's address on the LAN, which decides which remembered
+  /// televisions are worth offering — see [_reachable].
+  String? _lan;
+
   @override
   void initState() {
     super.initState();
     _timer = Timer(_hintAfter, () {
       if (mounted) setState(() => _slow = true);
+    });
+    CastWebServer.lanAddress().then((a) {
+      if (mounted) setState(() => _lan = a);
     });
   }
 
@@ -246,8 +290,10 @@ class _DevicePickerDialogState extends ConsumerState<_DevicePickerDialog> {
   @override
   Widget build(BuildContext context) {
     final t = VidraTokens.of(context);
-    final devices =
-        ref.watch(castDevicesProvider).value ?? const <CastDevice>[];
+    final devices = CastButton.devicesOn(
+      _lan,
+      ref.watch(castDevicesProvider).value ?? const <CastDevice>[],
+    );
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -376,6 +422,34 @@ class _DevicePickerDialogState extends ConsumerState<_DevicePickerDialog> {
                         },
                       ),
               ),
+              // Kept below the list, not only in place of it. Discovery has
+              // no "finished", and a remembered television answers the picker
+              // in milliseconds — so with one on screen the only sign that a
+              // scan was still running disappeared, and a set switched on a
+              // moment ago looked like a set the app could not see.
+              if (devices.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 11,
+                        height: 11,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1.6,
+                          color: t.fg3,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        tr('cast.searching'),
+                        style: TextStyle(fontSize: 11.5, color: t.fg3),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 4),
               Align(
                 alignment: Alignment.centerRight,
