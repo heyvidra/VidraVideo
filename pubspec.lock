@@ -1372,8 +1372,8 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: "v0.1.12"
-      resolved-ref: "75794dfec9e0f4a5c6fcba91a21f37a093add730"
+      ref: "v0.1.13"
+      resolved-ref: "88e10338d90334cf7c1094a7ee29ed97f57b9ad2"
       url: "https://github.com/heyvidra/vidra_cast.git"
     source: git
     version: "0.0.1"
