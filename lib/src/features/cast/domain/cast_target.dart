@@ -67,6 +67,13 @@ enum CastRoute {
   /// Serve a page and point the TV's browser at it. Samsung: its renderer
   /// refuses an HLS playlist, but its browser plays one in a `<video>` tag.
   browser,
+
+  /// Hand the stream to macOS's own AirPlay sender and let the viewer pick
+  /// the television in the system route picker. The receiver fetches the
+  /// stream from the proxy like a DLNA box does, but pairing, authentication
+  /// and seeking are the system's — which is what makes a Fire TV, with no
+  /// DLNA and no Cast, reachable at all.
+  airplay,
 }
 
 /// Builds the playlist for casting [video] starting at [episodeIndex].

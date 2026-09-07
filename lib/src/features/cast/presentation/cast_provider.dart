@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:ui' show Rect;
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:vidra_cast/vidra_cast.dart';
 
@@ -125,9 +127,16 @@ class CastController extends Notifier<CastState> {
   ProviderSubscription<AsyncValue<CastSession?>>? _progressSub;
   DateTime? _lastWrite;
 
+  /// The AirPlay route's stand-in for the renderer's reports: the system
+  /// player has no session stream, so it is asked every two seconds instead.
+  Timer? _airplayPoll;
+
   @override
   CastState build() {
-    ref.onDispose(() => _progressSub?.close());
+    ref.onDispose(() {
+      _progressSub?.close();
+      _airplayPoll?.cancel();
+    });
     return const CastState();
   }
 
@@ -187,6 +196,7 @@ class CastController extends Notifier<CastState> {
     required Video video,
     required int episodeIndex,
     int startPositionSeconds = 0,
+    Rect? airPlayAnchor,
   }) async {
     final playlist = buildCastPlaylist(
       video: video,
@@ -224,6 +234,8 @@ class CastController extends Notifier<CastState> {
       // taking the throttle window B needed.
       _progressSub?.close();
       _progressSub = null;
+      _airplayPoll?.cancel();
+      _airplayPoll = null;
       _lastWrite = null;
       // Bind fresh, too — the previous session's server holds the previous
       // TV's interface, and the address it chose may not reach this one.
@@ -246,6 +258,14 @@ class CastController extends Notifier<CastState> {
       // at 51s end to end. Samsung's is close behind — first-time pairing
       // (45s) plus the wait for the TV to fetch the page (25s).
       final route = await () async {
+        // No probe for AirPlay: the system already knows the receiver, and
+        // the Tizen knock would only spend three seconds on a port that is
+        // not there.
+        if (device.protocol == DeviceProtocol.airPlay) {
+          _mark('route', detail: {'route': CastRoute.airplay.name});
+          await _castViaAirPlay(video, playlist, anchor: airPlayAnchor);
+          return CastRoute.airplay;
+        }
         _mark('probe');
         final route = await routeFor(device);
         _mark('route', detail: {'route': route.name});
@@ -296,6 +316,11 @@ class CastController extends Notifier<CastState> {
       } catch (_) {}
       try {
         await _manager.disconnect();
+      } catch (_) {}
+      // And the route picker, if one is still up asking a question nobody
+      // is waiting on the answer to.
+      try {
+        await AirPlaySender.stop();
       } catch (_) {}
       // A cast that never started must not leave the machine unable to
       // sleep. Harmless when the hold never happened.
@@ -493,6 +518,111 @@ class CastController extends Notifier<CastState> {
     }
   }
 
+  /// Hands the show to macOS's own AirPlay sender and waits for the viewer
+  /// to pick a television in the system's panel.
+  ///
+  /// The stream still goes through the proxy — the receiver fetches it
+  /// itself, exactly as a DLNA renderer does — but resume is a seek rather
+  /// than a cut: the system player seeks on the television for real, so it
+  /// is handed the whole episode and the positions that come back are
+  /// absolute. The playlist recorded against is therefore built with no
+  /// offset, where the DLNA one has to carry the cut.
+  Future<void> _castViaAirPlay(
+    Video video,
+    CastPlaylist playlist, {
+    Rect? anchor,
+  }) async {
+    _mark('airplay.serve');
+    await _server.start();
+    final absolute = CastPlaylist(
+      title: playlist.title,
+      items: playlist.items,
+      startIndex: playlist.startIndex,
+    );
+    _server.serve(absolute);
+    _mark('airplay.play');
+    await _playAirPlayItem(
+      absolute,
+      playlist.startIndex,
+      startSeconds: playlist.startPositionSeconds,
+      anchor: anchor,
+    );
+    // The route is the viewer's to choose, in the system's own panel. Wait
+    // for playback to leave this machine, or for them to say no.
+    _mark('airplay.pick');
+    final deadline = DateTime.now().add(const Duration(seconds: 60));
+    while (true) {
+      final s = await AirPlaySender.status();
+      if (s == null || s.cancelled) {
+        throw const CastException('airplay cancelled');
+      }
+      if (s.failed != null) throw CastException('airplay failed: ${s.failed}');
+      if (s.external) break;
+      if (DateTime.now().isAfter(deadline)) {
+        throw const CastException('airplay not picked');
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+    }
+    _watchAirPlay(video, absolute, playlist.startIndex);
+  }
+
+  Future<void> _playAirPlayItem(
+    CastPlaylist playlist,
+    int index, {
+    int startSeconds = 0,
+    Rect? anchor,
+  }) => AirPlaySender.play(
+    url: _server.proxied(playlist.items[index].url),
+    startSeconds: startSeconds,
+    prompt: tr('cast.airplay_prompt'),
+    anchor: anchor,
+  );
+
+  /// Stands in for the renderer's reports. The system player is asked every
+  /// two seconds, the same cadence the DLNA manager polls its renderer at,
+  /// and what it says feeds the same history rows and the same auto-advance.
+  void _watchAirPlay(Video video, CastPlaylist playlist, int index) {
+    var current = index;
+    var advancing = false;
+    _airplayPoll?.cancel();
+    _airplayPoll = Timer.periodic(const Duration(seconds: 2), (_) async {
+      final s = await AirPlaySender.status();
+      // Gone, brought back to this machine, or broken: the cast is over.
+      if (s == null || !s.external || s.failed != null) {
+        logR(
+          'cast',
+          'airplay over: ${s == null ? 'no player' : (s.failed ?? 'route dropped')}',
+        );
+        await stop();
+        return;
+      }
+      await _recordProgress(
+        video,
+        playlist,
+        CastProgress(
+          playlistIndex: current,
+          position: s.position,
+          duration: s.duration,
+        ),
+      );
+      if (s.ended && !advancing) {
+        if (current + 1 >= playlist.items.length) {
+          await stop();
+          return;
+        }
+        // Guarded: the poll keeps firing while the next item loads and the
+        // player still says the last one ended.
+        advancing = true;
+        current += 1;
+        try {
+          await _playAirPlayItem(playlist, current);
+        } finally {
+          advancing = false;
+        }
+      }
+    });
+  }
+
   /// Mirrors the renderer's position into watch history.
   ///
   /// The manager already polls the device every two seconds for its own
@@ -593,6 +723,11 @@ class CastController extends Notifier<CastState> {
   Future<void> stop() async {
     _progressSub?.close();
     _progressSub = null;
+    _airplayPoll?.cancel();
+    _airplayPoll = null;
+    if (state.route == CastRoute.airplay) {
+      await AirPlaySender.stop();
+    }
     if (state.route == CastRoute.dlna) {
       try {
         await _manager.stop();

@@ -46,7 +46,12 @@
     "failed_no_page": "The TV never opened the page — check this computer's firewall allows Vidra to accept connections, and that both are on the same network",
     "failed_busy": "Another cast is still connecting",
     "pet_bubble": "Casting to {}",
-    "episode_hint": "Casting — tap any episode to change what the TV plays"
+    "episode_hint": "Casting — tap any episode to change what the TV plays",
+    "airplay": "AirPlay",
+    "airplay_hint": "AirPlay · then pick this TV in the system menu",
+    "airplay_prompt": "Click the AirPlay icon on the right and choose a TV.",
+    "failed_airplay_pick": "No AirPlay device was chosen",
+    "failed_airplay_cancelled": "AirPlay cancelled"
   },
   "dashboard": {
     "search_hint": "Search",

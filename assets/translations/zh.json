@@ -46,7 +46,12 @@
     "failed_no_page": "电视没有打开这个页面。请检查电脑的防火墙是否允许 Vidra 接受连接,以及电视和电脑是否在同一个网络",
     "failed_busy": "上一次投屏还在连接中,请稍候",
     "pet_bubble": "正在投到 {}",
-    "episode_hint": "投屏中 · 点任意一集，即可换电视上播的那一集"
+    "episode_hint": "投屏中 · 点任意一集，即可换电视上播的那一集",
+    "airplay": "AirPlay",
+    "airplay_hint": "AirPlay · 点后在系统菜单里选这台电视",
+    "airplay_prompt": "点右边的 AirPlay 图标,选择要投的电视。",
+    "failed_airplay_pick": "没有选择 AirPlay 设备",
+    "failed_airplay_cancelled": "已取消 AirPlay"
   },
   "dashboard": {
     "search_hint": "搜索",

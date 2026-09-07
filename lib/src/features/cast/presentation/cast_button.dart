@@ -61,6 +61,18 @@ class CastButton extends ConsumerWidget {
     );
   }
 
+  /// An AirPlay receiver as a row in the picker.
+  ///
+  /// Our discovery cannot see these; the Mac's own Bonjour can, and names
+  /// them. Choosing the row opens the system's route menu, where the viewer
+  /// picks the same set — the one step Apple keeps for itself.
+  static CastDevice airPlayDevice(String name) => CastDevice(
+    id: 'airplay:$name',
+    name: name,
+    address: 'airplay://${Uri.encodeComponent(name)}',
+    protocol: DeviceProtocol.airPlay,
+  );
+
   /// The televisions in [devices] that a machine at [lanAddress] could
   /// actually reach.
   ///
@@ -202,6 +214,16 @@ class CastButton extends ConsumerWidget {
     unawaited(controller.stopDiscovery());
     if (device == null) return;
 
+    // Where the system's AirPlay menu should hang from: this button. This
+    // context is the button's own element, so its render box is its bounds,
+    // in the same top-left coordinates the native side converts from.
+    Rect? anchor;
+    if (context.mounted) {
+      final box = context.findRenderObject();
+      if (box is RenderBox && box.hasSize) {
+        anchor = box.localToGlobal(Offset.zero) & box.size;
+      }
+    }
     final resume = _resume(ref);
     try {
       await controller.cast(
@@ -209,6 +231,7 @@ class CastButton extends ConsumerWidget {
         video: video,
         episodeIndex: resume.index,
         startPositionSeconds: resume.seconds,
+        airPlayAnchor: anchor,
       );
       messenger.showSnackBar(
         SnackBar(content: Text(tr('cast.sent_to', args: [device.name]))),
@@ -234,6 +257,12 @@ class CastButton extends ConsumerWidget {
       return tr('cast.failed_no_page');
     }
     if (text.contains('already starting')) return tr('cast.failed_busy');
+    if (text.contains('airplay cancelled')) {
+      return tr('cast.failed_airplay_cancelled');
+    }
+    if (text.contains('airplay not picked')) {
+      return tr('cast.failed_airplay_pick');
+    }
     if (text.contains('did not answer') || text.contains('SocketException')) {
       return tr('cast.failed_unreachable');
     }
@@ -270,6 +299,10 @@ class _DevicePickerDialogState extends ConsumerState<_DevicePickerDialog> {
   /// televisions are worth offering — see [_reachable].
   String? _lan;
 
+  /// The AirPlay receivers the system sees right now, by name.
+  List<String> _airplay = const [];
+  Timer? _airplayRefresh;
+
   @override
   void initState() {
     super.initState();
@@ -279,21 +312,42 @@ class _DevicePickerDialogState extends ConsumerState<_DevicePickerDialog> {
     CastWebServer.lanAddress().then((a) {
       if (mounted) setState(() => _lan = a);
     });
+    // Asked again every second for as long as the picker is open, not once:
+    // Bonjour answers a beat after launch, and a list read before it had
+    // spun forever on a network whose only television was an AirPlay one —
+    // until the picker was closed and opened again, which asked again.
+    _refreshAirPlay();
+    _airplayRefresh = Timer.periodic(const Duration(seconds: 1), (_) {
+      _refreshAirPlay();
+    });
+  }
+
+  Future<void> _refreshAirPlay() async {
+    final names = await AirPlaySender.receivers();
+    if (!mounted) return;
+    if (names.length != _airplay.length ||
+        !names.asMap().entries.every((e) => _airplay[e.key] == e.value)) {
+      setState(() => _airplay = names);
+    }
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _airplayRefresh?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final t = VidraTokens.of(context);
-    final devices = CastButton.devicesOn(
-      _lan,
-      ref.watch(castDevicesProvider).value ?? const <CastDevice>[],
-    );
+    final devices = [
+      ...CastButton.devicesOn(
+        _lan,
+        ref.watch(castDevicesProvider).value ?? const <CastDevice>[],
+      ),
+      for (final name in _airplay) CastButton.airPlayDevice(name),
+    ];
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -405,7 +459,9 @@ class _DevicePickerDialogState extends ConsumerState<_DevicePickerDialog> {
                                           // The device's own address field is
                                           // the description XML URL, not
                                           // something to show a human.
-                                          Uri.parse(d.address).host,
+                                          d.protocol == DeviceProtocol.airPlay
+                                              ? tr('cast.airplay_hint')
+                                              : Uri.parse(d.address).host,
                                           style: TextStyle(
                                             fontSize: 11.5,
                                             color: t.fg3,
