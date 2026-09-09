@@ -479,7 +479,7 @@ packages:
     description:
       path: "."
       ref: HEAD
-      resolved-ref: "1e67eb2ec3d3bf0c9a50d3d0a5033189048d5d9e"
+      resolved-ref: "0010354197bfef9bd68d00b81f1d1274a0211c07"
       url: "https://github.com/heyvidra/fvp.git"
     source: git
     version: "0.37.3"
