@@ -29,6 +29,28 @@ flutter_macos_podfile_setup
 target 'Runner' do
   use_frameworks!
 
+  # Pin libmdk to an immutable artifact. Every published mdk podspec (0.10 through
+  # 0.38) points at ONE mutable nightly tarball with no checksum, so the version in
+  # Podfile.lock pins nothing: verified 2026-09-09, the cache entry named 0.36.0
+  # held 0.37.0 (git 6a53973), while shipped 1.16.6 carried a 0.38.0 NIGHTLY
+  # (git d42eb07, built 09-07). Three places, three different media stacks — and
+  # the one that shipped is the only one nobody had ever run.
+  #
+  # That nightly is where the crash lives. It carries the unreleased "metal: manage
+  # BL/EL GPU textures per layer" refactor (master 2026-08-29, after the v0.38.0
+  # tag) that owns MetalVideo::Private::LayerTextures — the class that aborts with
+  # `MTLTextureDescriptor has invalid pixelFormat (0)` after a failed VideoToolbox
+  # session restart. Checked by hand: `ensureLayerTextures` is present in the
+  # shipped nightly and absent from the v0.37.0 AND v0.38.0 release artifacts, so
+  # v0.38.0 is the newest build that excludes it — no need to give up 0.38.0's
+  # HEVC/A-V-sync/subtitle fixes to escape the regression.
+  #
+  # The version LABEL below must stay 0.36.0: fvp's darwin/fvp.podspec declares
+  # `s.dependency 'mdk', '~> 0.36.0'` (>= 0.36.0, < 0.37.0), so a 0.38.0 label
+  # fails resolution. Mislabelling the payload is exactly what upstream already
+  # does; this only makes it immutable and checksummed.
+  pod 'mdk', :podspec => 'mdk-pinned.podspec.json'
+
   flutter_install_all_macos_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do
     inherit! :search_paths

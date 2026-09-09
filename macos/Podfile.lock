@@ -43,6 +43,7 @@ DEPENDENCIES:
   - FlutterMacOS (from `Flutter/ephemeral`)
   - fvp (from `Flutter/ephemeral/.symlinks/plugins/fvp/darwin`)
   - local_notifier (from `Flutter/ephemeral/.symlinks/plugins/local_notifier/macos`)
+  - mdk (from `mdk-pinned.podspec.json`)
   - package_info_plus (from `Flutter/ephemeral/.symlinks/plugins/package_info_plus/macos`)
   - sentry_flutter (from `Flutter/ephemeral/.symlinks/plugins/sentry_flutter/macos`)
   - shared_preferences_foundation (from `Flutter/ephemeral/.symlinks/plugins/shared_preferences_foundation/darwin`)
@@ -55,7 +56,6 @@ DEPENDENCIES:
 
 SPEC REPOS:
   trunk:
-    - mdk
     - Sentry
 
 EXTERNAL SOURCES:
@@ -69,6 +69,8 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/fvp/darwin
   local_notifier:
     :path: Flutter/ephemeral/.symlinks/plugins/local_notifier/macos
+  mdk:
+    :podspec: mdk-pinned.podspec.json
   package_info_plus:
     :path: Flutter/ephemeral/.symlinks/plugins/package_info_plus/macos
   sentry_flutter:
@@ -94,7 +96,7 @@ SPEC CHECKSUMS:
   FlutterMacOS: c232990155153907050900a2e175c7773903ba4e
   fvp: f8b3b61cf8c696ecaa5608ae0d282ba710e65ae9
   local_notifier: ebf072651e35ae5e47280ad52e2707375cb2ae4e
-  mdk: 3bfb53e0bcc9643180eaa864360051f281e4c17b
+  mdk: 0176f23341de070376cd6b400a7658708cf0b398
   package_info_plus: f0052d280d17aa382b932f399edf32507174e870
   Sentry: 5321d74bdd28d6f6f8beaa1ca06f1fdc746bff49
   sentry_flutter: b392decea911dcd74891cc4aef402c73abf065b1
@@ -106,6 +108,6 @@ SPEC CHECKSUMS:
   vidra_player: 07dd1c1c147f03f688edb1b4215bd573e5ced718
   wakelock_plus: 917609be14d812ddd9e9528876538b2263aaa03b
 
-PODFILE CHECKSUM: 21ce4b85630e26de4ad840c8ff4bd49dcfdbc7eb
+PODFILE CHECKSUM: 4df351d0dafce9c7e734bcc347e8e79bb9459e8f
 
 COCOAPODS: 1.16.2

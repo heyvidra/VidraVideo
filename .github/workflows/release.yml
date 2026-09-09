@@ -316,6 +316,39 @@ jobs:
         env:
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
 
+      - name: Verify bundled libmdk
+        # macos/Podfile pins mdk to the v0.38.0 RELEASE artifact by checksum,
+        # because every published mdk podspec points at one MUTABLE nightly
+        # tarball: 1.16.6 shipped a 0.38.0 nightly (git d42eb07) while
+        # Podfile.lock said 0.36.0 and every dev machine ran 0.37.0. That
+        # nightly is what crashed — it carries the unreleased per-layer texture
+        # refactor owning MetalVideo::Private::LayerTextures, which aborts the
+        # process with `MTLTextureDescriptor has invalid pixelFormat (0)` after
+        # a failed VideoToolbox session restart (Sentry FLUTTER-K).
+        #
+        # Podfile.lock still reads `mdk (0.36.0)` — the label is decorative, so
+        # the lockfile CANNOT enforce this. Only these two assertions can.
+        # Deliberately changing the pin? Update the expected hash below.
+        run: |
+          MDK=build/macos/Build/Products/Release/Vidra.app/Contents/Frameworks/mdk.framework/Versions/A/mdk
+          if [ ! -f "$MDK" ]; then
+            echo "::error::mdk.framework missing from the built app at $MDK"
+            exit 1
+          fi
+          VER=$(strings -a "$MDK" | grep -m1 -E '\(git [0-9a-f]{7}\)' || true)
+          echo "libmdk: $VER"
+          if ! printf '%s' "$VER" | grep -q 'git b43ab43'; then
+            echo "::error::libmdk is not the pinned v0.38.0 release (expected git b43ab43): $VER"
+            exit 1
+          fi
+          # The regression guard proper: this symbol exists only in the
+          # post-0.38.0 nightlies that carry the crashing refactor.
+          if [ "$(strings -a "$MDK" | grep -c ensureLayerTextures)" != "0" ]; then
+            echo "::error::libmdk contains the per-layer texture code that aborts" \
+                 "in MetalVideo::LayerTextures — a nightly leaked back in: $VER"
+            exit 1
+          fi
+
       - name: Upload debug symbols to Sentry
         # Skipped rather than failed when the token is absent: a fork building
         # this tag must still get a DMG. The `secrets` context is NOT readable
