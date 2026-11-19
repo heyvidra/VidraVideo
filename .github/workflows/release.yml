@@ -33,9 +33,35 @@ env:
   FLUTTER_VERSION: "3.47.0"
 
 jobs:
+  # Tag builds publish straight into a DRAFT Release instead of passing the
+  # installers through workflow artifacts: the account's artifact storage
+  # quota filled up and upload-artifact refused every file (1.16.7), with
+  # both installers already built. Created here, once, because two build
+  # jobs racing to create it would each get their own draft — drafts do not
+  # claim the tag. The draft is invisible to users until the last job
+  # publishes it, so a half-built release never shows.
+  draft:
+    name: Open draft release
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
+          || gh release create "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" \
+               --draft --verify-tag --title "$GITHUB_REF_NAME" --notes ""
+
   windows:
     name: Windows MSI
+    # `draft` is skipped on a manual run; that must not skip the build.
+    needs: draft
+    if: ${{ !cancelled() && !failure() }}
     runs-on: windows-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
@@ -192,7 +218,15 @@ jobs:
             exit $LASTEXITCODE
           }
 
+      - name: Attach to draft release
+        if: github.ref_type == 'tag'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" Vidra-Windows-x64.msi --clobber -R "$GITHUB_REPOSITORY"
+
       - name: Upload MSI Artifact
+        if: github.ref_type != 'tag'
         uses: actions/upload-artifact@v4
         with:
           name: Vidra-Windows-x64-MSI
@@ -203,7 +237,12 @@ jobs:
 
   macos:
     name: macOS DMG
+    # `draft` is skipped on a manual run; that must not skip the build.
+    needs: draft
+    if: ${{ !cancelled() && !failure() }}
     runs-on: macos-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
@@ -402,7 +441,15 @@ jobs:
               "dmg-$arch"
           done
 
+      - name: Attach to draft release
+        if: github.ref_type == 'tag'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" Vidra-macOS-*.dmg --clobber -R "$GITHUB_REPOSITORY"
+
       - name: Upload DMG Artifacts
+        if: github.ref_type != 'tag'
         uses: actions/upload-artifact@v4
         with:
           name: Vidra-macOS-DMG
@@ -430,19 +477,6 @@ jobs:
           # checkout has neither, and the fallback would silently degrade to
           # linking every commit reachable from this tag.
           fetch-depth: 0
-
-      # 下载所有构建产物
-      - name: Download Windows MSI
-        uses: actions/download-artifact@v4
-        with:
-          name: Vidra-Windows-x64-MSI
-          path: ./artifacts
-
-      - name: Download macOS DMG
-        uses: actions/download-artifact@v4
-        with:
-          name: Vidra-macOS-DMG
-          path: ./artifacts
 
       # 提取版本号
       - name: Get Version
@@ -522,17 +556,11 @@ jobs:
           echo "--- generated ---"
           cat release_notes.md
 
-      # 创建 Release
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          name: Vidra ${{ steps.version.outputs.version }}
-          body_path: release_notes.md
-          draft: false
-          prerelease: false
-          files: |
-            ./artifacts/Vidra-Windows-x64.msi
-            ./artifacts/Vidra-macOS-arm64.dmg
-            ./artifacts/Vidra-macOS-x64.dmg
+      # 发布草稿:安装包已经由各构建任务挂上去了
+      - name: Publish Release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release edit "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" \
+            --draft=false --title "Vidra ${{ steps.version.outputs.version }}" \
+            --notes-file release_notes.md
