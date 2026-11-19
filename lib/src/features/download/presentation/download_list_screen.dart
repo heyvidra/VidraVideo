@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../../common/screen_chrome.dart';
 import '../data/download_provider.dart';
-import '../domain/download_task.dart';
 import 'widgets/download_task_card.dart';
 import 'widgets/download_ui.dart';
 
@@ -13,8 +12,9 @@ class DownloadListScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final activeTasks = ref.watch(activeDownloadsProvider);
-    final completedTasks = ref.watch(completedDownloadsProvider);
+    // Only the COUNT here. The lists are watched by the tab that shows them,
+    // so a progress tick rebuilds the 下载中 list and nothing else.
+    final activeCount = ref.watch(activeDownloadCountProvider);
 
     return DefaultTabController(
       length: 2,
@@ -24,7 +24,7 @@ class DownloadListScreen extends ConsumerWidget {
           children: [
             ScreenHeader(
               title: tr('download.title'),
-              count: activeTasks.isEmpty ? null : '${activeTasks.length}',
+              count: activeCount == 0 ? null : '$activeCount',
             ),
             // The tabs sit in the SAME left-aligned content column as the
             // cards, so everything shares one left edge next to the rail.
@@ -64,8 +64,8 @@ class DownloadListScreen extends ConsumerWidget {
             Expanded(
               child: TabBarView(
                 children: [
-                  _buildTaskList(context, ref, activeTasks, isActive: true),
-                  _buildTaskList(context, ref, completedTasks, isActive: false),
+                  const _TaskList(isActive: true),
+                  const _TaskList(isActive: false),
                 ],
               ),
             ),
@@ -74,13 +74,18 @@ class DownloadListScreen extends ConsumerWidget {
       ),
     );
   }
+}
 
-  Widget _buildTaskList(
-    BuildContext context,
-    WidgetRef ref,
-    List<DownloadTask> tasks, {
-    required bool isActive,
-  }) {
+class _TaskList extends ConsumerWidget {
+  const _TaskList({required this.isActive});
+
+  final bool isActive;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tasks = ref.watch(
+      isActive ? activeDownloadsProvider : completedDownloadsProvider,
+    );
     if (tasks.isEmpty) {
       return ScreenEmpty(
         icon: isActive

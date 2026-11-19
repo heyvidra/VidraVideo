@@ -48,6 +48,11 @@ class CoverImage extends StatelessWidget {
       height: height,
       fit: fit,
       memCacheWidth: memCacheWidth,
+      // The package default fades the placeholder OUT for a full second
+      // before the 500ms fade-in even starts. The placeholder is a faint
+      // tint, so that second is invisible — and it is a second of animation
+      // frames per card, on every page of posters, while they decode.
+      fadeOutDuration: Duration.zero,
       placeholder: placeholder == null ? null : (_, _) => placeholder!,
       errorWidget: errorWidget == null ? null : (_, _, _) => errorWidget!,
     );

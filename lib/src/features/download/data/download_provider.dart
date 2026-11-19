@@ -20,31 +20,57 @@ final downloadTasksProvider = StreamProvider<List<DownloadTask>>((ref) {
   return manager.tasksStream;
 });
 
+/// The previous list again when [next] holds the very same task objects.
+///
+/// The manager re-emits every task four times a second while anything is
+/// downloading, but it only replaces the task that moved. Handing back a
+/// fresh list each time made every tab — including 已完成, where nothing
+/// changes — rebuild on every tick.
+List<DownloadTask> _sameAsBefore(
+  List<DownloadTask>? before,
+  List<DownloadTask> next,
+) {
+  if (before == null || before.length != next.length) return next;
+  for (var i = 0; i < next.length; i++) {
+    if (!identical(before[i], next[i])) return next;
+  }
+  return before;
+}
+
+List<DownloadTask>? _lastActive;
+List<DownloadTask>? _lastCompleted;
+
 /// Active downloads (downloading, queued, paused)
 final activeDownloadsProvider = Provider<List<DownloadTask>>((ref) {
   final tasksAsync = ref.watch(downloadTasksProvider);
-  return tasksAsync.maybeWhen(
-    data: (tasks) => tasks
-        .where(
-          (t) =>
-              t.status == DownloadStatus.downloading ||
-              t.status == DownloadStatus.queued ||
-              t.status == DownloadStatus.paused ||
-              t.status == DownloadStatus.cancelled ||
-              t.status == DownloadStatus.failed,
-        )
-        .toList(),
-    orElse: () => [],
+  return _lastActive = _sameAsBefore(
+    _lastActive,
+    tasksAsync.maybeWhen(
+      data: (tasks) => tasks
+          .where(
+            (t) =>
+                t.status == DownloadStatus.downloading ||
+                t.status == DownloadStatus.queued ||
+                t.status == DownloadStatus.paused ||
+                t.status == DownloadStatus.cancelled ||
+                t.status == DownloadStatus.failed,
+          )
+          .toList(),
+      orElse: () => [],
+    ),
   );
 });
 
 /// Completed downloads
 final completedDownloadsProvider = Provider<List<DownloadTask>>((ref) {
   final tasksAsync = ref.watch(downloadTasksProvider);
-  return tasksAsync.maybeWhen(
-    data: (tasks) =>
-        tasks.where((t) => t.status == DownloadStatus.completed).toList(),
-    orElse: () => [],
+  return _lastCompleted = _sameAsBefore(
+    _lastCompleted,
+    tasksAsync.maybeWhen(
+      data: (tasks) =>
+          tasks.where((t) => t.status == DownloadStatus.completed).toList(),
+      orElse: () => [],
+    ),
   );
 });
 

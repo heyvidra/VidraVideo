@@ -28,6 +28,8 @@ class DownloadTaskCard extends ConsumerStatefulWidget {
 
 class _DownloadTaskCardState extends ConsumerState<DownloadTaskCard> {
   bool _isExpanded = false;
+  String? _statPath;
+  bool _statExists = false;
 
   @override
   Widget build(BuildContext context) {
@@ -479,8 +481,17 @@ class _DownloadTaskCardState extends ConsumerState<DownloadTaskCard> {
     final ep = task.episodes.first;
     if (ep.status != DownloadStatus.completed) return null;
     final path = ep.outputPath;
-    if (path == null || !File(path).existsSync()) return null;
-    return path;
+    if (path == null) return null;
+    // ponytail: stat once per path per card, not on every build — this runs
+    // several times a build and the screen rebuilds 4x a second during a
+    // download, which was a synchronous disk hit per card per tick. A file
+    // deleted outside the app is noticed when the screen is reopened; watch
+    // the directory if that ever needs to be live.
+    if (path != _statPath) {
+      _statPath = path;
+      _statExists = File(path).existsSync();
+    }
+    return _statExists ? path : null;
   }
 
   /// Play a downloaded episode in the app's own player window (not the OS
