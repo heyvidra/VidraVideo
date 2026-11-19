@@ -30,14 +30,14 @@ class YfspSigner {
   YfspSigner();
 
   /// Any page carries `pConfig`; the drama list is the smallest reliable one.
-  static const String _keyPageUrl = 'https://www.yfsp.tv/list/drama';
+  static const String _keyPageUrl = 'https://www.iyf.tv/list/drama';
 
   static const String userAgent =
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 '
       '(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 
   /// The API 403s a request with no `Referer` from the site.
-  static const String referer = 'https://www.yfsp.tv/';
+  static const String referer = 'https://www.iyf.tv/';
 
   /// STATIC, so the pair outlives the source instance holding it.
   ///

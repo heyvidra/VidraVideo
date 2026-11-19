@@ -6,7 +6,7 @@ import 'package:vidra/src/features/video/data/yfsp/yfsp_data_source.dart';
 import 'package:vidra/src/features/video/data/yfsp/yfsp_dto.dart';
 import 'package:vidra/src/features/video/data/yfsp/yfsp_signer.dart';
 
-/// A key pair captured from a `pConfig` blob on www.yfsp.tv. The pair itself
+/// A key pair captured from a `pConfig` blob on www.iyf.tv. The pair itself
 /// has since rotated and no longer authenticates anything — it is kept only so
 /// the hash below is a fixed vector.
 const _pub =
@@ -20,14 +20,14 @@ void main() {
       // Captured end to end: this exact vv/pub pair on list/AllVideoType came
       // back {"code":0}. If this expectation ever fails, the port drifted —
       // the vector did not.
-      final url = YfspSigner.signWith('https://m10.yfsp.tv/api/list/AllVideoType', {
+      final url = YfspSigner.signWith('https://m10.iyf.tv/api/list/AllVideoType', {
         'cinema': '1',
         'cid': '0,1',
       }, pub: _pub, priv: _priv);
 
       expect(
         url,
-        'https://m10.yfsp.tv/api/list/AllVideoType'
+        'https://m10.iyf.tv/api/list/AllVideoType'
         '?cinema=1&cid=0%2C1'
         '&vv=135c0aa8610c6bb501c89cb6f0729433&pub=$_pub',
       );
@@ -37,7 +37,7 @@ void main() {
       // The two ways the port can silently diverge: hashing the ENCODED value
       // (Chinese filters would sign as %E5%A4%A7...) and sending a lowercased
       // key (`isindex` is refused). One vector pins both.
-      final url = YfspSigner.signWith('https://m10.yfsp.tv/api/list/Search', {
+      final url = YfspSigner.signWith('https://m10.iyf.tv/api/list/Search', {
         'cinema': '1',
         'tags': '',
         'cid': '0,1,4',
@@ -47,7 +47,7 @@ void main() {
 
       expect(
         url,
-        'https://m10.yfsp.tv/api/list/Search'
+        'https://m10.iyf.tv/api/list/Search'
         '?cinema=1&tags=&cid=0%2C1%2C4&region=%E5%A4%A7%E9%99%86&isIndex=-1'
         '&vv=77a6ec405bb6f60e60ae9d70fc8e5b18&pub=$_pub',
       );
@@ -88,7 +88,7 @@ void main() {
         {
           'isHls': false,
           'result': 'https://cdn.example/vod/AD-0001.mp4',
-          'link': 'https://ppt.yfsp.tv/c/c?position=PI',
+          'link': 'https://ppt.iyf.tv/c/c?position=PI',
         },
         {
           'isHls': true,
@@ -104,7 +104,7 @@ void main() {
         {
           'isHls': false,
           'result': 'https://cdn.example/vod/AD-0001.mp4',
-          'link': 'https://ppt.yfsp.tv/c/c?position=PI',
+          'link': 'https://ppt.iyf.tv/c/c?position=PI',
         },
         {'isHls': false, 'result': 'https://cdn.example/vod/FEATURE.mp4'},
       ]);
@@ -116,7 +116,7 @@ void main() {
         {
           'isHls': false,
           'result': 'https://cdn.example/vod/AD-0001.mp4',
-          'link': 'https://ppt.yfsp.tv/c/c?position=PI',
+          'link': 'https://ppt.iyf.tv/c/c?position=PI',
         },
       ]);
       expect(stream, isNull);

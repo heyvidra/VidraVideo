@@ -14,7 +14,7 @@ import 'yfsp_challenge.dart';
 import 'yfsp_dto.dart';
 import 'yfsp_signer.dart';
 
-/// yfsp.tv (爱壹帆) — a signed JSON API. See [YfspSigner] for the signature.
+/// iyf.tv (爱壹帆) — a signed JSON API. See [YfspSigner] for the signature.
 ///
 /// Two things shape everything here:
 ///
@@ -37,8 +37,8 @@ class YfspDataSource implements VideoDataSource {
   final Dio _dio;
   final YfspSigner _signer;
 
-  static const String _apiM10 = 'https://m10.yfsp.tv/api';
-  static const String _apiV3 = 'https://m10.yfsp.tv/v3';
+  static const String _apiM10 = 'https://m10.iyf.tv/api';
+  static const String _apiV3 = 'https://m10.iyf.tv/v3';
 
   /// What the site's own list page asks for.
   static const int _pageSize = 35;
@@ -336,7 +336,7 @@ class YfspDataSource implements VideoDataSource {
   /// [VideoDataSource.pingHost]. This is the source whose rate limiter made
   /// that rule necessary.
   @override
-  String? get pingHost => 'm10.yfsp.tv';
+  String? get pingHost => 'm10.iyf.tv';
 
   /// A user agent and nothing else.
   ///
@@ -353,7 +353,7 @@ class YfspDataSource implements VideoDataSource {
   @override
   String resolveUrl(String url) {
     if (url.startsWith('http://') || url.startsWith('https://')) return url;
-    return 'https://www.yfsp.tv${url.startsWith('/') ? '' : '/'}$url';
+    return 'https://www.iyf.tv${url.startsWith('/') ? '' : '/'}$url';
   }
 
   // --- internals -----------------------------------------------------------

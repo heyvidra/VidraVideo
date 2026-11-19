@@ -65,9 +65,9 @@ final class YfspBrowser: NSObject, WKNavigationDelegate, NSWindowDelegate {
   static let shared = YfspBrowser()
 
   /// The page the webview parks on. It carries the signing keys in its inline
-  /// `pConfig`, and it is on www.yfsp.tv, so the in-page fetches it hosts reach
+  /// `pConfig`, and it is on www.iyf.tv, so the in-page fetches it hosts reach
   /// the m10 API cross-origin (the shape that answers with JSON).
-  private let home = URL(string: "https://www.yfsp.tv/list/drama")!
+  private let home = URL(string: "https://www.iyf.tv/list/drama")!
 
   private var webView: WKWebView?
   private var userAgent =
@@ -169,8 +169,8 @@ final class YfspBrowser: NSObject, WKNavigationDelegate, NSWindowDelegate {
     let c = nav; nav = nil; c?(e)
   }
 
-  /// Parks the webview on the SITE's own origin (www.yfsp.tv) before an in-page
-  /// fetch. The API lives on m10.yfsp.tv, so the fetch is deliberately
+  /// Parks the webview on the SITE's own origin (www.iyf.tv) before an in-page
+  /// fetch. The API lives on m10.iyf.tv, so the fetch is deliberately
   /// CROSS-origin: measured against the live site, m10 answers a cross-origin
   /// XHR from www with JSON (and the CORS headers to read it), while a
   /// same-origin request straight at m10 hits a bare IIS that 404s. This is
@@ -266,7 +266,7 @@ final class YfspBrowser: NSObject, WKNavigationDelegate, NSWindowDelegate {
     let store = w.configuration.websiteDataStore.httpCookieStore
     store.getAllCookies { cookies in
       let group = DispatchGroup()
-      for c in cookies where c.domain.hasSuffix("yfsp.tv") && c.name.hasPrefix("cf_") {
+      for c in cookies where c.domain.hasSuffix("iyf.tv") && c.name.hasPrefix("cf_") {
         group.enter()
         store.delete(c) { group.leave() }
       }
@@ -293,7 +293,7 @@ final class YfspBrowser: NSObject, WKNavigationDelegate, NSWindowDelegate {
     // enough for the user to reach it.
     solveWindow = win
 
-    navigate(w, to: URL(string: "https://www.yfsp.tv/list/drama")!) { _ in }
+    navigate(w, to: URL(string: "https://www.iyf.tv/list/drama")!) { _ in }
 
     // Turnstile mints the cookie and reloads on its own schedule; one look a
     // second is nothing.

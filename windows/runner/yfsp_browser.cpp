@@ -94,9 +94,9 @@ std::wstring JsonUnescape(const std::wstring& in) {
 }
 
 // The page the webview parks on: its inline pConfig carries the signing keys,
-// and being on www.yfsp.tv the API calls it hosts stay cross-origin (the shape
+// and being on www.iyf.tv the API calls it hosts stay cross-origin (the shape
 // that answers with JSON).
-constexpr wchar_t kHomeUrl[] = L"https://www.yfsp.tv/list/drama";
+constexpr wchar_t kHomeUrl[] = L"https://www.iyf.tv/list/drama";
 
 // Reads pub + priv out of the key page's pConfig and returns them joined by a
 // \x01 so no JSON re-parse is needed on the native side. Empty when absent.
@@ -373,7 +373,7 @@ class YfspBrowser {
 
   std::function<void(bool)> solve_done_;
   UINT_PTR solve_timer_ = 0;
-  std::wstring challenge_url_ = L"https://www.yfsp.tv/list/drama";
+  std::wstring challenge_url_ = L"https://www.iyf.tv/list/drama";
 };
 
 }  // namespace

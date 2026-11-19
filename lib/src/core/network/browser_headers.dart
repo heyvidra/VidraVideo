@@ -25,10 +25,10 @@ const Map<String, String> _siteOrigins = {
   'api.olelive.com': 'https://www.olevod.com',
   'www.olevod.com': 'https://www.olevod.com',
   'www.dbku.tv': 'https://www.dbku.tv',
-  'm10.yfsp.tv': 'https://www.yfsp.tv',
-  'www.yfsp.tv': 'https://www.yfsp.tv',
-  'global.dudupro.com': 'https://www.yfsp.tv',
-  'static.yfsp.tv': 'https://www.yfsp.tv',
+  'm10.iyf.tv': 'https://www.iyf.tv',
+  'www.iyf.tv': 'https://www.iyf.tv',
+  'global.dudupro.com': 'https://www.iyf.tv',
+  'static.iyf.tv': 'https://www.iyf.tv',
 };
 
 /// Presents one coherent browser to every host this app talks to.
