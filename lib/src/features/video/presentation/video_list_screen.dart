@@ -44,7 +44,12 @@ class VideoListScreen extends HookConsumerWidget {
         // is always met and every scroll/layout tick re-fires loadNextPage;
         // against a rate-limited source that is a self-inflicted hammering.
         // The first page is driven by the notifier's build(), not by scroll.
-        if (ref.read(videoListProvider).videos.isEmpty) return;
+        final list = ref.read(videoListProvider);
+        if (list.videos.isEmpty) return;
+        // A failed page stays failed until the user asks again (the footer's
+        // retry). Otherwise every scroll pixel near the bottom re-fires the
+        // same request at a source that just refused it.
+        if (list.error != null) return;
         if (scrollController.position.pixels >=
             scrollController.position.maxScrollExtent - 200) {
           ref.read(videoListProvider.notifier).loadNextPage();
@@ -52,6 +57,22 @@ class VideoListScreen extends HookConsumerWidget {
       });
       return null;
     }, [scrollController]);
+
+    // Scrolling is the only thing that asks for the next page, and a page
+    // that does not fill the viewport cannot be scrolled: on a wide window
+    // 35 posters are three rows, and the catalog ended there. So after each
+    // page lands, keep loading until there is something to scroll.
+    ref.listen(videoListProvider.select((s) => s.videos.length), (_, length) {
+      if (length == 0) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!scrollController.hasClients) return;
+        final list = ref.read(videoListProvider);
+        if (list.error != null || !list.hasMore) return;
+        if (scrollController.position.maxScrollExtent <= 0) {
+          ref.read(videoListProvider.notifier).loadNextPage();
+        }
+      });
+    });
 
     final categoriesAsync = ref.watch(categoriesProvider);
     final categories = categoriesAsync.maybeWhen(
@@ -235,7 +256,32 @@ class _PaginationFooter extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isLoading = ref.watch(videoListProvider.select((s) => s.isLoading));
+    final (:isLoading, :error) = ref.watch(
+      videoListProvider.select((s) => (isLoading: s.isLoading, error: s.error)),
+    );
+    if (error != null && !isLoading) {
+      // The next page failed. Said out loud, with the way back: a list that
+      // silently stops looks exactly like a list that ended.
+      return SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Column(
+            children: [
+              Text(
+                tr('common.error', args: [error.toString()]),
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+                textAlign: TextAlign.center,
+              ),
+              TextButton(
+                onPressed: () =>
+                    ref.read(videoListProvider.notifier).loadNextPage(),
+                child: Text(tr('common.retry')),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     if (!isLoading) {
       return const SliverToBoxAdapter(child: SizedBox.shrink());
     }
