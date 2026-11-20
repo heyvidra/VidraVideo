@@ -57,6 +57,10 @@ class EpisodeDownloadInfo {
     String? formatId,
     DownloadStatus? status,
     String? phase,
+
+    /// [phase] is nullable and `phase: null` means "keep", so clearing it
+    /// needs saying.
+    bool clearPhase = false,
     double? progress,
     int? bytesDownloaded,
     int? totalBytes,
@@ -71,7 +75,7 @@ class EpisodeDownloadInfo {
       outputPath: outputPath ?? this.outputPath,
       formatId: formatId ?? this.formatId,
       status: status ?? this.status,
-      phase: phase ?? this.phase,
+      phase: clearPhase ? null : (phase ?? this.phase),
       progress: progress ?? this.progress,
       bytesDownloaded: bytesDownloaded ?? this.bytesDownloaded,
       totalBytes: totalBytes ?? this.totalBytes,

@@ -151,8 +151,28 @@ class DownloadManager {
           )
           .toList();
 
-      if (newEpisodeInfos.isNotEmpty) {
-        final updatedEpisodes = [...existingTask.episodes, ...newEpisodeInfos];
+      // An episode already here but cancelled or failed is being asked for
+      // again, and the caller is about to say "added". Queue it — the same
+      // thing Resume does for it — or the tap is a lie: the tile shows no
+      // badge for a cancelled episode, so it looks like it was never added.
+      final asked = episodes.map((ep) => ep['url']).toSet();
+      var requeued = false;
+      final revived = existingTask.episodes.map((e) {
+        final dead =
+            e.status == DownloadStatus.cancelled ||
+            e.status == DownloadStatus.failed;
+        if (!dead || !asked.contains(e.url)) return e;
+        requeued = true;
+        return e.copyWith(
+          status: DownloadStatus.queued,
+          progress: 0.0,
+          bytesDownloaded: 0,
+          clearPhase: true,
+        );
+      }).toList();
+
+      if (newEpisodeInfos.isNotEmpty || requeued) {
+        final updatedEpisodes = [...revived, ...newEpisodeInfos];
         _tasks[existingTaskId] = existingTask.copyWith(
           episodes: updatedEpisodes,
           completedAt:
@@ -492,8 +512,7 @@ class DownloadManager {
     if (startIndex == -1) return;
     final task = _tasks[taskId]!;
 
-    final filename = '${task.videoTitle}_${task.episodes[startIndex].title}'
-        .replaceAll(RegExp(r'[<>:"/\\|?*]'), '_');
+    final filename = _outputName(taskId, url);
     // Format selector is fixed at add time (null → legacy 'direct' for HLS).
     final formatId = task.episodes[startIndex].formatId;
 
@@ -503,7 +522,7 @@ class DownloadManager {
           url: url,
           filename: filename,
           formatId: formatId,
-          shouldCancel: () => _isEpisodeAborted(taskId, url),
+          shouldCancel: () => _attemptSuperseded(taskId, url),
           onProgress: (progress, bytesDownloaded, totalBytes, status) {
             final i = _indexOfUrl(taskId, url);
             final ep = _episodeAt(taskId, i);
@@ -526,6 +545,10 @@ class DownloadManager {
                 progress: progress,
                 bytesDownloaded: bytesDownloaded,
                 totalBytes: totalBytes ?? ep.totalBytes,
+                // Bytes are moving, so this is not the remux. Without this a
+                // retry after a failed remux kept reading "转码中", with no
+                // speed, for the whole second download.
+                clearPhase: true,
               ),
             );
           },
@@ -563,7 +586,7 @@ class DownloadManager {
         return;
       } catch (e) {
         // User paused/cancelled/deleted mid-attempt? Respect it — don't retry.
-        if (_isEpisodeAborted(taskId, url)) return;
+        if (_attemptSuperseded(taskId, url)) return;
 
         // A retry RESUMES from the on-disk checkpoint (vidraDlp HLS resume), so
         // it's cheap regardless of how far the download got — always retry up to
@@ -576,7 +599,9 @@ class DownloadManager {
                 'retrying (resumes from checkpoint): $e',
           );
           await Future.delayed(_retryDelay * attempt); // linear backoff
-          if (_isEpisodeAborted(taskId, url)) return; // aborted during backoff
+          // Stopped during the backoff — or stopped AND re-queued, which
+          // looks like "not aborted" and is the case that matters.
+          if (_attemptSuperseded(taskId, url)) return;
           continue;
         }
 
@@ -614,6 +639,46 @@ class DownloadManager {
     }
   }
 
+  static String _plainName(DownloadTask task, EpisodeDownloadInfo episode) =>
+      '${task.videoTitle}_${episode.title}'.replaceAll(
+        RegExp(r'[<>:"/\\|?*]'),
+        '_',
+      );
+
+  /// The file name for this episode: `title_episode`, unless an earlier
+  /// download already has that name.
+  ///
+  /// The plain name says nothing of which show or which line it is, and a
+  /// download starts by deleting whatever sits at its target. So a second
+  /// 西游记 — a remake, or the same show from the other catalog — deleted the
+  /// first one's finished files and wrote its own over them, while the first
+  /// task still pointed there and now played the wrong show. Within one task,
+  /// 第12集 and 第12集(粤语) share a label and ran against one file at once.
+  ///
+  /// First come keeps the plain name; a later claimant gets a suffix from its
+  /// URL. Stable across restarts, or a resumed download would not find its
+  /// own checkpoint.
+  String _outputName(String taskId, String url) {
+    final mine = _plainName(
+      _tasks[taskId]!,
+      _tasks[taskId]!.episodes[_indexOfUrl(taskId, url)],
+    );
+    for (final t in _tasks.values) {
+      for (final e in t.episodes) {
+        if (t.taskId == taskId && e.url == url) return mine;
+        if (_plainName(t, e) == mine) {
+          // FNV-1a: String.hashCode is not promised to survive a restart.
+          var h = 0x811c9dc5;
+          for (final c in url.codeUnits) {
+            h = ((h ^ c) * 0x01000193) & 0xffffffff;
+          }
+          return '${mine}_${h.toRadixString(36)}';
+        }
+      }
+    }
+    return mine;
+  }
+
   /// Stamp completedAt once the task reaches a completed status (all episodes
   /// completed, or a completed/cancelled mix). Guarded so it fires once.
   void _maybeCompleteTask(String taskId) {
@@ -635,6 +700,22 @@ class DownloadManager {
   /// True when the downloader should abort the episode with [url] in [taskId]:
   /// the task was deleted/cancelled/paused, or the episode itself was (or was
   /// deleted from the list entirely).
+  /// Whether the attempt running for this episode has been overtaken.
+  ///
+  /// An attempt owns the episode only while its status is `downloading`:
+  /// the pump sets that before starting one and every stop moves it off.
+  /// [_isEpisodeAborted] alone misses pause-then-resume, which lands on
+  /// `queued`: the old attempt saw "not aborted" and carried on, invisibly
+  /// (its progress ticks are dropped for a non-downloading episode) and
+  /// holding a slot, and when it finished its file was discarded and the
+  /// pump downloaded the episode a second time. Returning instead frees the
+  /// slot, and the pump starts the queued episode from its checkpoint.
+  bool _attemptSuperseded(String taskId, String url) {
+    if (_isEpisodeAborted(taskId, url)) return true;
+    final ep = _episodeAt(taskId, _indexOfUrl(taskId, url));
+    return ep == null || ep.status != DownloadStatus.downloading;
+  }
+
   bool _isEpisodeAborted(String taskId, String url) {
     final t = _tasks[taskId];
     if (t == null) return true;

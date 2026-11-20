@@ -151,7 +151,31 @@ class EpisodeSection extends ConsumerWidget {
                       isAscending: isAscending,
                       isDownloadMode: isDownloadMode,
                       lastRefresh: lastRefresh,
-                      onDownloadAll: () => _downloadAll(context, ref),
+                      onDownloadAll: () {
+                        // The catalog on screen, not always this page's own:
+                        // with another one picked the grid shows ITS
+                        // episodes, and downloading "all" queued the page's
+                        // — fewer of them, under ids the visible tiles do
+                        // not carry, so not one badge appeared.
+                        final pick = picked == null
+                            ? null
+                            : counterparts.firstWhere(
+                                (c) => c.sourceId == picked,
+                              );
+                        final target = pick == null
+                            ? video
+                            : ref
+                                  .read(
+                                    videoByIdProvider((
+                                      id: pick.videoId,
+                                      sourceId: pick.sourceId,
+                                    )),
+                                  )
+                                  .value;
+                        // Still loading, or it failed: nothing to queue yet.
+                        if (target?.urls == null) return;
+                        _downloadAll(context, ref, target!);
+                      },
                     ),
                   ),
                   if (hasSources) ...[
@@ -294,7 +318,7 @@ class EpisodeSection extends ConsumerWidget {
     );
   }
 
-  void _downloadAll(BuildContext context, WidgetRef ref) {
+  void _downloadAll(BuildContext context, WidgetRef ref, Video video) {
     final manager = ref.read(downloadManagerProvider);
     final episodes = video.urls!;
     manager.addTask(
