@@ -12,7 +12,7 @@
     "section_general": "通用"
   },
   "recent": {
-    "title": "最近播放",
+    "title": "继续观看",
     "clear_all": "清除全部",
     "empty": "暂无播放历史",
     "watched_to": "看到 {}",
@@ -24,7 +24,7 @@
     "save": "想看",
     "saved": "已想看",
     "empty": "还没有想看的影片",
-    "empty_hint": "在影片详情页点「想看」,存到这里稍后看",
+    "empty_hint": "在影片详情页点「想看」，存到这里稍后看",
     "remove": "从想看中移除"
   },
   "cast": {
@@ -33,24 +33,24 @@
     "pick_device": "选择要投屏的设备",
     "searching": "正在查找设备…",
     "sent_to": "已投到 {}",
-    "failed": "投屏失败: {}",
-    "nothing_found_hint": "还没找到设备。请确认电视已开机并和电脑在同一个 Wi-Fi;搜索会扫描整个网段,可能需要十几秒。",
+    "failed": "投屏失败：{}",
+    "nothing_found_hint": "还没找到设备。请确认电视已开机并和电脑在同一个 Wi-Fi；搜索会扫描整个网段，可能需要十几秒。",
     "casting_on": "在 {} 投屏中",
     "casting_episode": "第 {} 集 · 投屏中",
     "this_tv": "电视",
     "connecting_to": "正在连接 {}…",
     "failed_no_episode": "这部剧没有可投屏的剧集",
-    "failed_no_network": "找不到本机的局域网地址,请检查网络连接",
-    "failed_browser": "打不开电视浏览器,请确认电视上已允许本机连接",
-    "failed_unreachable": "连不上这台电视,请确认它已开机并和电脑在同一个网络",
-    "failed_refused": "电视拒绝了这个视频,可能是它不支持该格式",
-    "failed_no_page": "电视没有打开这个页面。请检查电脑的防火墙是否允许 Vidra 接受连接,以及电视和电脑是否在同一个网络",
-    "failed_busy": "上一次投屏还在连接中,请稍候",
+    "failed_no_network": "找不到本机的局域网地址，请检查网络连接",
+    "failed_browser": "打不开电视浏览器，请确认电视上已允许本机连接",
+    "failed_unreachable": "连不上这台电视，请确认它已开机并和电脑在同一个网络",
+    "failed_refused": "电视拒绝了这个视频，可能是它不支持该格式",
+    "failed_no_page": "电视没有打开这个页面。请检查电脑的防火墙是否允许 Vidra 接受连接，以及电视和电脑是否在同一个网络",
+    "failed_busy": "上一次投屏还在连接中，请稍候",
     "pet_bubble": "正在投到 {}",
     "episode_hint": "投屏中 · 点任意一集，即可换电视上播的那一集",
     "airplay": "AirPlay",
     "airplay_hint": "AirPlay · 点后在系统菜单里选这台电视",
-    "airplay_prompt": "点右边的 AirPlay 图标,选择要投的电视。",
+    "airplay_prompt": "点右边的 AirPlay 图标，选择要投的电视。",
     "failed_airplay_pick": "没有选择 AirPlay 设备",
     "failed_airplay_cancelled": "已取消 AirPlay"
   },
@@ -79,9 +79,9 @@
   "search": {
     "placeholder": "请输入搜索关键词",
     "prompt": "请输入搜索关键词",
-    "title": "搜索: {}",
+    "title": "搜索：{}",
     "no_results": "未找到相关视频",
-    "error": "搜索出错: {}"
+    "error": "搜索出错：{}"
   },
   "settings": {
     "title": "设置",
@@ -89,7 +89,7 @@
       "title": "下载设置",
       "location": "下载位置",
       "concurrent": "同时下载数量",
-      "recommended": "推荐: {} · 下载受网速/CDN限制，并行太多反而更慢",
+      "recommended": "推荐：{} · 下载受网速/CDN限制，并行太多反而更慢",
       "segment_concurrent": "单个下载的分片并发",
       "segment_concurrent_desc": "同一个下载里并行抓取的 HLS 分片数。越高越快；网络差或怕被限速时调低。",
       "cookie": {
@@ -118,7 +118,7 @@
       "mode_auto": "自动",
       "mode_on": "开",
       "mode_off": "关",
-      "player_window": "播放器新窗口打开",
+      "player_window": "播放器打开方式",
       "player_window_desc_auto_on": "自动 — 这台机器性能有限，默认在当前窗口播放",
       "player_window_desc_auto_off": "自动 — 这台机器默认用独立窗口播放",
       "player_mode_window": "新窗口",
@@ -127,19 +127,19 @@
     "diagnostics": {
       "title": "诊断",
       "enable": "发送诊断数据",
-      "enable_desc": "帮助定位卡顿、投屏和崩溃问题。只发送技术信息:帧率、机型与系统版本、投屏协议阶段与错误码。不会发送你看了什么——片名、搜索词、播放地址、文件路径一律不上传",
+      "enable_desc": "帮助定位卡顿、投屏和崩溃问题。只发送技术信息：帧率、机型与系统版本、投屏协议阶段与错误码。不会发送你看了什么——片名、搜索词、播放地址、文件路径一律不上传",
       "restart_hint": "重启 Vidra 后生效"
     },
     "backup": {
       "title": "数据备份",
       "export": "导出数据",
-      "export_desc": "观看进度、跳过点、追更和想看,导出为一个 JSON 文件",
+      "export_desc": "观看进度、跳过点、追更和想看，导出为一个 JSON 文件",
       "export_action": "导出",
       "export_done": "已导出到 {}",
       "import": "导入数据",
-      "import_desc": "合并进现有数据:已有的记录保持不变,只新增缺少的",
+      "import_desc": "合并进现有数据：已有的记录保持不变，只新增缺少的",
       "import_action": "导入",
-      "import_done": "导入完成:新增 {} 条,{} 条已存在"
+      "import_done": "导入完成：新增 {} 条，{} 条已存在"
     },
     "action": {
       "open_folder": "打开文件夹",
@@ -155,7 +155,7 @@
       "show": "开启桌面宠物",
       "show_desc": "一只常驻桌面的小家伙。追更有更新时，它会冒个泡告诉你",
       "preview": "预览",
-      "demo_hint": "点击猫咪:眨眼 → 跳跃",
+      "demo_hint": "点击猫咪：眨眼 → 跳跃",
       "state_idle": "待机",
       "state_walk": "走路",
       "state_jump": "跳跃",
@@ -165,7 +165,7 @@
   "video": {
     "detail": {
       "not_found": "未找到视频",
-      "error": "错误: {}",
+      "error": "错误：{}",
       "rating_suffix": "分",
       "play_now": "立即播放",
       "download": "下载",
@@ -184,8 +184,8 @@
       "cast": "主演",
       "updated": "更新于",
       "unknown": "未知",
-      "added_date": "添加: {}",
-      "cast_info": "主演: {}",
+      "added_date": "添加：{}",
+      "cast_info": "主演：{}",
       "storyline": "简介",
       "continue_watching": "继续观看 {}",
       "continue_watching_short": "继续观看",
@@ -214,6 +214,7 @@
     },
     "section": {
       "episodes": "剧集",
+      "feature": "正片",
       "storyline": "剧情简介",
       "details": "详细信息",
       "no_description": "暂无简介"
@@ -271,7 +272,6 @@
       "parse": "解析",
       "parse_failed": "无法解析该链接",
       "retry": "重试",
-    "undo": "撤销",
       "quality": "清晰度",
       "quality_best": "最佳(自动)",
       "quality_audio": "仅音频",
@@ -279,6 +279,7 @@
       "download": "下载",
       "download_all": "全部下载",
       "added": "已加入下载列表",
+      "already_added": "这个链接已在下载列表中。要换清晰度或重新下载，请先在「下载」里删除它",
       "added_all": "已加入 {} 个到下载列表",
       "added_badge": "已加入",
       "playlist_count": "共 {} 个视频",
@@ -341,12 +342,16 @@
     "loading_category": "加载中…"
   },
   "errors": {
+    "yfsp_unreachable": "爱壹帆连接失败",
+    "yfsp_challenge": "爱壹帆开启了人机验证",
+    "yfsp_rate_limited": "爱壹帆访问过于频繁，请稍后再试",
     "cancelled": "请求已取消",
     "timeout": "连接超时，片源响应太慢",
     "offline": "连不上网络",
     "no_response": "片源没有响应"
   },
   "common": {
+    "undo": "撤销",
     "refresh": "刷新",
     "human_check": "完成人机验证",
     "language": "语言",
@@ -354,7 +359,7 @@
     "en": "English",
     "cancel": "取消",
     "confirm": "确定",
-    "error": "错误: {}",
+    "error": "错误：{}",
     "loading": "加载中...",
     "view_details": "查看详情",
     "waiting_for_video": "正在准备视频...",

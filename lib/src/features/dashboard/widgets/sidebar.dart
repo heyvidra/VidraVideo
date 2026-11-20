@@ -62,7 +62,7 @@ class RailCategoryNotifier extends Notifier<int?> {
 /// grid for the first 60px of every catalog screen. The strip keeps the
 /// sub-filters (type / area / year), which genuinely are filters.
 class Sidebar extends ConsumerWidget {
-  final AppNavigationItem selected;
+  final AppNavigationItem? selected;
   final void Function(AppNavigationItem) onSelect;
 
   const Sidebar({super.key, required this.selected, required this.onSelect});

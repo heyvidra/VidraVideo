@@ -172,3 +172,16 @@ bool _sameEpisodeHistory(EpisodeHistory? a, EpisodeHistory? b) {
       a.durationMillis == b.durationMillis &&
       a.updatedAt == b.updatedAt;
 }
+
+/// Re-reads everything a finished playback may have moved: the 继续观看 list,
+/// and the per-show history an open detail page is holding.
+///
+/// Those per-show providers are one-shot reads that live as long as the page
+/// does. Nothing refreshed them, so a detail page left open under the player
+/// still offered "继续观看 第3集" after the player had gone on to 第5集 — and
+/// its button reopened the old episode.
+void refreshAfterPlayback(ProviderContainer container) {
+  container.read(playHistoryProvider.notifier).manualRefresh();
+  container.invalidate(episodeHistoriesProvider);
+  container.invalidate(videoHistoryProvider);
+}

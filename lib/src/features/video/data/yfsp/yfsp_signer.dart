@@ -163,7 +163,10 @@ class YfspSigner {
 
   String _signExisting(String url, ({String pub, String priv}) keys) {
     final uri = Uri.parse(url);
-    final base = uri.replace(query: '').toString().replaceAll(RegExp(r'\?$'), '');
+    final base = uri
+        .replace(query: '')
+        .toString()
+        .replaceAll(RegExp(r'\?$'), '');
     // Decoded pairs in the order they appear: [signWith] re-encodes them for
     // the wire and hashes the decoded form, which is what the site does.
     final params = <String, String>{};
@@ -225,9 +228,7 @@ class YfspSigner {
     // of the bot challenge the API's own rate limiter escalates to. Matching
     // the field names loose pairs that key with pConfig's privateKey, and a
     // mismatched pair signs perfectly well and is refused by every endpoint.
-    final config = RegExp(
-      r'"pConfig"\s*:\s*\{([^{}]*)\}',
-    ).firstMatch(html)?[1];
+    final config = RegExp(r'"pConfig"\s*:\s*\{([^{}]*)\}').firstMatch(html)?[1];
     final pub = config == null
         ? null
         : RegExp(r'"publicKey"\s*:\s*"([^"]+)"').firstMatch(config)?[1];

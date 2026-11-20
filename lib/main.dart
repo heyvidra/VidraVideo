@@ -15,6 +15,7 @@ import 'src/config/app_config.dart';
 import 'src/core/network/browser_identity.dart';
 import 'src/core/network/player_browser_headers.dart';
 import 'src/core/network/bundled_roots.dart';
+import 'src/core/telemetry/frame_metrics.dart';
 import 'src/core/telemetry/telemetry.dart';
 import 'src/core/utils/log.dart';
 import 'src/core/utils/window.dart';
@@ -52,6 +53,8 @@ Future<void> _setupNotifications() async {
   }
 }
 
+const _forcedLocale = String.fromEnvironment('LOCALE');
+
 Future<void> main(List<String> args) async {
   // Android is the TV build: one window, a remote, none of the desktop
   // window management below.
@@ -67,6 +70,7 @@ Future<void> main(List<String> args) async {
 
 Future<void> _runApp() async {
   WidgetsFlutterBinding.ensureInitialized();
+  FrameMetrics.mark('binding');
 
   // Window identity was seeded synchronously from the entrypoint args in
   // main(), so it is already trustworthy here — and it decides how much of
@@ -107,6 +111,7 @@ Future<void> _runApp() async {
     if (isMainWindow) _setupNotifications(),
   ]);
   final appSettings = await settingsLoad;
+  FrameMetrics.mark('settings_and_setup');
 
   // The pet never hosts playback; every other window may.
   if (!isPetWindow) {
@@ -128,6 +133,7 @@ Future<void> _runApp() async {
   // Before the window configurations resolve: the background-effect builders
   // read this synchronously, and seeding it here is what keeps an Intel Mac
   // from flashing acrylic for a frame before the setting loads.
+  FrameMetrics.mark('player_kit');
   ReduceEffects.seed(appSettings);
   // Same reason and the same moment: the launch sites are tap handlers with
   // no time to await a database, and this runs in every engine — including
@@ -166,8 +172,10 @@ Future<void> _runApp() async {
         .initialize(startProcessing: isMainWindow, watchDb: isMainWindow);
   }
 
+  FrameMetrics.mark('downloads_loaded');
   WindowHelper.init(container.read(settingsRepositoryProvider));
 
+  FrameMetrics.mark('run_app');
   void startApp() {
     runBitsdojoWindowApp(
       routes: {
@@ -181,7 +189,15 @@ Future<void> _runApp() async {
         supportedLocales: const [Locale('zh'), Locale('en')],
         path: 'assets/translations',
         fallbackLocale: const Locale('en'),
-        startLocale: savedLocale != null ? Locale(savedLocale) : null,
+        // `--dart-define=LOCALE=en|zh`: this run only. saveLocale goes off
+        // with it, or the package would read back (and overwrite) the
+        // language the installed app saved.
+        startLocale: _forcedLocale.isNotEmpty
+            ? Locale(_forcedLocale)
+            : savedLocale != null
+            ? Locale(savedLocale)
+            : null,
+        saveLocale: _forcedLocale.isEmpty,
         child: UncontrolledProviderScope(
           container: container,
           child: const MyApp(),
@@ -237,9 +253,13 @@ List<WindowConfiguration> _buildWindowConfigurations() {
       // anything else.
       minSizeBuilder: (window) {
         final screenSize = window.workingScreenSize;
+        // Never above the opening size (80% of the work area, just above).
+        // Capped at the full work area, a small scaled display — 1366x768 at
+        // 150% is 911x458 logical points — got a minimum equal to the whole
+        // screen: a window that could not be made any smaller than maximized.
         return Size(
-          math.min(960, screenSize.width),
-          math.min(600, screenSize.height),
+          math.min(960, screenSize.width * 0.8),
+          math.min(600, screenSize.height * 0.8),
         );
       },
       alignment: Alignment.center,

@@ -179,6 +179,18 @@ class FrameMetrics {
   /// build by hand; nothing in a release build sets it.
   static const bool _bench = bool.fromEnvironment('FRAME_BENCH');
 
+  static final Stopwatch _sinceMain = Stopwatch();
+  static bool _firstFrameMarked = false;
+
+  /// Bench only: how far into startup [stage] is, in ms since the first
+  /// mark. The first frame marks itself.
+  static void mark(String stage) {
+    if (!_bench) return;
+    _sinceMain.start();
+    // ignore: avoid_print
+    print('FRAME_BENCH startup $stage ${_sinceMain.elapsedMilliseconds}');
+  }
+
   void _benchPrint() {
     final aggregator = _aggregator;
     if (aggregator == null || aggregator.frames == 0) return;
@@ -272,6 +284,10 @@ class FrameMetrics {
   void _onTimings(List<FrameTiming> timings) {
     final aggregator = _aggregator;
     if (aggregator == null) return;
+    if (!_firstFrameMarked) {
+      _firstFrameMarked = true;
+      mark('first_frame_reported');
+    }
     try {
       for (var i = 0; i < timings.length; i++) {
         final timing = timings[i];

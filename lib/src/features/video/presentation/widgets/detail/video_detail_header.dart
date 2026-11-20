@@ -391,7 +391,12 @@ class ActionButton extends StatelessWidget {
         onTap: busy ? null : onTap,
         borderRadius: BorderRadius.circular(999),
         child: Container(
-          padding: EdgeInsets.fromLTRB(icon == null && !busy ? 17 : 13, 8, 17, 8),
+          padding: EdgeInsets.fromLTRB(
+            icon == null && !busy ? 17 : 13,
+            8,
+            17,
+            8,
+          ),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(999),
             border: Border.all(color: edge),
@@ -474,10 +479,7 @@ class _PlayButton extends ConsumerWidget {
         label: tr(
           'video.detail.continue_watching',
           args: [
-            episodeLabel(
-              newer.lastEpisodeTitle,
-              index: newer.lastEpisodeIndex,
-            ),
+            episodeLabel(newer.lastEpisodeTitle, index: newer.lastEpisodeIndex),
           ],
         ),
         onTap: () => PlayerLauncher.open(
@@ -576,7 +578,12 @@ class _SubscribeButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final following = ref.watch(
-      isSubscribedProvider((title: video.title, year: video.year)),
+      isSubscribedProvider((
+        title: video.title,
+        year: video.year,
+        sourceId: video.sourceId,
+        videoId: video.apiId,
+      )),
     );
     return ActionButton(
       amber: following,

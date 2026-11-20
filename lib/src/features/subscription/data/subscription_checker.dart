@@ -53,7 +53,32 @@ final subscriptionCheckerProvider = Provider<SubscriptionChecker>((ref) {
       }
       return out;
     },
-    fetchDetail: (sub) => videos.getVideo(sub.videoId, sourceId: sub.sourceId),
+    // forceRefresh, or this is not a check at all: a followed show has had its
+    // detail page opened, so the default answers from the row that visit
+    // cached. That compared the progress line against a copy of itself — or,
+    // once a listing had moved the line on, "found" the OLD text as an update
+    // and announced it.
+    //
+    // Except on dbku, where it must NOT be forced. A dbku detail fetch fans
+    // out into a play-page request per episode — 91 requests for a 90-episode
+    // show, in the background, on a catalog that bans by IP — and its detail
+    // page carries no progress line, so the check could not see an update
+    // even then. There the cached row is the whole answer: nothing to
+    // compare, nothing spent. dbku updates are caught by the listing tiers.
+    //
+    // And not at all for a show on a source that is switched off. The
+    // repository resolves an unknown source id to the ACTIVE source, so the
+    // request would go out to the wrong catalog under this show's id and
+    // come back as some other show — whose progress line is "different",
+    // and so an update. A disabled source's shows simply wait.
+    fetchDetail: (sub) async {
+      if (!sources.any((d) => d.id == sub.sourceId)) return null;
+      return videos.getVideo(
+        sub.videoId,
+        sourceId: sub.sourceId,
+        forceRefresh: sub.sourceId != 'dbku',
+      );
+    },
   );
 });
 
@@ -111,18 +136,25 @@ class SubscriptionChecker {
   /// announce them by name in a single notification.
   Future<List<Subscription>> run({bool force = false}) async {
     if (_running) return const [];
-    if (!_lastRunLoaded) {
-      _lastRun = await subscriptions.loadLastCheckAt();
-      _lastRunLoaded = true;
-    }
-    final last = _lastRun;
-    if (!force && last != null && _clock().difference(last) < minRunInterval) {
-      return const [];
-    }
+    // Taken before the first await, not after it. Launch calls this twice
+    // back to back (the shell's initState, then the lifecycle's `resumed`);
+    // with the flag set only after the load below, both got past the check,
+    // and the second one's load then overwrote the timestamp the first had
+    // just stamped — so both swept.
     _running = true;
-    _lastRun = _clock();
-    await subscriptions.saveLastCheckAt(_lastRun!);
     try {
+      if (!_lastRunLoaded) {
+        _lastRun = await subscriptions.loadLastCheckAt();
+        _lastRunLoaded = true;
+      }
+      final last = _lastRun;
+      if (!force &&
+          last != null &&
+          _clock().difference(last) < minRunInterval) {
+        return const [];
+      }
+      _lastRun = _clock();
+      await subscriptions.saveLastCheckAt(_lastRun!);
       return [...await _sweepRecent(), ...await _checkDue()];
     } finally {
       _running = false;

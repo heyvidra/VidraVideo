@@ -57,6 +57,10 @@ class EpisodeDownloadInfo {
     String? formatId,
     DownloadStatus? status,
     String? phase,
+
+    /// [phase] is nullable and `phase: null` means "keep", so clearing it
+    /// needs saying.
+    bool clearPhase = false,
     double? progress,
     int? bytesDownloaded,
     int? totalBytes,
@@ -71,7 +75,7 @@ class EpisodeDownloadInfo {
       outputPath: outputPath ?? this.outputPath,
       formatId: formatId ?? this.formatId,
       status: status ?? this.status,
-      phase: phase ?? this.phase,
+      phase: clearPhase ? null : (phase ?? this.phase),
       progress: progress ?? this.progress,
       bytesDownloaded: bytesDownloaded ?? this.bytesDownloaded,
       totalBytes: totalBytes ?? this.totalBytes,
@@ -131,6 +135,10 @@ class DownloadTask {
 
   late int videoId;
 
+  /// The catalog [videoId] belongs to; null when unknown (a task from before
+  /// this was recorded) or not applicable (a pasted link).
+  String? sourceId;
+
   late String videoTitle;
   String? coverUrl;
   late List<EpisodeDownloadInfo> episodes;
@@ -140,12 +148,22 @@ class DownloadTask {
   DownloadTask({
     this.taskId = '',
     required this.videoId,
+    this.sourceId,
     required this.videoTitle,
     this.coverUrl,
     required this.episodes,
     required this.createdAt,
     this.completedAt,
   });
+
+  /// Whether this task is the download of ([videoId], [sourceId]).
+  ///
+  /// An unknown source on either side matches: a task that predates the
+  /// column cannot say which catalog it was, and refusing it would strand
+  /// every existing download behind a second, empty task for the same show.
+  bool isFor(int videoId, String? sourceId) =>
+      this.videoId == videoId &&
+      (this.sourceId == null || sourceId == null || this.sourceId == sourceId);
 
   /// Overall task status
   DownloadStatus get status {
@@ -251,6 +269,7 @@ class DownloadTask {
   DownloadTask copyWith({
     String? taskId,
     int? videoId,
+    String? sourceId,
     String? videoTitle,
     String? coverUrl,
     List<EpisodeDownloadInfo>? episodes,
@@ -260,6 +279,7 @@ class DownloadTask {
     return DownloadTask(
       taskId: taskId ?? this.taskId,
       videoId: videoId ?? this.videoId,
+      sourceId: sourceId ?? this.sourceId,
       videoTitle: videoTitle ?? this.videoTitle,
       coverUrl: coverUrl ?? this.coverUrl,
       episodes: episodes ?? this.episodes,

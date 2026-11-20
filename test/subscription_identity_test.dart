@@ -37,16 +37,15 @@ void main() {
       final subs = [
         sub(source: 'olevod', videoId: 1, title: '兵自风中来', year: '2026'),
       ];
-      expect(
-        isShowSubscribed(subs, title: '兵自风中来', year: '2026'),
-        isTrue,
-      );
+      expect(isShowSubscribed(subs, title: '兵自风中来', year: '2026'), isTrue);
     });
 
     test('a remake is not its original', () {
       // Titles repeat across decades and the ids say nothing, so the year is
       // the only thing standing between two unrelated shows.
-      final subs = [sub(source: 'olevod', videoId: 1, title: '九门', year: '2026')];
+      final subs = [
+        sub(source: 'olevod', videoId: 1, title: '九门', year: '2026'),
+      ];
       expect(isShowSubscribed(subs, title: '九门', year: '1994'), isFalse);
       expect(isShowSubscribed(subs, title: '九门', year: '2026'), isTrue);
     });
@@ -59,21 +58,56 @@ void main() {
       expect(isShowSubscribed(subs, title: '九门'), isTrue);
     });
 
+    test('the row itself is recognised whichever of its views asks', () {
+      // Followed from a dbku listing card, which carries no year. The detail
+      // page of that same row does carry one. By key alone the page read as
+      // unfollowed, and its button followed the row "again" — into a unique
+      // index that ignored it. Not a wildcard: a DIFFERENT row with this
+      // title and a year is still not this show (the test above).
+      final subs = [sub(source: 'dbku', videoId: 7, title: '九门')];
+      expect(
+        isShowSubscribed(
+          subs,
+          title: '九门',
+          year: '2026',
+          sourceId: 'dbku',
+          videoId: 7,
+        ),
+        isTrue,
+      );
+      expect(
+        subscriptionsForShow(
+          subs,
+          title: '九门',
+          year: '2026',
+          sourceId: 'dbku',
+          videoId: 7,
+        ),
+        hasLength(1),
+        reason: 'the toggle must find the row to remove',
+      );
+      expect(
+        isShowSubscribed(
+          subs,
+          title: '九门',
+          year: '2026',
+          sourceId: 'olevod',
+          videoId: 7,
+        ),
+        isFalse,
+        reason: 'same id on another catalog is another row',
+      );
+    });
+
     test('spacing differences do not split one show in two', () {
       final subs = [
         sub(source: 'olevod', videoId: 1, title: ' 兵自 风中来 ', year: '2026'),
       ];
-      expect(
-        isShowSubscribed(subs, title: '兵自 风中来', year: '2026'),
-        isTrue,
-      );
+      expect(isShowSubscribed(subs, title: '兵自 风中来', year: '2026'), isTrue);
     });
 
     test('nothing followed yet', () {
-      expect(
-        isShowSubscribed(const [], title: '兵自风中来', year: '2026'),
-        isFalse,
-      );
+      expect(isShowSubscribed(const [], title: '兵自风中来', year: '2026'), isFalse);
     });
   });
 

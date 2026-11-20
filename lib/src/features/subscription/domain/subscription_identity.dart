@@ -22,11 +22,17 @@ bool isShowSubscribed(
   List<Subscription> subs, {
   required String title,
   String? year,
+  String? sourceId,
+  int? videoId,
 }) {
   final key = crossSourceKey(title, year);
   // `any` rather than `subscriptionsForShow(...).isNotEmpty` — the bell asks
   // this on every rebuild of every card, and the answer needs no list.
-  return subs.any((s) => crossSourceKey(s.title, s.year) == key);
+  return subs.any(
+    (s) =>
+        crossSourceKey(s.title, s.year) == key ||
+        _sameRow(s, sourceId, videoId),
+  );
 }
 
 /// Every stored row belonging to this show, across catalogs.
@@ -48,9 +54,17 @@ List<Subscription> subscriptionsForShow(
   List<Subscription> subs, {
   required String title,
   String? year,
+  String? sourceId,
+  int? videoId,
 }) {
   final key = crossSourceKey(title, year);
-  return subs.where((s) => crossSourceKey(s.title, s.year) == key).toList();
+  return subs
+      .where(
+        (s) =>
+            crossSourceKey(s.title, s.year) == key ||
+            _sameRow(s, sourceId, videoId),
+      )
+      .toList();
 }
 
 /// Whether ANY of the show's rows carries an update the user has not seen.
@@ -71,3 +85,21 @@ bool showHasUnread(
   final key = crossSourceKey(title, year);
   return subs.any((s) => s.unread && crossSourceKey(s.title, s.year) == key);
 }
+
+/// Whether [s] IS the catalog row being asked about.
+///
+/// Title and year join a show across catalogs; this is the row itself. The
+/// two can disagree, because one row is seen with and without a year — a
+/// dbku listing card carries none, its detail page does. Asked by key alone,
+/// a show followed from the card read as unfollowed on its own detail page,
+/// and the button there "followed" it again into a unique index that ignored
+/// the insert: a toggle that did nothing, and no way to unfollow.
+///
+/// This is not a missing year matching any year (see the test that forbids
+/// exactly that): a different row with the same title still has to agree on
+/// the year.
+bool _sameRow(Subscription s, String? sourceId, int? videoId) =>
+    sourceId != null &&
+    videoId != null &&
+    s.sourceId == sourceId &&
+    s.videoId == videoId;

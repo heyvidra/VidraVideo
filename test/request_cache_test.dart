@@ -160,6 +160,30 @@ void main() {
     tearDown(() => database.close());
 
     test(
+      'a source that is switched off is not looked up on the active one',
+      () async {
+        // 'dbku' is not among this repository's sources — it is disabled. Its
+        // ids used to be requested from the active catalog, and whatever show
+        // answered was saved as dbku's.
+        final video = await repo.getVideo(
+          42,
+          sourceId: 'dbku',
+          forceRefresh: true,
+        );
+        expect(source.detailCalls, 0);
+        expect(video, isNull);
+        expect(await database.select(database.videos).get(), isEmpty);
+      },
+    );
+
+    test('a pasted link has no catalog entry to ask for', () async {
+      // Synthetic ids are negative. Each progress save asked the catalog for
+      // one, and an unreachable catalog broke playing the local file.
+      expect(await repo.getVideo(-123456, forceRefresh: true), isNull);
+      expect(source.detailCalls, 0);
+    });
+
+    test(
       'an identical list query within the window is served from cache',
       () async {
         await repo.fetchVideos(categoryId: 1);
@@ -235,11 +259,13 @@ void main() {
 
       source.episodes = 5;
       final second = await visit();
-      expect(
-        second!.urls!.map((e) => e.isNew == true).toList(),
-        [false, false, false, true, true],
-        reason: 'only 第4集 and 第5集 were absent last time',
-      );
+      expect(second!.urls!.map((e) => e.isNew == true).toList(), [
+        false,
+        false,
+        false,
+        true,
+        true,
+      ], reason: 'only 第4集 and 第5集 were absent last time');
 
       // The badge means "appeared since you last looked", not "recently
       // aired", so a visit that finds nothing added clears it.

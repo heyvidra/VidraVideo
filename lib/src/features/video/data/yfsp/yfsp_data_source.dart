@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -87,22 +88,27 @@ class YfspDataSource implements VideoDataSource {
         ? '0,1,$categoryId'
         : '0,1,$categoryId,$subTypeId';
 
-    final info = await _get('$_apiM10/list/Search', {
-      'cinema': '1',
-      'tags': '',
-      'orderby': '0',
-      'page': '$page',
-      'size': '$_pageSize',
-      'desc': '1',
-      'cid': cid,
-      'label': '',
-      'year': year ?? '',
-      'language': '',
-      'region': area ?? '',
-      'isserial': '-1',
-      'isIndex': '-1',
-      'isfree': '-1',
-    }, endpoint: 'yfsp.fetchVideos', hadFilters: area != null || year != null);
+    final info = await _get(
+      '$_apiM10/list/Search',
+      {
+        'cinema': '1',
+        'tags': '',
+        'orderby': '0',
+        'page': '$page',
+        'size': '$_pageSize',
+        'desc': '1',
+        'cid': cid,
+        'label': '',
+        'year': year ?? '',
+        'language': '',
+        'region': area ?? '',
+        'isserial': '-1',
+        'isIndex': '-1',
+        'isfree': '-1',
+      },
+      endpoint: 'yfsp.fetchVideos',
+      hadFilters: area != null || year != null,
+    );
 
     final bucket = info.isEmpty ? null : info.first as Map<String, dynamic>?;
     final rows = bucket?['result'] as List?;
@@ -448,7 +454,7 @@ class YfspDataSource implements VideoDataSource {
     // the retrying that makes it worse.
     if (code == 5) {
       _report(endpoint, field: 'rate_limited');
-      throw ApiException(message: '爱壹帆访问过于频繁，请稍后再试');
+      throw ApiException(message: tr('errors.yfsp_rate_limited'));
     }
 
     _report(

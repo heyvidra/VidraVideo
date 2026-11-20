@@ -64,11 +64,36 @@ class SettingsRepository {
   /// Update settings
   Future<void> updateSettings(AppSettings settings) async {
     settings.id = AppSettings.singletonId;
-    final id = await _db
-        .into(_db.appSettings)
-        .insert(settings.toCompanion(), mode: InsertMode.insertOrReplace);
-    settings.id = id;
+    // UPDATE the columns this model carries; do not replace the row. The
+    // table has columns [AppSettings] does not map — searchHistory,
+    // subscriptionCheckedAt — written by their own targeted updates. A
+    // whole-row insertOrReplace reset those to NULL on every settings write:
+    // a theme toggle, a source switch, or just closing the player (which
+    // saves its window size) emptied the search history and forgot when
+    // followed shows were last checked.
+    final companion = settings.toCompanion();
+    final updated = await (_db.update(
+      _db.appSettings,
+    )..where((t) => t.id.equals(AppSettings.singletonId))).write(companion);
+    if (updated == 0) {
+      // A fresh install where nothing has written settings yet.
+      await _db.into(_db.appSettings).insert(companion);
+    }
     await _cleanupDuplicateSettings();
+  }
+
+  /// Changes one thing, starting from what is stored NOW.
+  ///
+  /// For callers holding a settings object they did not just read — the
+  /// settings screen's is a stream snapshot, and each window is its own
+  /// engine with its own connection, so that stream never hears the player
+  /// window saving its size or the pet saving its position. Writing the
+  /// snapshot back put the old geometry back with it: flip a switch in
+  /// Settings and the player reopened where it used to be.
+  Future<void> change(void Function(AppSettings settings) edit) async {
+    final settings = await getSettings();
+    edit(settings);
+    await updateSettings(settings);
   }
 
   /// Update locale

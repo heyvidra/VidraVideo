@@ -152,6 +152,39 @@ class HistoryRepository {
     return list.map((h) => h.toDomain()).toList();
   }
 
+  /// Marks episodes `0..count-1` of a show as finished.
+  ///
+  /// Position == duration, the shape playback itself writes. An episode with
+  /// a real duration keeps it; one never opened gets a 1/1 pair, overwritten
+  /// with real numbers the moment it is actually played.
+  ///
+  /// One transaction: a long-running show is a few hundred read-then-write
+  /// pairs, and outside one each write is its own commit to disk.
+  Future<void> markEpisodesWatched({
+    required int videoId,
+    required String? sourceId,
+    required int count,
+  }) {
+    return _db.transaction(() async {
+      for (var i = 0; i < count; i++) {
+        final existing = await getEpisodeHistory(videoId, i, sourceId);
+        final duration = (existing?.durationMillis ?? 0) > 0
+            ? existing!.durationMillis
+            : 1;
+        await saveEpisodeHistory(
+          EpisodeHistory(
+            id: existing?.id ?? 0,
+            sourceId: sourceId,
+            videoId: videoId,
+            episodeIndex: i,
+            positionMillis: duration,
+            durationMillis: duration,
+          ),
+        );
+      }
+    });
+  }
+
   Future<void> saveEpisodeHistory(EpisodeHistory history) async {
     // Normalize sourceId and preserve existing row id before saving
     final sid = history.sourceId ?? _defaultSourceId;

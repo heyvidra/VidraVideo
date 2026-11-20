@@ -1,9 +1,11 @@
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 import '../config/player_window_mode.dart';
 import '../core/utils/window.dart';
+import '../features/video/presentation/play_history_provider.dart';
 import 'window_title_bar_buttons.dart';
 
 /// Starts playback, in whichever place this machine is set to play.
@@ -41,7 +43,11 @@ class PlayerLauncher {
           'directCoverUrl': ?directCoverUrl,
         },
       ).toString();
-      context.push(location);
+      // In the main window the app never loses focus, so the shell's
+      // `resumed` refresh does not fire when this page closes. Do it here.
+      final container = ProviderScope.containerOf(context, listen: false);
+      await context.push(location);
+      refreshAfterPlayback(container);
       return;
     }
     await appWindow.openNewWindow(

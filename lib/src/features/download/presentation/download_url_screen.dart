@@ -366,6 +366,22 @@ class _ResultItemCard extends HookConsumerWidget {
 
     Future<void> download() async {
       if (episodeUrl == null || busy.value) return;
+      // The manager keys a pasted link by its URL, so asking for one it
+      // already holds changes nothing — not the quality, not a failed run.
+      // This used to answer "added" all the same. Say what is true, and
+      // where the way forward is.
+      final manager = ref.read(downloadManagerProvider);
+      final held = manager.allTasks.any(
+        (t) =>
+            t.isFor(videoId, null) &&
+            t.episodes.any((e) => e.url == episodeUrl),
+      );
+      if (held) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr('download.url.already_added'))),
+        );
+        return;
+      }
       busy.value = true;
       final label = options
           .firstWhere(
@@ -373,21 +389,19 @@ class _ResultItemCard extends HookConsumerWidget {
             orElse: () => (value: selected.value, label: selected.value),
           )
           .label;
-      await ref
-          .read(downloadManagerProvider)
-          .addTask(
-            videoId: videoId,
-            videoTitle: title,
-            coverUrl: coverUrl,
-            episodes: [
-              {
-                'index': 0,
-                'title': label,
-                'url': episodeUrl,
-                'formatId': selected.value,
-              },
-            ],
-          );
+      await manager.addTask(
+        videoId: videoId,
+        videoTitle: title,
+        coverUrl: coverUrl,
+        episodes: [
+          {
+            'index': 0,
+            'title': label,
+            'url': episodeUrl,
+            'formatId': selected.value,
+          },
+        ],
+      );
       busy.value = false;
       added.value = true;
       if (context.mounted) {
@@ -611,10 +625,15 @@ List<_QualityOption> _singleQualityOptions(MediaInfo media) {
     byHeight[f.height!] = (value: f.formatId, label: '${f.height}p');
   }
   final heights = byHeight.keys.toList()..sort((a, b) => b.compareTo(a));
+  final best = (value: 'best', label: tr('download.url.quality_best'));
   return [
     for (final h in heights) byHeight[h]!,
+    // The first option is the default. With no resolution to offer — formats
+    // that state no codec, or only ones this list does not merge — that used
+    // to be audio-only: paste, press download, get a file with no picture.
+    if (heights.isEmpty) best,
     (value: 'bestaudio[ext=m4a]', label: tr('download.url.quality_audio')),
-    (value: 'best', label: tr('download.url.quality_best')),
+    if (heights.isNotEmpty) best,
   ];
 }
 

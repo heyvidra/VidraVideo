@@ -7,7 +7,6 @@ import 'package:vidra/src/common/dropdown_menu.dart';
 import 'package:vidra/src/common/screen_chrome.dart';
 import 'package:vidra/src/config/design_tokens.dart';
 import 'package:vidra/src/config/reduce_effects.dart';
-import 'package:vidra/src/data/database/app_database_provider.dart';
 import 'package:vidra/src/features/video/data/video_repository.dart';
 import 'package:vidra/src/features/video/domain/video_collection.dart';
 import 'package:vidra/src/features/video/domain/play_history.dart';
@@ -225,6 +224,8 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
       ref.read(subscriptionsProvider).value ?? const [],
       title: video.title,
       year: video.year,
+      sourceId: video.sourceId,
+      videoId: video.apiId,
     );
     final elsewhere =
         ref
@@ -383,30 +384,11 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
     }
 
     final repository = ref.read(historyRepositoryProvider);
-    // One transaction: a long-running show is a few hundred read-then-write
-    // pairs, and outside one each write is its own commit to disk.
-    await ref.read(appDatabaseProvider).transaction(() async {
-      for (var i = 0; i < episodes.length; i++) {
-        final existing = await repository.getEpisodeHistory(
-          video.apiId,
-          i,
-          video.sourceId,
-        );
-        final duration = (existing?.durationMillis ?? 0) > 0
-            ? existing!.durationMillis
-            : 1;
-        await repository.saveEpisodeHistory(
-          EpisodeHistory(
-            id: existing?.id ?? 0,
-            sourceId: video.sourceId,
-            videoId: video.apiId,
-            episodeIndex: i,
-            positionMillis: duration,
-            durationMillis: duration,
-          ),
-        );
-      }
-    });
+    await repository.markEpisodesWatched(
+      videoId: video.apiId,
+      sourceId: video.sourceId,
+      count: episodes.length,
+    );
 
     // The show also has to READ as finished where progress is summarised —
     // the resume target keys off this row, not off the episode map.
@@ -463,6 +445,7 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
         .read(downloadManagerProvider)
         .addTask(
           videoId: video.apiId,
+          sourceId: video.sourceId,
           videoTitle: video.title,
           coverUrl: video.coverUrl,
           episodes: episodes

@@ -52,9 +52,18 @@ final unreadSubscriptionCountProvider = Provider<int>((ref) {
 /// following" on a show followed yesterday from the other catalog, and the tap
 /// that followed then created a second row instead of undoing anything.
 final isSubscribedProvider =
-    Provider.family<bool, ({String title, String? year})>((ref, arg) {
+    Provider.family<
+      bool,
+      ({String title, String? year, String? sourceId, int? videoId})
+    >((ref, arg) {
       final subs = ref.watch(subscriptionsProvider).value ?? const [];
-      return isShowSubscribed(subs, title: arg.title, year: arg.year);
+      return isShowSubscribed(
+        subs,
+        title: arg.title,
+        year: arg.year,
+        sourceId: arg.sourceId,
+        videoId: arg.videoId,
+      );
     });
 
 class SubscriptionNotifier extends AsyncNotifier<List<Subscription>> {
@@ -86,6 +95,8 @@ class SubscriptionNotifier extends AsyncNotifier<List<Subscription>> {
       state.value ?? const [],
       title: video.title,
       year: video.year,
+      sourceId: source,
+      videoId: video.apiId,
     );
     if (owned.isEmpty) {
       await _repo.subscribe(video);

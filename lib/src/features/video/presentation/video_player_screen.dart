@@ -234,6 +234,14 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
       );
     }
 
+    // The controller's dispose just handed over the final position, and the
+    // repository holds saves for up to five seconds. On this path nothing
+    // else flushes it — State.dispose never runs when the window goes — so
+    // the resume point was whatever the last periodic save happened to
+    // write, seconds behind, or the pre-seek position after a quick close.
+    // Now, so the write lands inside the grace window below.
+    _mediaRepository?.dispose();
+
     // Give native texture threads time to spin down before killing the
     // engine. This must outlast the sprite sweeper's 300ms teardown settle —
     // closing inside that window strands a parked native player that nothing
@@ -399,7 +407,11 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
   /// it owns that corner outright. The main window does not: macOS parks its
   /// three buttons at x = 20 / 40 / 60 with a 12pt diameter, so the last one
   /// ends at 66 — and this player's own button was landing on top of them.
-  static const double _trafficLightsInset = 80;
+  ///
+  /// Only macOS has them there. Windows and Linux draw their window buttons
+  /// on the catalog's toolbar, which this page replaces, so the corner is
+  /// empty and the control belongs in it.
+  static final double _trafficLightsInset = Platform.isMacOS ? 80 : 10;
 
   /// Leaves, in the way this player can leave.
   ///
@@ -418,7 +430,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
     );
     if (!_inApp) return button;
     return Padding(
-      padding: const EdgeInsets.only(left: _trafficLightsInset),
+      padding: EdgeInsets.only(left: _trafficLightsInset),
       child: button,
     );
   }
@@ -589,7 +601,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
             final matches = ref
                 .read(downloadManagerProvider)
                 .allTasks
-                .where((t) => t.videoId == id);
+                .where((t) => t.isFor(id, widget.sourceId));
             if (matches.isNotEmpty) {
               final task = matches.first;
               episodes = _episodesFromTask(task);
