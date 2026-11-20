@@ -473,22 +473,53 @@ class _PlayButton extends ConsumerWidget {
           )
         : null;
     if (newer != null) {
+      // The same rule as below, asked of the OTHER catalog's rows: an
+      // episode finished over there resumes at the one after it. Both reads
+      // are local.
+      final there = ref
+          .watch(
+            locallyCachedVideoProvider((
+              id: newer.videoId,
+              sourceId: newer.sourceId,
+            )),
+          )
+          .value;
+      final count = there?.urls?.length ?? 0;
+      final at = resolveResumeTarget(
+        histories:
+            ref
+                .watch(
+                  episodeHistoriesProvider((
+                    videoId: newer.videoId,
+                    sourceId: newer.sourceId,
+                  )),
+                )
+                .value ??
+            const {},
+        lastEpisodeIndex: newer.lastEpisodeIndex,
+        episodeCount: count > 0 ? count : null,
+      );
       return ActionButton(
         primary: true,
         icon: Icons.play_circle_outline_rounded,
         label: tr(
           'video.detail.continue_watching',
           args: [
-            localizedEpisodeLabel(
-              newer.lastEpisodeTitle,
-              index: newer.lastEpisodeIndex,
-            ),
+            at.advanced
+                ? localizedEpisodeLabel(
+                    there!.urls![at.episodeIndex].title,
+                    index: at.episodeIndex,
+                  )
+                : localizedEpisodeLabel(
+                    newer.lastEpisodeTitle,
+                    index: newer.lastEpisodeIndex,
+                  ),
           ],
         ),
         onTap: () => PlayerLauncher.open(
           context,
           videoId: newer.videoId,
-          episodeIndex: newer.lastEpisodeIndex,
+          episodeIndex: at.episodeIndex,
           sourceId: newer.sourceId,
         ),
       );

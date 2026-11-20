@@ -139,7 +139,8 @@
       "import": "Import data",
       "import_desc": "Merges into existing data: what you have stays, only missing records are added",
       "import_action": "Import",
-      "import_done": "Import finished: {} added, {} already present"
+      "import_done": "Import finished: {} added, {} already present",
+      "import_invalid": "This file is not a Vidra backup"
     },
     "action": {
       "open_folder": "Open Folder",

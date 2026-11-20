@@ -308,7 +308,29 @@ class _WindowControls extends StatefulWidget {
   State<_WindowControls> createState() => _WindowControlsState();
 }
 
-class _WindowControlsState extends State<_WindowControls> {
+class _WindowControlsState extends State<_WindowControls>
+    with WidgetsBindingObserver {
+  // The icon reads the window's state, and only a tap on it used to redraw
+  // it: maximised by double-clicking the bar, Win+Up or a snap, the button
+  // went on offering "Maximize". Every one of those changes the window's
+  // size, which is what this hears.
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeMetrics() {
+    if (mounted) setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = VidraTokens.of(context);

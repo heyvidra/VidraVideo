@@ -1,3 +1,4 @@
+import 'package:vidra/src/core/utils/ttl_cache.dart';
 import 'package:dio/dio.dart';
 
 import '../../../../core/network/browser_headers.dart';
@@ -255,12 +256,17 @@ class DbkuDataSource implements VideoDataSource {
   /// that's the one new episode instead of the whole run. Session-scoped
   /// on purpose: stream URLs rot on the CDN's schedule, and a restart is
   /// the rot boundary we can afford without persisting timestamps.
-  final _resolvedThisSession = <String, String>{};
+  // A day, not the whole run: this is a desktop app that stays open, and a
+  // stream URL outlives its CDN signature long before the process ends.
+  final _resolvedThisSession = TtlCache<String, String>(
+    ttl: const Duration(hours: 24),
+    maxEntries: 5000,
+  );
 
   Future<VideoEpisode> _resolveEpisode(VideoEpisode episode) async {
     final playPath = episode.url;
     if (playPath == null) return episode;
-    final known = _resolvedThisSession[playPath];
+    final known = _resolvedThisSession.get(playPath);
     if (known != null) {
       return episode.copyWith(
         qualities: [VideoQuality(name: '标清', url: known)],
@@ -272,7 +278,7 @@ class DbkuDataSource implements VideoDataSource {
     // watch history is filed by POSITION — one timed-out request moved every
     // later episode's progress, ticks and resume point onto its neighbour.
     if (url == null) return episode;
-    _resolvedThisSession[playPath] = url;
+    _resolvedThisSession.set(playPath, url);
     return episode.copyWith(
       qualities: [VideoQuality(name: '标清', url: url)],
     );

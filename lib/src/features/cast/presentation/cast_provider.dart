@@ -667,6 +667,17 @@ class CastController extends Notifier<CastState> {
     });
   }
 
+  /// Whether positions reported after an episode change belong to the new
+  /// episode yet: clearly earlier than where the old one was, or long enough
+  /// that the old one cannot still be answering.
+  static bool advanceLanded({
+    required Duration position,
+    required Duration staleFrom,
+    required Duration sinceChange,
+  }) =>
+      position + const Duration(seconds: 5) < staleFrom ||
+      sinceChange > const Duration(seconds: 30);
+
   /// Mirrors the renderer's position into watch history.
   ///
   /// The manager already polls the device every two seconds for its own
@@ -675,9 +686,34 @@ class CastController extends Notifier<CastState> {
   void _watchDlnaProgress(Video video, CastPlaylist playlist) {
     // cast() has already closed whatever came before — including when the
     // previous cast went to a Samsung and never came through here at all.
+    // After the renderer is told to advance it goes on reporting the OLD
+    // track's last seconds under the NEW index for a few seconds. Written
+    // down, episode N+1 got a history row of 44:52 / 45:00 — and if the
+    // viewer stopped right then, it stayed "finished".
+    int? index;
+    var position = Duration.zero;
+    Duration? staleFrom;
+    DateTime? changedAt;
     _progressSub = ref.listen(castSessionProvider, (_, next) {
       final session = next.value;
       if (session == null) return;
+      final now = DateTime.now();
+      if (index != null && session.queue.currentIndex != index) {
+        staleFrom = position;
+        changedAt = now;
+      }
+      index = session.queue.currentIndex;
+      position = session.currentPosition;
+      if (changedAt != null) {
+        if (!advanceLanded(
+          position: position,
+          staleFrom: staleFrom!,
+          sinceChange: now.difference(changedAt!),
+        )) {
+          return;
+        }
+        changedAt = null;
+      }
       _recordProgress(
         video,
         playlist,

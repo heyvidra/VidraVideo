@@ -1,3 +1,4 @@
+import 'package:vidra/src/core/utils/ttl_cache.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'dart:convert';
 import 'dart:io';
@@ -58,7 +59,12 @@ class YfspDataSource implements VideoDataSource {
   /// episode you just watched must not spend another mint against the rate
   /// limit; a restart is the right expiry boundary, since the URLs the mint
   /// returns carry roughly two days of `vendtime` and nothing persists them.
-  final _resolvedThisSession = <String, String>{};
+  // A day, not the whole run: this is a desktop app that stays open, and a
+  // stream URL outlives its CDN signature long before the process ends.
+  final _resolvedThisSession = TtlCache<String, String>(
+    ttl: const Duration(hours: 24),
+    maxEntries: 500,
+  );
 
   /// Report signatures already sent this run.
   static final _reported = <String>{};
@@ -250,7 +256,7 @@ class YfspDataSource implements VideoDataSource {
     if (url.startsWith('http://') || url.startsWith('https://')) return url;
     if (!url.startsWith(kYfspEpisodeScheme)) return null;
 
-    final known = _resolvedThisSession[url];
+    final known = _resolvedThisSession.get(url);
     if (known != null) return known;
 
     final key = url.substring(kYfspEpisodeScheme.length);
@@ -276,7 +282,7 @@ class YfspDataSource implements VideoDataSource {
     }
 
     final playable = await _playable(stream);
-    if (playable != null) _resolvedThisSession[url] = playable;
+    if (playable != null) _resolvedThisSession.set(url, playable);
     return playable;
   }
 

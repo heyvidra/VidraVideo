@@ -139,7 +139,8 @@
       "import": "导入数据",
       "import_desc": "合并进现有数据：已有的记录保持不变，只新增缺少的",
       "import_action": "导入",
-      "import_done": "导入完成：新增 {} 条，{} 条已存在"
+      "import_done": "导入完成：新增 {} 条，{} 条已存在",
+      "import_invalid": "这个文件不是 Vidra 的备份"
     },
     "action": {
       "open_folder": "打开文件夹",

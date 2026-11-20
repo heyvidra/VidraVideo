@@ -122,7 +122,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) =>
-            Center(child: Text('${tr("common.error")}: $error')),
+            Center(child: Text(tr('common.error', args: ['$error']))),
       ),
     );
   }
@@ -159,7 +159,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             }
           } catch (e) {
             if (context.mounted) {
-              _snack(context, '${tr("common.error")}: $e');
+              _snack(context, tr('common.error', args: ['$e']));
             }
           }
         },
@@ -205,7 +205,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             }
           } catch (e) {
             if (context.mounted) {
-              _snack(context, '${tr("common.error")}: $e');
+              _snack(
+                context,
+                tr(
+                  'common.error',
+                  args: [
+                    // The wrong file picked is the usual way to get here.
+                    e is FormatException
+                        ? tr('settings.backup.import_invalid')
+                        : '$e',
+                  ],
+                ),
+              );
             }
           }
         },
