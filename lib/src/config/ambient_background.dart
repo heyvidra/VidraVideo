@@ -28,37 +28,50 @@ class AmbientBackground extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = VidraTokens.of(context);
 
-    return DecoratedBox(
-      // 168° in CSS is measured from "up", clockwise: very nearly top-to-bottom
-      // with a slight lean to the left.
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: const Alignment(0.35, -1),
-          end: const Alignment(-0.35, 1),
-          colors: [t.pageA, t.pageB],
-        ),
-      ),
-      child: Stack(
-        children: [
-          // One layer per wash: a BoxDecoration carries a single gradient, and
-          // stacking them is also what lets each keep its own centre and reach.
-          for (final w in t.blobs)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: RadialGradient(
-                      center: w.center,
-                      radius: w.radius,
-                      colors: [w.color, w.color.withAlpha(0)],
-                    ),
+    return Stack(
+      children: [
+        // Its own layer, under the app rather than around it. As the parent
+        // of [child] these five full-window gradients were re-recorded with
+        // every repaint anywhere in the window — a spinner, a hover, a
+        // scrolling grid. Behind a repaint boundary they are painted once,
+        // and a rasterizer that caches static layers keeps the result.
+        Positioned.fill(
+          child: RepaintBoundary(
+            child: IgnorePointer(
+              child: DecoratedBox(
+                // 168° in CSS is measured from "up", clockwise: very nearly
+                // top-to-bottom with a slight lean to the left.
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: const Alignment(0.35, -1),
+                    end: const Alignment(-0.35, 1),
+                    colors: [t.pageA, t.pageB],
                   ),
+                ),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // One layer per wash: a BoxDecoration carries a single
+                    // gradient, and stacking them is also what lets each keep
+                    // its own centre and reach.
+                    for (final w in t.blobs)
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: RadialGradient(
+                            center: w.center,
+                            radius: w.radius,
+                            colors: [w.color, w.color.withAlpha(0)],
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),
-          child,
-        ],
-      ),
+          ),
+        ),
+        child,
+      ],
     );
   }
 }

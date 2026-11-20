@@ -318,6 +318,10 @@ WindowEffect _resolveBackgroundEffect(DesktopWindow window) {
   // 减少特效: the desktop blur plus full-window alpha compositing is the
   // single largest standing GPU cost on the machines this switch exists for.
   if (ReduceEffects.current) return WindowEffect.disabled;
+  // The main window paints an opaque gradient edge to edge
+  // ([AmbientBackground]), so a blur of the desktop behind it is never seen
+  // — and WindowServer computes it regardless.
+  if (window.isMainWindow) return WindowEffect.disabled;
   return WindowEffect.acrylic;
 }
 

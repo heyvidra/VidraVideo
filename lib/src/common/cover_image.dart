@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
+import '../config/reduce_effects.dart';
 import '../core/network/browser_headers.dart';
 
 /// Every cover, backdrop and thumbnail this app draws.
@@ -66,6 +67,11 @@ class CoverImage extends StatelessWidget {
       // tint, so that second is invisible — and it is a second of animation
       // frames per card, on every page of posters, while they decode.
       fadeOutDuration: Duration.zero,
+      // 减少特效: no fade-in either. 35 posters arriving together are 35
+      // opacity layers animating over the page for half a second.
+      fadeInDuration: ReduceEffects.current
+          ? Duration.zero
+          : const Duration(milliseconds: 500),
       placeholder: placeholder == null ? null : (_, _) => placeholder!,
       errorWidget: errorWidget == null ? null : (_, _, _) => errorWidget!,
     );
