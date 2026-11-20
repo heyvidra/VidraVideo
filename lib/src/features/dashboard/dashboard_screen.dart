@@ -145,7 +145,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     // renders opaque and cannot be closed by name.
     if (!Platform.isMacOS) return;
     try {
-      final settings = await ref.read(settingsProvider.future);
+      // The stored row, not `settingsProvider.future`: nothing is listening
+      // to that stream provider this early, and since Riverpod 3.5 an
+      // unlistened provider stays paused — the future never completed, so
+      // the pet silently never came back at launch (1.16.20).
+      final settings = await ref.read(settingsRepositoryProvider).getSettings();
       if (!mounted || !settings.showPet) return;
       await PetWindowLauncher.show();
       logR('Pet', 'restore: pet window requested');
