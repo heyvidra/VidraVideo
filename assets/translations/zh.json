@@ -407,5 +407,14 @@
   "source": {
     "latency_ms": "{} ms",
     "latency_unreachable": "不可达"
+  },
+  "tv": {
+      "exit_hint": "再按一次返回键退出",
+      "menu_hint": "按 ↓ 键：选集 · 清晰度 · 换源",
+      "voice": "语音搜索",
+      "phone": "手机输入",
+      "phone_title": "用手机输入或语音搜索",
+      "phone_steps": "1. 手机和电视连同一个 Wi-Fi\n2. 用手机相机或微信扫码\n3. 输入片名，或点手机键盘上的麦克风说出来",
+      "phone_no_network": "没有连上局域网，无法使用手机输入"
   }
 }

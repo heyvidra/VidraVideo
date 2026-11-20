@@ -93,6 +93,9 @@ dependencies:
   drift: ^2.31.0
   sqlite3_flutter_libs: ^0.6.0+eol
   local_notifier: ^0.1.6
+  # The TV's "type on your phone" code. Pure Dart; a QR encoder is not a few
+  # lines, and typing a LAN address into a phone by hand is not a feature.
+  qr_flutter: ^4.1.0
 
 # fvp 0.36+ regression (upstream commit 6a2d588): event plumbing moved from
 # native callbacks to Dart streams, but MdkVideoPlayer.dispose() closes

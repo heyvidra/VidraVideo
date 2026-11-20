@@ -31,6 +31,7 @@ import 'src/features/settings/data/settings_repository.dart';
 import 'src/features/settings/domain/app_settings.dart' show parseSourceIds;
 import 'src/features/settings/presentation/settings_provider.dart';
 import 'src/features/download/data/download_provider.dart';
+import 'src/tv/tv_app.dart';
 import 'src/window/pet_window.dart';
 import 'src/window/video_player_window.dart';
 import 'src/window/window_title_bar_buttons.dart';
@@ -55,6 +56,9 @@ Future<void> _setupNotifications() async {
 const _forcedLocale = String.fromEnvironment('LOCALE');
 
 Future<void> main(List<String> args) async {
+  // Android is the TV build: one window, a remote, none of the desktop
+  // window management below.
+  if (Platform.isAndroid) return runTvApp();
   // A secondary window learns WHICH window it is from its engine's entrypoint
   // arguments. The native side also posts a `windowReady` message carrying the
   // same thing, but it fires during plugin registration — before this handler
