@@ -125,8 +125,8 @@ dev_dependencies:
 sentry:
   upload_debug_symbols: true
   upload_source_maps: false
-  project: flutter
-  org: vidra
+  project: vidra
+  org: vidravideo
   # Must match --split-debug-info in the release workflow. The plugin defaults
   # this to '.', which finds nothing and uploads nothing — a green CI step
   # that shipped no symbols is worse than a failed one.
