@@ -235,6 +235,11 @@ class Telemetry {
         SentryEvent(
           message: SentryMessage(name),
           level: level,
+          // By name. These carry no exception, so Sentry grouped them by
+          // the stack they were sent from — this very line — and filed
+          // every report under one issue called "frames": the per-launch
+          // heartbeat was arriving all along and could not be found.
+          fingerprint: ['report', name],
           // Scrubbed here, not in beforeSend: that hook rewrites messages,
           // breadcrumbs and exceptions and never looks at contexts, so this
           // map was the one channel with no second layer under it.

@@ -104,6 +104,15 @@ class Scrub {
 
   static SentryEvent event(SentryEvent event) {
     final message = event.message;
+    // The loaded-library list names each one by where it sits on disk. An
+    // app in /Applications says nothing; one in ~/Applications, or a Windows
+    // per-user install, says the account name. Symbolication matches on the
+    // debug id, so the file name alone loses nothing.
+    for (final image in event.debugMeta?.images ?? const <DebugImage>[]) {
+      image
+        ..codeFile = _baseName(image.codeFile)
+        ..debugFile = _baseName(image.debugFile);
+    }
     return event
       ..message = message == null
           ? null
@@ -124,6 +133,8 @@ class Scrub {
       ]
       ..request = null;
   }
+
+  static String? _baseName(String? path) => path?.split(RegExp(r'[/\\]')).last;
 
   static SentryTransaction transaction(SentryTransaction tx) {
     return tx

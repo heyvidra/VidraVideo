@@ -146,6 +146,27 @@ void main() {
       expect(value, isNot(contains('83579')));
     });
 
+    test('loaded libraries are named by file, not by where they are '
+        'installed', () {
+      final scrubbed = Scrub.event(
+        SentryEvent(
+          debugMeta: DebugMeta(
+            images: [
+              DebugImage(
+                type: 'macho',
+                codeFile:
+                    '/Users/alice/Applications/Vidra.app/Contents/Frameworks/App.framework/App',
+                debugFile: r'C:\Users\alice\AppData\Local\Vidra\app.pdb',
+              ),
+            ],
+          ),
+        ),
+      );
+      final image = scrubbed.debugMeta!.images.single;
+      expect(image.codeFile, 'App');
+      expect(image.debugFile, 'app.pdb');
+    });
+
     test('the request context is dropped entirely', () {
       final scrubbed = Scrub.event(
         SentryEvent(
