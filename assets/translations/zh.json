@@ -279,6 +279,7 @@
       "download": "下载",
       "download_all": "全部下载",
       "added": "已加入下载列表",
+      "already_added": "这个链接已在下载列表中。要换清晰度或重新下载，请先在「下载」里删除它",
       "added_all": "已加入 {} 个到下载列表",
       "added_badge": "已加入",
       "playlist_count": "共 {} 个视频",

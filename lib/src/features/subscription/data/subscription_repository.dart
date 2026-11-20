@@ -147,6 +147,21 @@ class SubscriptionRepository {
     final changed = <Subscription>[];
     final now = DateTime.now();
 
+    // Every save rewrites the whole row, and one batch can touch the same
+    // subscription twice (a sweep is a page per source, so a show is listed
+    // once by each). The indexes must hand back what was just written, or
+    // the second write restores the first one's "before".
+    Future<void> saveFresh(Subscription updated) async {
+      await save(updated);
+      byKey['${updated.sourceId}|${updated.videoId}'] = updated;
+      for (final list in byTitle.values) {
+        final i = list.indexWhere(
+          (s) => s.sourceId == updated.sourceId && s.videoId == updated.videoId,
+        );
+        if (i >= 0) list[i] = updated;
+      }
+    }
+
     for (final v in videos) {
       final sub = byKey['${v.sourceId}|${v.apiId}'];
       if (sub != null &&
@@ -156,7 +171,7 @@ class SubscriptionRepository {
         // common case — every scroll past the show — and must cost nothing
         // and mean nothing.
         final updated = sub.withUpdate(v.remarks, now);
-        await save(updated);
+        await saveFresh(updated);
         changed.add(updated);
         continue;
       }
@@ -166,17 +181,27 @@ class SubscriptionRepository {
       if (siblings == null || v.remarks == null) continue;
       for (final other in siblings) {
         if (other.sourceId == v.sourceId) continue;
-        if (v.remarks == other.crossSeenRemarks) continue;
+        if (v.remarks == other.crossSeenRemarks &&
+            v.sourceId == other.crossSeenSourceId) {
+          continue;
+        }
         // First sighting is a baseline, not news — same seeding rule as the
         // subscription itself, or following a show would immediately
         // "update" with whatever the other catalog already had.
-        final isSeed = other.crossSeenRemarks == null;
+        //
+        // A sighting from a different catalog than the one in the slot is a
+        // baseline too. There is one slot and there can be two other
+        // catalogs, each wording progress its own way: compared across them,
+        // every alternation between the two read as an update.
+        final isSeed =
+            other.crossSeenRemarks == null ||
+            other.crossSeenSourceId != v.sourceId;
         final updated = other.copyWith(
           crossSeenSourceId: v.sourceId,
           crossSeenRemarks: v.remarks,
           unread: isSeed ? null : true,
         );
-        await save(updated);
+        await saveFresh(updated);
         if (!isSeed) changed.add(updated);
       }
     }

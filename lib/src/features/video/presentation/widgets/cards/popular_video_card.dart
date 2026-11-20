@@ -224,6 +224,8 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
       ref.read(subscriptionsProvider).value ?? const [],
       title: video.title,
       year: video.year,
+      sourceId: video.sourceId,
+      videoId: video.apiId,
     );
     final elsewhere =
         ref

@@ -53,7 +53,16 @@ final subscriptionCheckerProvider = Provider<SubscriptionChecker>((ref) {
       }
       return out;
     },
-    fetchDetail: (sub) => videos.getVideo(sub.videoId, sourceId: sub.sourceId),
+    // forceRefresh, or this is not a check at all: a followed show has had its
+    // detail page opened, so the default answers from the row that visit
+    // cached. That compared the progress line against a copy of itself — or,
+    // once a listing had moved the line on, "found" the OLD text as an update
+    // and announced it.
+    fetchDetail: (sub) => videos.getVideo(
+      sub.videoId,
+      sourceId: sub.sourceId,
+      forceRefresh: true,
+    ),
   );
 });
 

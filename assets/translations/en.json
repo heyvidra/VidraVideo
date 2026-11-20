@@ -279,6 +279,7 @@
       "download": "Download",
       "download_all": "Download all",
       "added": "Added to download list",
+      "already_added": "This link is already in Downloads. Delete it there first to download it again or at another quality",
       "added_all": "Added {} to download list",
       "added_badge": "Added",
       "playlist_count": "{} videos",

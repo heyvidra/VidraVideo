@@ -168,18 +168,14 @@ class _CalendarView extends ConsumerWidget {
         for (final day in cal.days) ...[
           ScreenSection(
             title: _dayLabel(context, day.daysAway, now),
-            children: [
-              for (final s in day.shows) _CalendarRow(sub: s),
-            ],
+            children: [for (final s in day.shows) _CalendarRow(sub: s)],
           ),
           const SizedBox(height: 18),
         ],
         if (cal.finished.isNotEmpty)
           ScreenSection(
             title: tr('subscription.calendar_finished'),
-            children: [
-              for (final s in cal.finished) _CalendarRow(sub: s),
-            ],
+            children: [for (final s in cal.finished) _CalendarRow(sub: s)],
           ),
       ],
     );
@@ -214,8 +210,8 @@ class _CalendarRow extends ConsumerWidget {
                   imageUrl: sub.coverUrl!,
                   width: 30,
                   height: 41,
-                  memCacheWidth:
-                      (30 * MediaQuery.devicePixelRatioOf(context)).round(),
+                  memCacheWidth: (30 * MediaQuery.devicePixelRatioOf(context))
+                      .round(),
                   errorWidget: const SizedBox(width: 30, height: 41),
                 ),
               )
@@ -242,11 +238,7 @@ class _CalendarRow extends ConsumerWidget {
                       sub.lastSeenRemarks!.trim(),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        height: 1.4,
-                        color: t.fg3,
-                      ),
+                      style: TextStyle(fontSize: 12, height: 1.4, color: t.fg3),
                     ),
                 ],
               ),
@@ -302,6 +294,7 @@ class _Card extends ConsumerWidget {
         rating: 0,
         type: '',
         sourceId: sub.sourceId,
+        year: sub.year,
         remarks: sub.lastSeenRemarks,
       ),
       // The catalog infers "new" from a timestamp; a subscription KNOWS.
@@ -337,9 +330,11 @@ class _Card extends ConsumerWidget {
     final now = DateTime.now();
     final next = nextUpdateEstimate(s, now);
     if (next == null) return null;
-    final days = DateTime(next.year, next.month, next.day)
-        .difference(DateTime(now.year, now.month, now.day))
-        .inDays;
+    final days = DateTime(
+      next.year,
+      next.month,
+      next.day,
+    ).difference(DateTime(now.year, now.month, now.day)).inDays;
     if (days <= 0) return tr('subscription.expected_today');
     if (days == 1) return tr('subscription.expected_tomorrow');
     return tr(
@@ -368,4 +363,3 @@ class _Card extends ConsumerWidget {
     return tr('subscription.every_days', args: ['${days.round()}']);
   }
 }
-

@@ -120,11 +120,9 @@ void main() {
     await repo.noticeFromListing([show(id: 1, remarks: '更新至第 02 集')]);
 
     final due = await repo.dueForDetailCheck(DateTime.now());
-    expect(
-      due.map((s) => s.videoId),
-      [2],
-      reason: 'a show seen minutes ago is not worth asking about',
-    );
+    expect(due.map((s) => s.videoId), [
+      2,
+    ], reason: 'a show seen minutes ago is not worth asking about');
   });
 
   group('cross-source updates', () {
@@ -190,6 +188,47 @@ void main() {
         ]);
         expect(again, isEmpty);
       }
+    });
+
+    test(
+      'two other catalogs taking turns is not an update each time',
+      () async {
+        // One baseline slot, two other catalogs, each wording progress its own
+        // way. Compared across them, every alternation rang the bell with no
+        // new episode behind it.
+        await repo.subscribe(show(id: 1, remarks: '更新至第 08 集'));
+        await repo.noticeFromListing([
+          show(id: 77, source: 'dbku', remarks: '更新至8集'),
+        ]);
+        for (var i = 0; i < 2; i++) {
+          final onYfsp = await repo.noticeFromListing([
+            show(id: 5, source: 'yfsp', remarks: '第8集'),
+          ]);
+          final onDbku = await repo.noticeFromListing([
+            show(id: 77, source: 'dbku', remarks: '更新至8集'),
+          ]);
+          expect(onYfsp, isEmpty);
+          expect(onDbku, isEmpty);
+        }
+        expect(await unreadCount(), 0);
+      },
+    );
+
+    test('one batch listing a show twice keeps the update it found', () async {
+      // A sweep is one page per source, so a show followed on one catalog is
+      // listed again by another in the same batch. The second listing used
+      // to save from the snapshot taken before the first one's update, and
+      // put the old progress line — and the read state — back.
+      await repo.subscribe(show(id: 1, remarks: '更新至第 08 集'));
+      final changed = await repo.noticeFromListing([
+        show(id: 1, remarks: '更新至第 09 集'),
+        show(id: 77, source: 'dbku', remarks: '更新至9集'),
+      ]);
+      expect(changed, hasLength(1));
+      final sub = (await repo.find('olevod', 1))!;
+      expect(sub.lastSeenRemarks, '更新至第 09 集');
+      expect(sub.unread, isTrue);
+      expect(sub.crossSeenRemarks, '更新至9集', reason: 'and the seed lands');
     });
   });
 }
