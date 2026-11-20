@@ -187,7 +187,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // When the main window gains focus again (e.g. after closing the player window)
     if (state == AppLifecycleState.resumed) {
-      ref.read(playHistoryProvider.notifier).manualRefresh();
+      refreshAfterPlayback(ProviderScope.containerOf(context, listen: false));
       _checkSubscriptions();
     }
     // A put-away app draws nothing, so no later frame batch would arrive to
@@ -279,7 +279,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   _TopBar(
                     showBack: canGoBack,
                     onSearchSubmitted: (value) {
-                      if (value.isNotEmpty) context.push('/search/$value');
+                      // Encoded: the keyword is a path segment, and "Fate/Zero"
+                      // unencoded is two of them — no route. "C#" searched for
+                      // "C", and a lone % threw. The router decodes it back.
+                      if (value.isNotEmpty) {
+                        context.push('/search/${Uri.encodeComponent(value)}');
+                      }
                     },
                     onHomeRequested: () => context.go('/'),
                   ),

@@ -223,6 +223,14 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
       );
     }
 
+    // The controller's dispose just handed over the final position, and the
+    // repository holds saves for up to five seconds. On this path nothing
+    // else flushes it — State.dispose never runs when the window goes — so
+    // the resume point was whatever the last periodic save happened to
+    // write, seconds behind, or the pre-seek position after a quick close.
+    // Now, so the write lands inside the grace window below.
+    _mediaRepository?.dispose();
+
     // Give native texture threads time to spin down before killing the
     // engine. This must outlast the sprite sweeper's 300ms teardown settle —
     // closing inside that window strands a parked native player that nothing

@@ -401,7 +401,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         value: settings.telemetryEnabled,
         onChanged: (value) async {
           settings.telemetryEnabled = value;
-          await settingsRepo.updateSettings(settings);
+          await settingsRepo.change((s) => s.telemetryEnabled = value);
           if (value) {
             // Nothing starts reporting until the SDK is initialized, which
             // happens once, around the app.
@@ -440,7 +440,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             value: settings.showPet,
             onChanged: (value) async {
               settings.showPet = value;
-              await settingsRepo.updateSettings(settings);
+              await settingsRepo.change((s) => s.showPet = value);
               // The setting mirrors the screen: closing the pet any other
               // way (its right-click menu) flips this back off through the
               // windowClosed broadcast the dashboard listens for.
@@ -507,7 +507,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 // Mutate + save the full object; rebuilding an AppSettings from
                 // scratch here used to drop theme/locale/window-size fields.
                 settings.downloadPath = result;
-                await settingsRepo.updateSettings(settings);
+                await settingsRepo.change((s) => s.downloadPath = result);
               }
             },
             child: Text(tr('settings.action.change')),
@@ -556,7 +556,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               tooltip: tr('settings.download.cookie.clear'),
               onPressed: () async {
                 settings.cookieFile = null;
-                await settingsRepo.updateSettings(settings);
+                await settingsRepo.change((s) => s.cookieFile = null);
               },
             ),
           TextButton(
@@ -565,7 +565,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               final picked = result?.files.single.path;
               if (picked != null) {
                 settings.cookieFile = picked;
-                await settingsRepo.updateSettings(settings);
+                await settingsRepo.change((s) => s.cookieFile = picked);
               }
             },
             child: Text(tr('settings.action.change')),
@@ -620,7 +620,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             activeColor: theme.colorScheme.primary,
             onChanged: (value) async {
               settings.maxConcurrentDownloads = value.toInt();
-              await settingsRepo.updateSettings(settings);
+              await settingsRepo.change(
+                (s) => s.maxConcurrentDownloads = value.toInt(),
+              );
             },
           ),
         ],
@@ -672,7 +674,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             activeColor: theme.colorScheme.primary,
             onChanged: (value) async {
               settings.segmentConcurrency = value.toInt();
-              await settingsRepo.updateSettings(settings);
+              await settingsRepo.change(
+                (s) => s.segmentConcurrency = value.toInt(),
+              );
             },
           ),
         ],
