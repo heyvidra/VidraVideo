@@ -105,6 +105,11 @@ dependencies:
 # ../fvp is a vendored 0.37.3 with the subscriptions cancelled in dispose()
 # (see PATCH(vidra) markers). Drop this override once fixed upstream.
 dependency_overrides:
+  # TEMP(seamless): local player checkout until its tag is pushed.
+  vidra_player:
+    path: /Users/sidym/Workspace/vidra_player
+  vidra_player_kit:
+    path: /Users/sidym/Workspace/vidra_player/packages/vidra_player_fvp
   fvp:
     git:
       url: https://github.com/heyvidra/fvp.git

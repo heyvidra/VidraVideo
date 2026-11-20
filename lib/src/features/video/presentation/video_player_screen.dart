@@ -1,3 +1,4 @@
+import 'package:vidra/src/config/reduce_effects.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -372,6 +373,10 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
         hoverShowDelay: const Duration(milliseconds: 300),
         autoPlay: true,
         hideMouseWhenIdle: true,
+        // Two decoders run side by side for the last seconds of an episode.
+        // A machine already on reduced effects is the one that cannot spare
+        // the second.
+        preloadNextEpisode: !ReduceEffects.current,
         muteOnStart: false,
         // Thumbnails were retired here when previews were macOS-native-only;
         // the player's sprite sweep (v1.3.0) serves hover previews on every
