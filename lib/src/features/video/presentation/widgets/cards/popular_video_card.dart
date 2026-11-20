@@ -100,6 +100,13 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
 
   bool isHovered = false;
 
+  /// Whether the pointer has ever been over this card. The hover panel is not
+  /// built until it has: at opacity 0 it is invisible but still LAID OUT, and
+  /// its eight runs of text were two thirds of every card's text layout —
+  /// which a CPU profile of a scrolling catalog put at ~90% of layout time.
+  /// One card in a grid of hundreds is ever hovered.
+  bool _hoverSeen = false;
+
   /// True only while the hover animation is parked at its end. The two-shadow
   /// hover set waits for this instead of following [isHovered]: the resting
   /// shadow is cheap to drag through the scale flight, while a 28px blur under
@@ -508,7 +515,10 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
           // the overlay's hit-testing.
           onEnter: widget.enableHover
               ? (_) {
-                  setState(() => isHovered = true);
+                  setState(() {
+                    isHovered = true;
+                    _hoverSeen = true;
+                  });
                   if (reduced) {
                     // Jumping the controller keeps reduced mode's instant
                     // swap: the overlay lands fully visible with no scale
@@ -593,7 +603,7 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
                 fit: StackFit.expand,
                 children: [
                   _buildRestingLayer(),
-                  _buildHoverOverlay(),
+                  if (_hoverSeen) _buildHoverOverlay(),
                   Positioned(top: 8, left: 8, child: _buildBadgeRow()),
                   Positioned(top: 8, right: 8, child: _buildCornerRow()),
                 ],

@@ -173,6 +173,21 @@ class FrameMetrics {
   /// reached by a lifecycle flush; a full window is thousands of frames.
   static const int _minFrames = 60;
 
+  /// `--dart-define=FRAME_BENCH=true`: collect whatever the diagnostics
+  /// setting says, send nothing, and print one summary line per screen visit
+  /// (on leaving it, and every ten seconds while on it). For measuring a
+  /// build by hand; nothing in a release build sets it.
+  static const bool _bench = bool.fromEnvironment('FRAME_BENCH');
+
+  void _benchPrint() {
+    final aggregator = _aggregator;
+    if (aggregator == null || aggregator.frames == 0) return;
+    // ignore: avoid_print
+    print('FRAME_BENCH ${_screen ?? '-'} ${aggregator.summary()}');
+    aggregator.reset();
+    _activeMicros = 0;
+  }
+
   /// Null until [start], and again after teardown: a build with diagnostics
   /// off allocates no buffer and registers no callback.
   FrameAggregator? _aggregator;
@@ -183,7 +198,7 @@ class FrameMetrics {
 
   /// Begins collecting, unless diagnostics are off. Idempotent.
   void start() {
-    if (_aggregator != null || !Telemetry.isEnabled) return;
+    if (_aggregator != null || !(Telemetry.isEnabled || _bench)) return;
     _aggregator = FrameAggregator();
     SchedulerBinding.instance.addTimingsCallback(_onTimings);
   }
@@ -199,6 +214,7 @@ class FrameMetrics {
   /// notifies nothing.
   void setScreen(String label) {
     if (_screen == label) return;
+    if (_bench) _benchPrint();
     // A window that spanned two screens still reports, but says so: mixing a
     // scrolling catalog with an idle settings page would otherwise read as
     // one well-behaved screen.
@@ -214,6 +230,7 @@ class FrameMetrics {
   void flush() {
     final aggregator = _aggregator;
     if (aggregator == null) return;
+    if (_bench) return _benchPrint();
     // Diagnostics can be switched off mid-session from settings. The window
     // in hand goes with it rather than waiting for a later flush.
     if (!Telemetry.isEnabled) {
@@ -274,6 +291,16 @@ class FrameMetrics {
         final rasterFinish = timing.timestampInMicroseconds(
           FramePhase.rasterFinish,
         );
+        if (_bench && rasterFinish - vsync > _severeJankMicros) {
+          // ignore: avoid_print
+          print(
+            'FRAME_BENCH slow $_screen total=${(rasterFinish - vsync) ~/ 1000} '
+            'wait=${(buildStart - vsync) ~/ 1000} '
+            'build=${(buildFinish - buildStart) ~/ 1000} '
+            'raster_wait=${(rasterStart - buildFinish) ~/ 1000} '
+            'raster=${(rasterFinish - rasterStart) ~/ 1000}',
+          );
+        }
         aggregator.addMicros(
           rasterFinish - vsync,
           buildFinish - buildStart,
@@ -284,6 +311,6 @@ class FrameMetrics {
       logD('frames', 'timings failed: $e');
       return;
     }
-    if (_activeMicros >= _windowMicros) flush();
+    if (_activeMicros >= (_bench ? 10 * 1000000 : _windowMicros)) flush();
   }
 }
