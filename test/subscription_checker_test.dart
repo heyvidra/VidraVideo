@@ -81,6 +81,17 @@ void main() {
     );
   });
 
+  test('two calls at launch are one sweep, not two', () async {
+    // The shell calls run() from initState and the lifecycle calls it again
+    // on `resumed`, back to back, before either has loaded the last-run time.
+    await repo.subscribe(show(id: 1, remarks: 'x'));
+    final c = checker();
+
+    await Future.wait([c.run(), c.run()]);
+
+    expect(recentCalls, 1);
+  });
+
   test('the min-run interval holds, and force bypasses it', () async {
     await repo.subscribe(show(id: 1, remarks: 'x'));
     final c = checker();
