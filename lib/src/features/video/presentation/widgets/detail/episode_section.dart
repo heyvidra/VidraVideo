@@ -323,6 +323,7 @@ class EpisodeSection extends ConsumerWidget {
     final episodes = video.urls!;
     manager.addTask(
       videoId: video.apiId,
+      sourceId: video.sourceId,
       videoTitle: video.title,
       coverUrl: video.coverUrl,
       episodes: episodes

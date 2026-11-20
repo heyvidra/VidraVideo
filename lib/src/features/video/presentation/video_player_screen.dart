@@ -498,7 +498,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
             final matches = ref
                 .read(downloadManagerProvider)
                 .allTasks
-                .where((t) => t.videoId == id);
+                .where((t) => t.isFor(id, widget.sourceId));
             if (matches.isNotEmpty) {
               final task = matches.first;
               episodes = _episodesFromTask(task);

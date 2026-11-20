@@ -249,6 +249,7 @@ extension DownloadTaskMapper on db.DownloadTask {
     return domain.DownloadTask(
       taskId: taskId,
       videoId: videoId,
+      sourceId: sourceId,
       videoTitle: videoTitle,
       coverUrl: coverUrl,
       episodes: episodes,
@@ -264,6 +265,7 @@ extension DownloadTaskCompanionMapper on domain.DownloadTask {
       id: id == 0 ? const Value.absent() : Value(id),
       taskId: taskId,
       videoId: videoId,
+      sourceId: Value(sourceId),
       videoTitle: videoTitle,
       coverUrl: Value(coverUrl),
       episodes: episodes,

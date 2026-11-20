@@ -502,6 +502,9 @@ class _DownloadTaskCardState extends ConsumerState<DownloadTaskCard> {
       context,
       videoId: task.videoId,
       episodeIndex: episode.index ?? 0,
+      // Without it the id is resolved on whichever catalog is active, and a
+      // download from another one opened — and streamed — an unrelated show.
+      sourceId: task.sourceId,
     );
   }
 

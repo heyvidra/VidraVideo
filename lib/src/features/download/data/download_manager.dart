@@ -120,6 +120,7 @@ class DownloadManager {
   /// Add a new download task
   Future<String> addTask({
     required int videoId,
+    String? sourceId,
     required String videoTitle,
     String? coverUrl,
     required List<Map<String, dynamic>> episodes,
@@ -129,7 +130,7 @@ class DownloadManager {
     // Check if a task for this video already exists
     String? existingTaskId;
     for (final entry in _tasks.entries) {
-      if (entry.value.videoId == videoId) {
+      if (entry.value.isFor(videoId, sourceId)) {
         existingTaskId = entry.key;
         break;
       }
@@ -171,9 +172,13 @@ class DownloadManager {
         );
       }).toList();
 
-      if (newEpisodeInfos.isNotEmpty || requeued) {
+      // A task from before sources were recorded learns its source the first
+      // time someone who knows it adds to it.
+      final adopts = existingTask.sourceId == null && sourceId != null;
+      if (newEpisodeInfos.isNotEmpty || requeued || adopts) {
         final updatedEpisodes = [...revived, ...newEpisodeInfos];
         _tasks[existingTaskId] = existingTask.copyWith(
+          sourceId: sourceId,
           episodes: updatedEpisodes,
           completedAt:
               null, // Reset completed date since new episodes are added
@@ -199,6 +204,7 @@ class DownloadManager {
     final task = DownloadTask(
       taskId: taskId,
       videoId: videoId,
+      sourceId: sourceId,
       videoTitle: videoTitle,
       coverUrl: coverUrl,
       episodes: episodeInfos,
@@ -824,11 +830,11 @@ class DownloadManager {
       final rows = await _db.select(_db.downloadTasks).get();
       _tasks.clear();
 
-      // One task per videoId. Old data / a past delete bug can leave several
+      // One task per (videoId, source). Old data / a past delete bug can leave several
       // rows for the same show (e.g. re-downloading an episode after the task
       // was "deleted" from memory but not the DB). Merge their episodes (dedup
       // by url) into a single task and drop the redundant rows.
-      final byVideo = <int, DownloadTask>{};
+      final byVideo = <String, DownloadTask>{};
       final duplicateTaskIds = <String>[];
       for (final row in rows) {
         final loaded = row.toDomain();
@@ -843,16 +849,19 @@ class DownloadManager {
             .toList();
         final task = loaded.copyWith(episodes: revived);
 
-        final existing = byVideo[task.videoId];
+        // Exact key, not [DownloadTask.isFor]: two rows that both know their
+        // source and disagree are two shows that happen to share a number.
+        final key = '${task.videoId}|${task.sourceId ?? ''}';
+        final existing = byVideo[key];
         if (existing == null) {
-          byVideo[task.videoId] = task;
+          byVideo[key] = task;
         } else {
           final seenUrls = existing.episodes.map((e) => e.url).toSet();
           final mergedEpisodes = [
             ...existing.episodes,
             ...task.episodes.where((e) => !seenUrls.contains(e.url)),
           ];
-          byVideo[task.videoId] = existing.copyWith(
+          byVideo[key] = existing.copyWith(
             episodes: mergedEpisodes,
             completedAt: existing.completedAt ?? task.completedAt,
           );

@@ -86,7 +86,12 @@ class EpisodeItem extends ConsumerWidget {
     // grid for each one. This tile only re-renders when ITS status changes.
     final downloadStatus = ref.watch(
       downloadTasksProvider.select(
-        (tasks) => _statusOf(tasks.asData?.value, videoId, originalIndex),
+        (tasks) => _statusOf(
+          tasks.asData?.value,
+          videoId,
+          video.sourceId,
+          originalIndex,
+        ),
       ),
     );
 
@@ -100,8 +105,8 @@ class EpisodeItem extends ConsumerWidget {
     // Progress that came from ANOTHER catalog, which is the one thing on this
     // page nobody would guess: a tick on a catalog you have never played is
     // either magic or a bug until the tile says where it came from.
-    final borrowedFrom = (h != null && h.sourceId != null &&
-            h.sourceId != video.sourceId)
+    final borrowedFrom =
+        (h != null && h.sourceId != null && h.sourceId != video.sourceId)
         ? sourceDisplayName(ref, h.sourceId!)
         : null;
 
@@ -112,132 +117,132 @@ class EpisodeItem extends ConsumerWidget {
       message: episodeLabel(episode.title, index: originalIndex),
       waitDuration: const Duration(milliseconds: 350),
       child: Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: onTap ?? () => _handleTap(context, ref),
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(14),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: t.glass2,
+        child: InkWell(
+          onTap: onTap ?? () => _handleTap(context, ref),
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: t.glass2,
+              ),
+              border: Border.all(
+                color: selected ? t.cyan.withValues(alpha: 0.6) : t.edgeSoft,
+              ),
             ),
-            border: Border.all(
-              color: selected ? t.cyan.withValues(alpha: 0.6) : t.edgeSoft,
-            ),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SizedBox(
-                height: _thumb,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    KeyArt(seed: (number ?? originalIndex + 1) - 1),
-                    if (number != null)
-                      Positioned(
-                        left: 9,
-                        bottom: 5,
-                        child: Text(
-                          number < 10 ? '0$number' : '$number',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            height: 1,
-                            fontWeight: FontWeight.w600,
-                            fontFeatures: VidraType.data,
-                            shadows: [
-                              Shadow(
-                                color: Color(0xE6000000),
-                                blurRadius: 9,
-                                offset: Offset(0, 1),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    if (done)
-                      Positioned(top: 6, right: 6, child: _Check(t))
-                    else if (episode.isNew == true)
-                      Positioned(top: 6, right: 6, child: _NewFlag(t)),
-                    if (watched && progress > 0.02)
-                      Positioned(
-                        left: 0,
-                        bottom: 0,
-                        right: 0,
-                        child: FractionallySizedBox(
-                          alignment: Alignment.centerLeft,
-                          widthFactor: done ? 1.0 : progress,
-                          child: Container(
-                            height: 3,
-                            decoration: BoxDecoration(
-                              color: t.cyan,
-                              boxShadow: [
-                                BoxShadow(color: t.cyanGlow, blurRadius: 10),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(
+                  height: _thumb,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      KeyArt(seed: (number ?? originalIndex + 1) - 1),
+                      if (number != null)
+                        Positioned(
+                          left: 9,
+                          bottom: 5,
+                          child: Text(
+                            number < 10 ? '0$number' : '$number',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              height: 1,
+                              fontWeight: FontWeight.w600,
+                              fontFeatures: VidraType.data,
+                              shadows: [
+                                Shadow(
+                                  color: Color(0xE6000000),
+                                  blurRadius: 9,
+                                  offset: Offset(0, 1),
+                                ),
                               ],
                             ),
                           ),
                         ),
-                      ),
-                    if (downloadStatus != null)
-                      Positioned(
-                        bottom: 6,
-                        right: 6,
-                        child: _DownloadDot(downloadStatus),
-                      ),
-                  ],
-                ),
-              ),
-              // `.ep .cap`
-              Padding(
-                padding: const EdgeInsets.fromLTRB(9, 6, 9, 8),
-                child: Row(
-                  children: [
-                    // The episode's own name gets the room; the source label
-                    // is capped instead of sharing the shortfall, or a
-                    // two-character caption ends up elided beside it.
-                    Expanded(
-                      child: Text(
-                        episodeLabel(episode.title, index: originalIndex),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          height: 1.25,
-                          color: selected ? t.cyan : t.fg2,
+                      if (done)
+                        Positioned(top: 6, right: 6, child: _Check(t))
+                      else if (episode.isNew == true)
+                        Positioned(top: 6, right: 6, child: _NewFlag(t)),
+                      if (watched && progress > 0.02)
+                        Positioned(
+                          left: 0,
+                          bottom: 0,
+                          right: 0,
+                          child: FractionallySizedBox(
+                            alignment: Alignment.centerLeft,
+                            widthFactor: done ? 1.0 : progress,
+                            child: Container(
+                              height: 3,
+                              decoration: BoxDecoration(
+                                color: t.cyan,
+                                boxShadow: [
+                                  BoxShadow(color: t.cyanGlow, blurRadius: 10),
+                                ],
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                    if (borrowedFrom != null) ...[
-                      const SizedBox(width: 5),
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 52),
+                      if (downloadStatus != null)
+                        Positioned(
+                          bottom: 6,
+                          right: 6,
+                          child: _DownloadDot(downloadStatus),
+                        ),
+                    ],
+                  ),
+                ),
+                // `.ep .cap`
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(9, 6, 9, 8),
+                  child: Row(
+                    children: [
+                      // The episode's own name gets the room; the source label
+                      // is capped instead of sharing the shortfall, or a
+                      // two-character caption ends up elided beside it.
+                      Expanded(
                         child: Text(
-                          borrowedFrom,
+                          episodeLabel(episode.title, index: originalIndex),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.end,
                           style: TextStyle(
-                            fontSize: 9,
-                            height: 1.4,
-                            color: t.cyan,
+                            fontSize: 11.5,
+                            height: 1.25,
+                            color: selected ? t.cyan : t.fg2,
                           ),
                         ),
                       ),
+                      if (borrowedFrom != null) ...[
+                        const SizedBox(width: 5),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 52),
+                          child: Text(
+                            borrowedFrom,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.end,
+                            style: TextStyle(
+                              fontSize: 9,
+                              height: 1.4,
+                              color: t.cyan,
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      ),
       ),
     );
   }
@@ -245,11 +250,14 @@ class EpisodeItem extends ConsumerWidget {
   static DownloadStatus? _statusOf(
     List<DownloadTask>? tasks,
     int videoId,
+    String? sourceId,
     int index,
   ) {
     if (tasks == null) return null;
     for (final task in tasks) {
-      if (task.videoId != videoId) continue;
+      // By source as well: another catalog's show with the same number would
+      // otherwise paint its download badges onto these tiles.
+      if (!task.isFor(videoId, sourceId)) continue;
       for (final e in task.episodes) {
         if (e.index == index) return e.status;
       }
@@ -282,6 +290,7 @@ class EpisodeItem extends ConsumerWidget {
       final manager = ref.read(downloadManagerProvider);
       manager.addTask(
         videoId: video.apiId,
+        sourceId: video.sourceId,
         videoTitle: video.title,
         coverUrl: video.coverUrl,
         episodes: [

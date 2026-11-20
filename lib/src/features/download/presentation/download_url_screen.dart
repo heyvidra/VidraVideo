@@ -373,7 +373,8 @@ class _ResultItemCard extends HookConsumerWidget {
       final manager = ref.read(downloadManagerProvider);
       final held = manager.allTasks.any(
         (t) =>
-            t.videoId == videoId && t.episodes.any((e) => e.url == episodeUrl),
+            t.isFor(videoId, null) &&
+            t.episodes.any((e) => e.url == episodeUrl),
       );
       if (held) {
         ScaffoldMessenger.of(context).showSnackBar(

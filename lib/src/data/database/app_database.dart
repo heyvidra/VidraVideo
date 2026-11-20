@@ -315,6 +315,12 @@ class DownloadTasks extends Table {
   TextColumn get taskId => text().unique()();
   IntColumn get videoId => integer()();
 
+  /// Which catalog [videoId] belongs to. The catalogs share no id space, so
+  /// the number alone does not name a show. Null on rows written before v20
+  /// (and on pasted-link downloads, whose ids are synthetic): "unknown", read
+  /// as compatible with any source so those tasks keep working.
+  TextColumn get sourceId => text().nullable()();
+
   TextColumn get videoTitle => text()();
   TextColumn get coverUrl => text().nullable()();
 
@@ -430,7 +436,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 19;
+  int get schemaVersion => 20;
 
   /// True when [table] already has a column named [name].
   ///
@@ -595,6 +601,11 @@ class AppDatabase extends _$AppDatabase {
             appSettings,
             appSettings.disabledDataSourceIds,
           );
+        }
+        // v20: the catalog a download came from. Null on every existing row,
+        // which reads as "any" — see [DownloadTasks.sourceId].
+        if (from < 20 && to >= 20) {
+          await _addColumnIfAbsent(m, downloadTasks, downloadTasks.sourceId);
         }
       });
     },

@@ -445,6 +445,7 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
         .read(downloadManagerProvider)
         .addTask(
           videoId: video.apiId,
+          sourceId: video.sourceId,
           videoTitle: video.title,
           coverUrl: video.coverUrl,
           episodes: episodes

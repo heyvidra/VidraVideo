@@ -5438,6 +5438,17 @@ class $DownloadTasksTable extends DownloadTasks
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _sourceIdMeta = const VerificationMeta(
+    'sourceId',
+  );
+  @override
+  late final GeneratedColumn<String> sourceId = GeneratedColumn<String>(
+    'source_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _videoTitleMeta = const VerificationMeta(
     'videoTitle',
   );
@@ -5499,6 +5510,7 @@ class $DownloadTasksTable extends DownloadTasks
     id,
     taskId,
     videoId,
+    sourceId,
     videoTitle,
     coverUrl,
     episodes,
@@ -5535,6 +5547,12 @@ class $DownloadTasksTable extends DownloadTasks
       );
     } else if (isInserting) {
       context.missing(_videoIdMeta);
+    }
+    if (data.containsKey('source_id')) {
+      context.handle(
+        _sourceIdMeta,
+        sourceId.isAcceptableOrUnknown(data['source_id']!, _sourceIdMeta),
+      );
     }
     if (data.containsKey('video_title')) {
       context.handle(
@@ -5588,6 +5606,10 @@ class $DownloadTasksTable extends DownloadTasks
         DriftSqlType.int,
         data['${effectivePrefix}video_id'],
       )!,
+      sourceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_id'],
+      ),
       videoTitle: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}video_title'],
@@ -5626,6 +5648,12 @@ class DownloadTask extends DataClass implements Insertable<DownloadTask> {
   final int id;
   final String taskId;
   final int videoId;
+
+  /// Which catalog [videoId] belongs to. The catalogs share no id space, so
+  /// the number alone does not name a show. Null on rows written before v20
+  /// (and on pasted-link downloads, whose ids are synthetic): "unknown", read
+  /// as compatible with any source so those tasks keep working.
+  final String? sourceId;
   final String videoTitle;
   final String? coverUrl;
   final List<EpisodeDownloadInfo> episodes;
@@ -5635,6 +5663,7 @@ class DownloadTask extends DataClass implements Insertable<DownloadTask> {
     required this.id,
     required this.taskId,
     required this.videoId,
+    this.sourceId,
     required this.videoTitle,
     this.coverUrl,
     required this.episodes,
@@ -5647,6 +5676,9 @@ class DownloadTask extends DataClass implements Insertable<DownloadTask> {
     map['id'] = Variable<int>(id);
     map['task_id'] = Variable<String>(taskId);
     map['video_id'] = Variable<int>(videoId);
+    if (!nullToAbsent || sourceId != null) {
+      map['source_id'] = Variable<String>(sourceId);
+    }
     map['video_title'] = Variable<String>(videoTitle);
     if (!nullToAbsent || coverUrl != null) {
       map['cover_url'] = Variable<String>(coverUrl);
@@ -5668,6 +5700,9 @@ class DownloadTask extends DataClass implements Insertable<DownloadTask> {
       id: Value(id),
       taskId: Value(taskId),
       videoId: Value(videoId),
+      sourceId: sourceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceId),
       videoTitle: Value(videoTitle),
       coverUrl: coverUrl == null && nullToAbsent
           ? const Value.absent()
@@ -5689,6 +5724,7 @@ class DownloadTask extends DataClass implements Insertable<DownloadTask> {
       id: serializer.fromJson<int>(json['id']),
       taskId: serializer.fromJson<String>(json['taskId']),
       videoId: serializer.fromJson<int>(json['videoId']),
+      sourceId: serializer.fromJson<String?>(json['sourceId']),
       videoTitle: serializer.fromJson<String>(json['videoTitle']),
       coverUrl: serializer.fromJson<String?>(json['coverUrl']),
       episodes: serializer.fromJson<List<EpisodeDownloadInfo>>(
@@ -5705,6 +5741,7 @@ class DownloadTask extends DataClass implements Insertable<DownloadTask> {
       'id': serializer.toJson<int>(id),
       'taskId': serializer.toJson<String>(taskId),
       'videoId': serializer.toJson<int>(videoId),
+      'sourceId': serializer.toJson<String?>(sourceId),
       'videoTitle': serializer.toJson<String>(videoTitle),
       'coverUrl': serializer.toJson<String?>(coverUrl),
       'episodes': serializer.toJson<List<EpisodeDownloadInfo>>(episodes),
@@ -5717,6 +5754,7 @@ class DownloadTask extends DataClass implements Insertable<DownloadTask> {
     int? id,
     String? taskId,
     int? videoId,
+    Value<String?> sourceId = const Value.absent(),
     String? videoTitle,
     Value<String?> coverUrl = const Value.absent(),
     List<EpisodeDownloadInfo>? episodes,
@@ -5726,6 +5764,7 @@ class DownloadTask extends DataClass implements Insertable<DownloadTask> {
     id: id ?? this.id,
     taskId: taskId ?? this.taskId,
     videoId: videoId ?? this.videoId,
+    sourceId: sourceId.present ? sourceId.value : this.sourceId,
     videoTitle: videoTitle ?? this.videoTitle,
     coverUrl: coverUrl.present ? coverUrl.value : this.coverUrl,
     episodes: episodes ?? this.episodes,
@@ -5737,6 +5776,7 @@ class DownloadTask extends DataClass implements Insertable<DownloadTask> {
       id: data.id.present ? data.id.value : this.id,
       taskId: data.taskId.present ? data.taskId.value : this.taskId,
       videoId: data.videoId.present ? data.videoId.value : this.videoId,
+      sourceId: data.sourceId.present ? data.sourceId.value : this.sourceId,
       videoTitle: data.videoTitle.present
           ? data.videoTitle.value
           : this.videoTitle,
@@ -5755,6 +5795,7 @@ class DownloadTask extends DataClass implements Insertable<DownloadTask> {
           ..write('id: $id, ')
           ..write('taskId: $taskId, ')
           ..write('videoId: $videoId, ')
+          ..write('sourceId: $sourceId, ')
           ..write('videoTitle: $videoTitle, ')
           ..write('coverUrl: $coverUrl, ')
           ..write('episodes: $episodes, ')
@@ -5769,6 +5810,7 @@ class DownloadTask extends DataClass implements Insertable<DownloadTask> {
     id,
     taskId,
     videoId,
+    sourceId,
     videoTitle,
     coverUrl,
     episodes,
@@ -5782,6 +5824,7 @@ class DownloadTask extends DataClass implements Insertable<DownloadTask> {
           other.id == this.id &&
           other.taskId == this.taskId &&
           other.videoId == this.videoId &&
+          other.sourceId == this.sourceId &&
           other.videoTitle == this.videoTitle &&
           other.coverUrl == this.coverUrl &&
           other.episodes == this.episodes &&
@@ -5793,6 +5836,7 @@ class DownloadTasksCompanion extends UpdateCompanion<DownloadTask> {
   final Value<int> id;
   final Value<String> taskId;
   final Value<int> videoId;
+  final Value<String?> sourceId;
   final Value<String> videoTitle;
   final Value<String?> coverUrl;
   final Value<List<EpisodeDownloadInfo>> episodes;
@@ -5802,6 +5846,7 @@ class DownloadTasksCompanion extends UpdateCompanion<DownloadTask> {
     this.id = const Value.absent(),
     this.taskId = const Value.absent(),
     this.videoId = const Value.absent(),
+    this.sourceId = const Value.absent(),
     this.videoTitle = const Value.absent(),
     this.coverUrl = const Value.absent(),
     this.episodes = const Value.absent(),
@@ -5812,6 +5857,7 @@ class DownloadTasksCompanion extends UpdateCompanion<DownloadTask> {
     this.id = const Value.absent(),
     required String taskId,
     required int videoId,
+    this.sourceId = const Value.absent(),
     required String videoTitle,
     this.coverUrl = const Value.absent(),
     required List<EpisodeDownloadInfo> episodes,
@@ -5826,6 +5872,7 @@ class DownloadTasksCompanion extends UpdateCompanion<DownloadTask> {
     Expression<int>? id,
     Expression<String>? taskId,
     Expression<int>? videoId,
+    Expression<String>? sourceId,
     Expression<String>? videoTitle,
     Expression<String>? coverUrl,
     Expression<String>? episodes,
@@ -5836,6 +5883,7 @@ class DownloadTasksCompanion extends UpdateCompanion<DownloadTask> {
       if (id != null) 'id': id,
       if (taskId != null) 'task_id': taskId,
       if (videoId != null) 'video_id': videoId,
+      if (sourceId != null) 'source_id': sourceId,
       if (videoTitle != null) 'video_title': videoTitle,
       if (coverUrl != null) 'cover_url': coverUrl,
       if (episodes != null) 'episodes': episodes,
@@ -5848,6 +5896,7 @@ class DownloadTasksCompanion extends UpdateCompanion<DownloadTask> {
     Value<int>? id,
     Value<String>? taskId,
     Value<int>? videoId,
+    Value<String?>? sourceId,
     Value<String>? videoTitle,
     Value<String?>? coverUrl,
     Value<List<EpisodeDownloadInfo>>? episodes,
@@ -5858,6 +5907,7 @@ class DownloadTasksCompanion extends UpdateCompanion<DownloadTask> {
       id: id ?? this.id,
       taskId: taskId ?? this.taskId,
       videoId: videoId ?? this.videoId,
+      sourceId: sourceId ?? this.sourceId,
       videoTitle: videoTitle ?? this.videoTitle,
       coverUrl: coverUrl ?? this.coverUrl,
       episodes: episodes ?? this.episodes,
@@ -5877,6 +5927,9 @@ class DownloadTasksCompanion extends UpdateCompanion<DownloadTask> {
     }
     if (videoId.present) {
       map['video_id'] = Variable<int>(videoId.value);
+    }
+    if (sourceId.present) {
+      map['source_id'] = Variable<String>(sourceId.value);
     }
     if (videoTitle.present) {
       map['video_title'] = Variable<String>(videoTitle.value);
@@ -5904,6 +5957,7 @@ class DownloadTasksCompanion extends UpdateCompanion<DownloadTask> {
           ..write('id: $id, ')
           ..write('taskId: $taskId, ')
           ..write('videoId: $videoId, ')
+          ..write('sourceId: $sourceId, ')
           ..write('videoTitle: $videoTitle, ')
           ..write('coverUrl: $coverUrl, ')
           ..write('episodes: $episodes, ')
@@ -10068,6 +10122,7 @@ typedef $$DownloadTasksTableCreateCompanionBuilder =
       Value<int> id,
       required String taskId,
       required int videoId,
+      Value<String?> sourceId,
       required String videoTitle,
       Value<String?> coverUrl,
       required List<EpisodeDownloadInfo> episodes,
@@ -10079,6 +10134,7 @@ typedef $$DownloadTasksTableUpdateCompanionBuilder =
       Value<int> id,
       Value<String> taskId,
       Value<int> videoId,
+      Value<String?> sourceId,
       Value<String> videoTitle,
       Value<String?> coverUrl,
       Value<List<EpisodeDownloadInfo>> episodes,
@@ -10107,6 +10163,11 @@ class $$DownloadTasksTableFilterComposer
 
   ColumnFilters<int> get videoId => $composableBuilder(
     column: $table.videoId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -10165,6 +10226,11 @@ class $$DownloadTasksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get videoTitle => $composableBuilder(
     column: $table.videoTitle,
     builder: (column) => ColumnOrderings(column),
@@ -10208,6 +10274,9 @@ class $$DownloadTasksTableAnnotationComposer
 
   GeneratedColumn<int> get videoId =>
       $composableBuilder(column: $table.videoId, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceId =>
+      $composableBuilder(column: $table.sourceId, builder: (column) => column);
 
   GeneratedColumn<String> get videoTitle => $composableBuilder(
     column: $table.videoTitle,
@@ -10264,6 +10333,7 @@ class $$DownloadTasksTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<String> taskId = const Value.absent(),
                 Value<int> videoId = const Value.absent(),
+                Value<String?> sourceId = const Value.absent(),
                 Value<String> videoTitle = const Value.absent(),
                 Value<String?> coverUrl = const Value.absent(),
                 Value<List<EpisodeDownloadInfo>> episodes =
@@ -10274,6 +10344,7 @@ class $$DownloadTasksTableTableManager
                 id: id,
                 taskId: taskId,
                 videoId: videoId,
+                sourceId: sourceId,
                 videoTitle: videoTitle,
                 coverUrl: coverUrl,
                 episodes: episodes,
@@ -10285,6 +10356,7 @@ class $$DownloadTasksTableTableManager
                 Value<int> id = const Value.absent(),
                 required String taskId,
                 required int videoId,
+                Value<String?> sourceId = const Value.absent(),
                 required String videoTitle,
                 Value<String?> coverUrl = const Value.absent(),
                 required List<EpisodeDownloadInfo> episodes,
@@ -10294,6 +10366,7 @@ class $$DownloadTasksTableTableManager
                 id: id,
                 taskId: taskId,
                 videoId: videoId,
+                sourceId: sourceId,
                 videoTitle: videoTitle,
                 coverUrl: coverUrl,
                 episodes: episodes,
