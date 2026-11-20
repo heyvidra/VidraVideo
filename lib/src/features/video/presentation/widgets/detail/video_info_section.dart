@@ -13,6 +13,30 @@ class VideoInfoSection extends StatelessWidget {
 
   const VideoInfoSection({super.key, required this.video});
 
+  /// Only the facts the source actually gave. A row reading 导演 · 未知 is a
+  /// row about the catalog's gaps, and on some sources that is two of three.
+  List<(String, String)> _rows() {
+    bool known(String? v) => v != null && v.trim().isNotEmpty && v != '未知';
+    final time = video.vodTime ?? 0;
+    final rows = [
+      if (known(video.director)) (tr('video.detail.director'), video.director!),
+      if (known(video.actor)) (tr('video.detail.cast'), video.actor!),
+      if (time > 0)
+        (
+          tr('video.detail.updated'),
+          DateFormat('yyyy-MM-dd HH:mm').format(
+            DateTime.fromMillisecondsSinceEpoch(
+              time > 9999999999 ? time : time * 1000,
+            ),
+          ),
+        ),
+    ];
+    // Nothing known at all: say so once rather than leave a bare heading.
+    return rows.isEmpty
+        ? [(tr('video.detail.cast'), tr('video.detail.unknown'))]
+        : rows;
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = VidraTokens.of(context);
@@ -52,30 +76,7 @@ class VideoInfoSection extends StatelessWidget {
                   style: VidraType.eyebrow(t.fg3),
                 ),
                 const SizedBox(height: 9),
-                _Ledger(
-                  rows: [
-                    (
-                      tr('video.detail.director'),
-                      video.director ?? tr('video.detail.unknown'),
-                    ),
-                    (
-                      tr('video.detail.cast'),
-                      video.actor ?? tr('video.detail.unknown'),
-                    ),
-                    (
-                      tr('video.detail.updated'),
-                      video.vodTime != null && video.vodTime! > 0
-                          ? DateFormat('yyyy-MM-dd HH:mm').format(
-                              DateTime.fromMillisecondsSinceEpoch(
-                                video.vodTime! > 9999999999
-                                    ? video.vodTime!
-                                    : video.vodTime! * 1000,
-                              ),
-                            )
-                          : tr('video.detail.unknown'),
-                    ),
-                  ],
-                ),
+                _Ledger(rows: _rows()),
               ],
             ),
           ),
@@ -101,9 +102,7 @@ class _Ledger extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 6),
             decoration: BoxDecoration(
               border: Border(
-                top: i == 0
-                    ? BorderSide(color: t.edgeSoft)
-                    : BorderSide.none,
+                top: i == 0 ? BorderSide(color: t.edgeSoft) : BorderSide.none,
                 bottom: BorderSide(color: t.edgeSoft),
               ),
             ),

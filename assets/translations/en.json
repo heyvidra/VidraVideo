@@ -214,6 +214,7 @@
     },
     "section": {
       "episodes": "Episodes",
+      "feature": "Feature",
       "storyline": "Storyline",
       "details": "Details",
       "no_description": "No description available."

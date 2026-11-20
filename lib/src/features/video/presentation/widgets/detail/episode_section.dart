@@ -1,3 +1,4 @@
+import 'package:vidra/src/core/utils/format.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -359,12 +360,16 @@ class _BarTop extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = VidraTokens.of(context);
     final episodes = video.urls ?? const <VideoEpisode>[];
-    final fresh = episodes.where((e) => e.isNew == true).length;
+    // A film's "episodes" are its playback lines — one feature, perhaps a
+    // dub or a mirror. Calling that list 剧集 and counting "1 集未看" on it
+    // describes a series that is not there.
+    final episodic = isEpisodicType(video.type);
+    final fresh = episodic ? episodes.where((e) => e.isNew == true).length : 0;
 
     return Row(
       children: [
         Text(
-          tr('video.section.episodes'),
+          tr(episodic ? 'video.section.episodes' : 'video.section.feature'),
           style: TextStyle(
             fontSize: 16,
             height: 1.3,
@@ -500,7 +505,8 @@ class _WatchChip extends ConsumerWidget {
             histories: histories,
           )
         : null;
-    final match = newer ?? (furthest == null ? crossSourceWatchFor(ref, video) : null);
+    final match =
+        newer ?? (furthest == null ? crossSourceWatchFor(ref, video) : null);
     if (match != null) {
       return _Chip(
         label: tr(
@@ -515,10 +521,17 @@ class _WatchChip extends ConsumerWidget {
     }
 
     if (furthest != null) {
-      final label = episodeLabel(
-        furthest < episodes.length ? episodes[furthest].title : null,
-        index: furthest,
-      );
+      // A film is located by its timestamp: its "episode" title is a quality
+      // or a dub (576P, 粤语), and "看到 576P" says nothing about how far in.
+      final label = isEpisodicType(video.type)
+          ? episodeLabel(
+              furthest < episodes.length ? episodes[furthest].title : null,
+              index: furthest,
+            )
+          : formatDuration(
+              histories[furthest]!.positionMillis ~/ 1000,
+              clock: true,
+            );
       return _Chip(
         label: tr('video.detail.watched_upto', args: [label]),
         tone: t.cyan,
@@ -1379,8 +1392,7 @@ class _MergedGrid extends ConsumerWidget {
     // Every branch is a sliver now — buildGrid returns a SliverGrid, and
     // the placeholders ride adapters.
     return ownAsync.when(
-      loading: () =>
-          const SliverToBoxAdapter(child: _EpisodeGridSkeleton()),
+      loading: () => const SliverToBoxAdapter(child: _EpisodeGridSkeleton()),
       error: (error, _) => SliverToBoxAdapter(child: Text('Error: $error')),
       data: (own) {
         final borrowFrom = <CatalogProgress>[];
@@ -1447,9 +1459,10 @@ class _EpisodeGridSkeleton extends StatelessWidget {
     return SkeletonShimmer(
       child: LayoutBuilder(
         builder: (context, c) {
-          final columns = ((c.maxWidth + gap) / (min + gap))
-              .floor()
-              .clamp(1, 99);
+          final columns = ((c.maxWidth + gap) / (min + gap)).floor().clamp(
+            1,
+            99,
+          );
           final width = (c.maxWidth - (columns - 1) * gap) / columns;
           return Wrap(
             spacing: gap,
@@ -1506,8 +1519,7 @@ class _AltEpisodes extends ConsumerWidget {
       videoByIdProvider((id: pick.videoId, sourceId: pick.sourceId)),
     );
     return altAsync.when(
-      loading: () =>
-          const SliverToBoxAdapter(child: _EpisodeGridSkeleton()),
+      loading: () => const SliverToBoxAdapter(child: _EpisodeGridSkeleton()),
       error: (e, _) => SliverToBoxAdapter(child: Text('$e')),
       data: (alt) {
         if (alt == null || alt.urls == null || alt.urls!.isEmpty) {
