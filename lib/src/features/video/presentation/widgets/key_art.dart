@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../../config/reduce_effects.dart';
+
 /// The six key-art washes the design cycles through, `.art-1` … `.art-6`.
 ///
 /// They stand in for a frame. Real per-episode thumbnails come from the frame
@@ -70,6 +72,19 @@ class KeyArt extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final a = _sets[seed.abs() % _sets.length];
+    // 减少特效: a season is a hundred of these on one page. The base wash
+    // alone keeps the six-colour rhythm at a quarter of the fill.
+    if (ReduceEffects.current) {
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: const Alignment(0.4, -1),
+            end: const Alignment(-0.4, 1),
+            colors: [a.baseA, a.baseB],
+          ),
+        ),
+      );
+    }
     return Stack(
       fit: StackFit.expand,
       children: [

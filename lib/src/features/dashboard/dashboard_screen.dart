@@ -5,6 +5,7 @@ import 'dart:async';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:vidra/src/config/ambient_background.dart';
 import 'package:vidra/src/config/design_tokens.dart';
 import 'package:vidra/src/core/telemetry/frame_metrics.dart';
@@ -233,48 +234,76 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         location.startsWith('/search/') ||
         location == '/pet-demo';
 
+    final mac = Platform.isMacOS;
+
     return Scaffold(
       // Painted by AmbientBackground instead: every translucent surface in the
       // app is standing in the light it casts, and a Scaffold colour under it
       // would just be a second opaque layer to punch through.
       backgroundColor: Colors.transparent,
-      body: AmbientBackground(
-        child: WindowBorder(
-          color: Colors.transparent,
-          width: 1,
-          // The window is one column: the toolbar pill, then the rail and the
-          // content side by side, then the status line. The rail starts BELOW
-          // the toolbar — a full-height rail put the search box in the
-          // content's column, where it read as belonging to the page rather
-          // than to the window.
-          child: Column(
-            children: [
-              _TopBar(
-                showBack: canGoBack,
-                onSearchSubmitted: (value) {
-                  if (value.isNotEmpty) context.push('/search/$value');
-                },
-                onHomeRequested: () => context.go('/'),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 0),
-                  // Stretch, or the rail sizes to its rows and floats in the
-                  // vertical middle of the window.
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Sidebar(
-                        selected: AppNavigationItem.forLocation(location),
-                        onSelect: (item) => context.go(item.route),
-                      ),
-                      Expanded(child: widget.child),
-                    ],
+      body: CallbackShortcuts(
+        bindings: {
+          SingleActivator(LogicalKeyboardKey.keyF, meta: mac, control: !mac):
+              dashboardSearchFocus.requestFocus,
+          SingleActivator(
+            LogicalKeyboardKey.comma,
+            meta: mac,
+            control: !mac,
+          ): () =>
+              context.go('/settings'),
+          const SingleActivator(LogicalKeyboardKey.escape): () {
+            if (dashboardSearchFocus.hasFocus) {
+              dashboardSearchFocus.unfocus();
+            } else if (canGoBack && context.canPop()) {
+              context.pop();
+            }
+          },
+        },
+        // Shortcuts only fire below the focused node. A scope, not a plain
+        // Focus: when the search field unfocuses, focus falls back to its
+        // enclosing scope, and that has to be this one rather than the
+        // route's, which sits above the bindings.
+        child: FocusScope(
+          autofocus: true,
+          child: AmbientBackground(
+            child: WindowBorder(
+              color: Colors.transparent,
+              width: 1,
+              // The window is one column: the toolbar pill, then the rail and the
+              // content side by side, then the status line. The rail starts BELOW
+              // the toolbar — a full-height rail put the search box in the
+              // content's column, where it read as belonging to the page rather
+              // than to the window.
+              child: Column(
+                children: [
+                  _TopBar(
+                    showBack: canGoBack,
+                    onSearchSubmitted: (value) {
+                      if (value.isNotEmpty) context.push('/search/$value');
+                    },
+                    onHomeRequested: () => context.go('/'),
                   ),
-                ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 0, 14, 0),
+                      // Stretch, or the rail sizes to its rows and floats in the
+                      // vertical middle of the window.
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Sidebar(
+                            selected: AppNavigationItem.forLocation(location),
+                            onSelect: (item) => context.go(item.route),
+                          ),
+                          Expanded(child: widget.child),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const AppStatusBar(),
+                ],
               ),
-              const AppStatusBar(),
-            ],
+            ),
           ),
         ),
       ),
@@ -353,9 +382,8 @@ class AppStatusBar extends ConsumerWidget {
     final active = ref.watch(
       downloadTasksProvider.select(
         (tasks) => tasks.maybeWhen(
-          data: (list) => list
-              .where((t) => t.status == DownloadStatus.downloading)
-              .length,
+          data: (list) =>
+              list.where((t) => t.status == DownloadStatus.downloading).length,
           orElse: () => 0,
         ),
       ),

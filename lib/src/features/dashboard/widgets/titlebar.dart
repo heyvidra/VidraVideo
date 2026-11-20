@@ -48,11 +48,17 @@ class DashboardTitleBar extends ConsumerStatefulWidget {
   ConsumerState<DashboardTitleBar> createState() => _DashboardTitleBarState();
 }
 
+/// The search field's focus, reachable from the shell's Cmd/Ctrl+F.
+///
+/// ponytail: one node for the one main window this engine ever has; never
+/// disposed. A second DashboardTitleBar would need its own.
+final dashboardSearchFocus = FocusNode();
+
 class _DashboardTitleBarState extends ConsumerState<DashboardTitleBar> {
   bool isAlwaysOnTop = false;
 
   final _searchController = TextEditingController();
-  final _searchFocus = FocusNode();
+  final _searchFocus = dashboardSearchFocus;
   final _historyLink = LayerLink();
   final _historyOverlay = OverlayPortalController();
 
@@ -61,19 +67,21 @@ class _DashboardTitleBarState extends ConsumerState<DashboardTitleBar> {
     super.initState();
     // The dropdown exists exactly while the field has focus; what it shows
     // (filtered by the current text) is the overlay's own business.
-    _searchFocus.addListener(() {
-      if (_searchFocus.hasFocus) {
-        _historyOverlay.show();
-      } else {
-        _historyOverlay.hide();
-      }
-    });
+    _searchFocus.addListener(_syncHistoryOverlay);
+  }
+
+  void _syncHistoryOverlay() {
+    if (_searchFocus.hasFocus) {
+      _historyOverlay.show();
+    } else {
+      _historyOverlay.hide();
+    }
   }
 
   @override
   void dispose() {
     _searchController.dispose();
-    _searchFocus.dispose();
+    _searchFocus.removeListener(_syncHistoryOverlay);
     super.dispose();
   }
 

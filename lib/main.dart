@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io' show Platform;
+import 'dart:math' as math;
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
@@ -223,9 +224,15 @@ List<WindowConfiguration> _buildWindowConfigurations() {
         final screenSize = window.workingScreenSize;
         return Size(screenSize.width * 0.8, screenSize.height * 0.8);
       },
+      // A fixed floor, capped by the screen. It used to be 60% of the work
+      // area, which on a 27" display is a window too big to sit beside
+      // anything else.
       minSizeBuilder: (window) {
         final screenSize = window.workingScreenSize;
-        return Size(screenSize.width * 0.6, screenSize.height * 0.6);
+        return Size(
+          math.min(960, screenSize.width),
+          math.min(600, screenSize.height),
+        );
       },
       alignment: Alignment.center,
       backgroundEffectBuilder: _resolveBackgroundEffect,
@@ -241,8 +248,7 @@ List<WindowConfiguration> _buildWindowConfigurations() {
       // no DPI scaling — so re-applying there halves the window on a scaled
       // display. The native factory already sized the window at creation;
       // there is nothing to re-apply.
-      sizeBuilder: (_) async =>
-          await WindowHelper.savedPlayerPosition() == null
+      sizeBuilder: (_) async => await WindowHelper.savedPlayerPosition() == null
           ? WindowHelper.playerSize()
           : null,
       minSize: AppConfig.playerMiniSize,

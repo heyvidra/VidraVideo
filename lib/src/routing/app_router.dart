@@ -16,8 +16,11 @@ import '../features/download/presentation/download_url_screen.dart';
 import '../features/video/presentation/recent_list_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../pet/pet_demo_screen.dart';
+import '../config/reduce_effects.dart';
 
-CustomTransitionPage myTransitionPage(Widget child) {
+Page<void> myTransitionPage(Widget child) {
+  // 减少特效: a cross-fade is 300ms of two full pages composited together.
+  if (ReduceEffects.current) return NoTransitionPage(child: child);
   return CustomTransitionPage(
     child: child,
     transitionsBuilder: (context, animation, secondaryAnimation, child) {

@@ -41,11 +41,16 @@ class ReduceEffects {
   ///
   /// Every Intel Mac pays full-window alpha compositing and behind-window
   /// blur out of a GPU class that thermal-throttles under it; Apple Silicon
-  /// does not care. Non-mac platforms answer false — their window effects
-  /// are already disabled wholesale in the window configuration.
+  /// does not care. Windows has no arch to read the GPU class off, so it goes
+  /// by core count: four logical cores or fewer is the integrated-graphics
+  /// laptop this switch exists for.
   static bool get lowPowerGpu => _lowPowerGpu ??= _detectLowPowerGpu();
 
   static bool _detectLowPowerGpu() {
+    // ponytail: core count as a GPU proxy. A 4-core box with a discrete card
+    // is misjudged and can flip the switch back; read the adapter if that
+    // turns out to be common.
+    if (Platform.isWindows) return Platform.numberOfProcessors <= 4;
     if (!Platform.isMacOS) return false;
     // The VM embeds the host arch in Platform.version ('… on "macos_x64"').
     // Read that rather than exec'ing sysctl: this runs during the first

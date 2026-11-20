@@ -16,7 +16,8 @@
     "clear_all": "Clear All",
     "empty": "No recent playback history",
     "watched_to": "Up to {}",
-    "remove": "Remove from history"
+    "remove": "Remove from history",
+    "removed": "Removed from history"
   },
   "favorites": {
     "title": "Watchlist",
@@ -270,6 +271,7 @@
       "parse": "Parse",
       "parse_failed": "Could not parse this URL",
       "retry": "Retry",
+    "undo": "Undo",
       "quality": "Quality",
       "quality_best": "Best (auto)",
       "quality_audio": "Audio only",

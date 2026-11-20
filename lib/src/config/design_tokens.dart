@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'reduce_effects.dart';
+
 /// The design's variables, transcribed.
 ///
 /// Every colour, edge and shadow in the redesign comes from one CSS `:root`
@@ -33,11 +35,12 @@ class VidraTokens {
     required this.pageB,
     required this.blobs,
     required this.drop1,
-    required this.drop2,
-    required this.drop3,
+    required List<BoxShadow> drop2,
+    required List<BoxShadow> drop3,
     required this.onAmber,
     required this.onCyan,
-  });
+  }) : _drop2 = drop2,
+       _drop3 = drop3;
 
   /// Text, in four weights of presence.
   final Color fg, fg2, fg3, fg4;
@@ -68,7 +71,13 @@ class VidraTokens {
   final Color pageA, pageB;
   final List<VidraBlob> blobs;
 
-  final List<BoxShadow> drop1, drop2, drop3;
+  final List<BoxShadow> drop1;
+  final List<BoxShadow> _drop2, _drop3;
+
+  /// 减少特效 collapses the two big shadows (61 and 113px blurs) onto the
+  /// small one: depth survives, the wide blur passes do not.
+  List<BoxShadow> get drop2 => ReduceEffects.current ? drop1 : _drop2;
+  List<BoxShadow> get drop3 => ReduceEffects.current ? drop1 : _drop3;
 
   static VidraTokens of(BuildContext context) =>
       Theme.of(context).brightness == Brightness.dark ? dark : light;

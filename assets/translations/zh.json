@@ -16,7 +16,8 @@
     "clear_all": "清除全部",
     "empty": "暂无播放历史",
     "watched_to": "看到 {}",
-    "remove": "从记录中移除"
+    "remove": "从记录中移除",
+    "removed": "已从记录中移除"
   },
   "favorites": {
     "title": "想看",
@@ -270,6 +271,7 @@
       "parse": "解析",
       "parse_failed": "无法解析该链接",
       "retry": "重试",
+    "undo": "撤销",
       "quality": "清晰度",
       "quality_best": "最佳(自动)",
       "quality_audio": "仅音频",

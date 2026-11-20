@@ -21,9 +21,53 @@ class RecentListScreen extends ConsumerStatefulWidget {
 }
 
 class _RecentListScreenState extends ConsumerState<RecentListScreen> {
+  /// Rows the user removed whose deletion has not been committed yet.
+  ///
+  /// Removing a row also drops its watch position, and the button is one
+  /// stray click on a poster. So the row is only hidden while an Undo is on
+  /// offer, and the database is touched when the offer lapses.
+  final _removing = <int>{};
+  late final PlayHistoryNotifier _history;
+
+  void _remove(int id) {
+    setState(() => _removing.add(id));
+    // Hide rather than queue: the previous offer lapses (and commits) the
+    // moment a second row is removed.
+    final messenger = ScaffoldMessenger.of(context)..hideCurrentSnackBar();
+    messenger
+        .showSnackBar(
+          SnackBar(
+            content: Text(tr('recent.removed')),
+            action: SnackBarAction(
+              label: tr('common.undo'),
+              onPressed: () {
+                if (mounted) setState(() => _removing.remove(id));
+              },
+            ),
+          ),
+        )
+        .closed
+        .then((reason) async {
+          // dispose() has already committed everything still pending.
+          if (reason == SnackBarClosedReason.action || !mounted) return;
+          await _history.deleteVideoHistory(id);
+          if (mounted) setState(() => _removing.remove(id));
+        });
+  }
+
+  @override
+  void dispose() {
+    // Leaving the screen is not an undo.
+    for (final id in _removing) {
+      _history.deleteVideoHistory(id);
+    }
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
+    _history = ref.read(playHistoryProvider.notifier);
     // Manual refresh when entering the screen
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(playHistoryProvider.notifier).manualRefresh();
@@ -32,7 +76,13 @@ class _RecentListScreenState extends ConsumerState<RecentListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final historyAsync = ref.watch(visiblePlayHistoryProvider);
+    final historyAsync = ref
+        .watch(visiblePlayHistoryProvider)
+        .whenData(
+          (all) => _removing.isEmpty
+              ? all
+              : all.where((r) => !_removing.contains(r.video.id)).toList(),
+        );
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -152,9 +202,7 @@ class _RecentListScreenState extends ConsumerState<RecentListScreen> {
                         trailing: PosterCardAction(
                           icon: Icons.close_rounded,
                           tooltip: tr('recent.remove'),
-                          onTap: () => ref
-                              .read(playHistoryProvider.notifier)
-                              .deleteVideoHistory(item.id),
+                          onTap: () => _remove(item.id),
                         ),
                       );
                     } catch (e) {
@@ -216,4 +264,3 @@ class _RecentListScreenState extends ConsumerState<RecentListScreen> {
     }
   }
 }
-

@@ -25,8 +25,8 @@ class PosterCardAction extends StatelessWidget {
         customBorder: const CircleBorder(),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(4),
-          child: Icon(icon, size: 14, color: Colors.white),
+          padding: const EdgeInsets.all(5),
+          child: Icon(icon, size: 16, color: Colors.white),
         ),
       ),
     ),
