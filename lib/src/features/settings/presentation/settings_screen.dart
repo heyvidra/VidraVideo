@@ -8,7 +8,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:bitsdojo_window/bitsdojo_window.dart';
 import '../data/backup_service.dart';
 import '../data/settings_repository.dart';
 import '../../../config/player_window_mode.dart';
@@ -370,12 +369,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           // The notifier persists the choice and republishes it to every
           // widget that degrades; the native window effect is outside Flutter
           // and needs its own push.
+          // Nothing native to push: the main window never has a
+          // behind-window effect (see main.dart), and setting one here
+          // switched on a blur nobody can see for the rest of the session.
           await ref.read(reduceEffectsProvider.notifier).set(selection.first);
-          if (Platform.isMacOS) {
-            appWindow.backgroundEffect = ReduceEffects.current
-                ? WindowEffect.disabled
-                : WindowEffect.acrylic;
-          }
         },
       ),
     );
@@ -486,15 +483,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               try {
                 final path = await settingsRepo.getEffectiveDownloadPath();
                 final uri = Uri.file(path);
-                if (await canLaunchUrl(uri)) {
-                  await launchUrl(uri);
-                } else {
-                  throw Exception('Cannot open folder');
+                // A folder on an unplugged drive "launches" to nothing.
+                if (!Directory(path).existsSync() || !await launchUrl(uri)) {
+                  throw path;
                 }
               } catch (e) {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('${tr("video.detail.error")}: $e')),
+                    SnackBar(
+                      content: Text(tr('video.detail.error', args: ['$e'])),
+                    ),
                   );
                 }
               }
@@ -702,7 +700,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         },
         loading: () => Text(tr('settings.status.calculating')),
         error: (error, stackTrace) =>
-            Text('${tr("common.error")} calculating size'),
+            Text(tr('common.error', args: ['$error'])),
       ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
@@ -714,15 +712,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               try {
                 final cacheDir = await getApplicationCacheDirectory();
                 final uri = Uri.file(cacheDir.path);
-                if (await canLaunchUrl(uri)) {
-                  await launchUrl(uri);
-                } else {
-                  throw Exception('Cannot open folder');
-                }
+                if (!await launchUrl(uri)) throw cacheDir.path;
               } catch (e) {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed to open folder: $e')),
+                    SnackBar(
+                      content: Text(tr('video.detail.error', args: ['$e'])),
+                    ),
                   );
                 }
               }

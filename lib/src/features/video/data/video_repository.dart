@@ -110,9 +110,15 @@ final availableDataSourcesProvider = Provider<List<VideoDataSource>>((ref) {
 });
 
 class DataSourceIdNotifier extends Notifier<String> {
+  /// What the viewer chose this session. build() reruns whenever a source is
+  /// switched on or off in Settings, and from the launch-time value alone it
+  /// threw the catalog back to whichever source the app had started on.
+  String? _picked;
+
   @override
   String build() {
-    final saved = ref.watch(initialDataSourceIdProvider);
+    final launch = ref.watch(initialDataSourceIdProvider);
+    final saved = _picked ?? launch;
     final sources = ref.watch(availableDataSourcesProvider);
     // A persisted id can outlive its source — 'mock' is registered in debug
     // builds only, so anyone who picked it once would carry a dangling id into
@@ -124,6 +130,7 @@ class DataSourceIdNotifier extends Notifier<String> {
   }
 
   Future<void> setSource(String id) async {
+    _picked = id;
     state = id;
     final settingsRepo = ref.read(settingsRepositoryProvider);
     final settings = await settingsRepo.getSettings();
@@ -221,7 +228,10 @@ class VideoRepository {
       'total': response.total,
       'page': response.page,
     };
-    _listCache.set(key, result);
+    // An empty page is how every source spells a soft failure (a challenge
+    // page, a non-zero code). Remembered, it read "no results" for ten
+    // minutes with no way past it.
+    if (response.list.isNotEmpty) _listCache.set(key, result);
     return result;
   }
 
@@ -272,9 +282,26 @@ class VideoRepository {
     final ds = _getDataSource(sid);
     var video = await ds.getVideoDetail(apiId, sourceKey: cached?.sourceKey);
     if (video != null) {
-      _detailFreshAt['$sid|$apiId'] = DateTime.now();
-      // Ensure sourceId is set for the local DB
-      video = video.copyWith(sourceId: sid);
+      // The request says which show this is, not the body: a response that
+      // lost its id field would otherwise be filed as show 0, over the real
+      // row. Same for the key a source needs to find the show again.
+      video = video.copyWith(
+        sourceId: sid,
+        apiId: apiId,
+        sourceKey: (video.sourceKey?.isEmpty ?? true)
+            ? cached?.sourceKey
+            : video.sourceKey,
+      );
+      // No episodes where there used to be some is a failed fetch, not a
+      // show that lost its episodes. Keep the ones we have, and do not call
+      // this answer fresh.
+      final hollow =
+          (video.urls?.isEmpty ?? true) && (cached?.urls?.isNotEmpty ?? false);
+      if (hollow) {
+        video = video.copyWith(urls: cached!.urls);
+      } else {
+        _detailFreshAt['$sid|$apiId'] = DateTime.now();
+      }
       // 2. Save to DB
       try {
         video = await _db.transaction(() async {
@@ -298,7 +325,8 @@ class VideoRepository {
         logR("getVideo", e.toString());
       }
     }
-    return video;
+    // Nothing from the source is not "no such show" while we hold a copy.
+    return video ?? cached;
   }
 
   /// The locally stored detail for one show, or null when there is none.
@@ -418,7 +446,7 @@ class VideoRepository {
         if (cached != null) return cached;
         try {
           final result = await ds.searchVideos(keyword);
-          _searchCache.set(key, result);
+          if (result.isNotEmpty) _searchCache.set(key, result);
           return result;
         } catch (e) {
           logD('search', 'search on ${ds.id} failed: $e');
@@ -451,7 +479,7 @@ class VideoRepository {
     final cached = _searchCache.get(key);
     final results =
         cached ?? await _getDataSource(sourceId).searchVideos(title);
-    if (cached == null) _searchCache.set(key, results);
+    if (cached == null && results.isNotEmpty) _searchCache.set(key, results);
 
     final wanted = crossSourceKey(title, year);
     for (final candidate in results) {

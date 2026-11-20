@@ -94,9 +94,34 @@ void main() {
       // olevod is kDefaultDataSourceId and what a fresh install lands on.
       // Leaving the active id pointing at a hidden source shows an empty
       // catalog with no obvious way back, so the id has to move by itself.
-      final c = launchedWith({kDefaultDataSourceId}, activeId: kDefaultDataSourceId);
+      final c = launchedWith({
+        kDefaultDataSourceId,
+      }, activeId: kDefaultDataSourceId);
       expect(c.read(activeDataSourceIdProvider), isNot(kDefaultDataSourceId));
       expect(c.read(activeDataSourceProvider).id, isNot(kDefaultDataSourceId));
     });
+
+    test(
+      'switching another source off does not undo the viewer\'s pick',
+      () async {
+        // Launched on the default, then moved to another source by hand.
+        final c = launchedWith({});
+        final ids = c.read(allDataSourcesProvider).map((s) => s.id).toList();
+        final picked = ids.firstWhere((id) => id != kDefaultDataSourceId);
+        final other = ids.firstWhere(
+          (id) => id != kDefaultDataSourceId && id != picked,
+          orElse: () => kDefaultDataSourceId,
+        );
+        final sub = c.listen(activeDataSourceIdProvider, (_, _) {});
+        addTearDown(sub.close);
+        await c.read(activeDataSourceIdProvider.notifier).setSource(picked);
+        if (other != kDefaultDataSourceId) {
+          await c
+              .read(disabledDataSourceIdsProvider.notifier)
+              .setEnabled(other, false);
+          expect(c.read(activeDataSourceIdProvider), picked);
+        }
+      },
+    );
   });
 }

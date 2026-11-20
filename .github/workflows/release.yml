@@ -30,7 +30,7 @@ on:
 # warm caches from a job on main (that scope IS readable from tags), don't
 # re-add caching here.
 env:
-  FLUTTER_VERSION: "3.47.0"
+  FLUTTER_VERSION: "3.50.1"
 
 jobs:
   # Tag builds publish straight into a DRAFT Release instead of passing the

@@ -87,6 +87,16 @@ class HistoryRepository {
         .insert(normalized.toCompanion(), mode: InsertMode.insertOrReplace);
   }
 
+  /// A cached show nothing else still needs. 想看 and 追更 keep only the id,
+  /// and for one catalog the key to find the show again lives nowhere but
+  /// its cached row — deleting that with the history left a favourite that
+  /// opened as "not found" until the show happened to scroll past again.
+  static const _unpinned =
+      'NOT EXISTS (SELECT 1 FROM favorites f WHERE f.source_id = '
+      'videos.source_id AND f.video_id = videos.api_id) AND '
+      'NOT EXISTS (SELECT 1 FROM subscriptions s WHERE s.source_id = '
+      'videos.source_id AND s.video_id = videos.api_id)';
+
   /// Deletes the history row and all cached data tied to that video.
   Future<void> deleteVideoHistory(int id) async {
     final history = await (_db.select(
@@ -104,10 +114,12 @@ class HistoryRepository {
       // Related rows are keyed by (sourceId, videoId); with a null sourceId
       // we can't identify them safely, so only the history row is removed.
       if (sourceId != null) {
-        await (_db.delete(_db.videos)..where(
-              (t) => t.sourceId.equals(sourceId) & t.apiId.equals(videoId),
-            ))
-            .go();
+        await _db.customUpdate(
+          'DELETE FROM videos WHERE source_id = ? AND api_id = ? AND $_unpinned',
+          variables: [Variable(sourceId), Variable(videoId)],
+          updates: {_db.videos},
+          updateKind: UpdateKind.delete,
+        );
 
         await (_db.delete(_db.videoSettings)..where(
               (t) => t.sourceId.equals(sourceId) & t.videoId.equals(videoId),
@@ -291,7 +303,11 @@ class HistoryRepository {
     await _db.transaction(() async {
       await _db.delete(_db.videoHistory).go();
       await _db.delete(_db.episodeHistory).go();
-      await _db.delete(_db.videos).go();
+      await _db.customUpdate(
+        'DELETE FROM videos WHERE $_unpinned',
+        updates: {_db.videos},
+        updateKind: UpdateKind.delete,
+      );
       await _db.delete(_db.videoSettings).go();
       await _db.delete(_db.episodeSkipData).go();
     });

@@ -114,7 +114,11 @@ void main() {
           '</div></li>';
 
       final list = DbkuParser.parseSearchList(html);
-      expect(list, hasLength(1), reason: 'one row, however many voddetail links');
+      expect(
+        list,
+        hasLength(1),
+        reason: 'one row, however many voddetail links',
+      );
       final v = list.single;
       expect(v.apiId, 148144);
       expect(v.director, isNull, reason: '未知 is a placeholder, not a name');
@@ -173,7 +177,7 @@ void main() {
       expect(video.content, 'Long summary.');
       expect(
         video.vodTime,
-        DateTime.utc(2026, 7, 20, 12, 30).millisecondsSinceEpoch ~/ 1000,
+        DateTime.utc(2026, 7, 20, 4, 30).millisecondsSinceEpoch ~/ 1000,
       );
     });
 
@@ -192,7 +196,10 @@ void main() {
           '$html<div id="playlist2" class="tab-pane fade clearfix"><ul>'
           '<li><a class="btn btn-default" href="/vodplay/147143-2-1.html">第1集</a></li></ul></div>';
 
-      final episodes = DbkuParser.parseVideoDetail(withSecondSource, 147143)!.urls!;
+      final episodes = DbkuParser.parseVideoDetail(
+        withSecondSource,
+        147143,
+      )!.urls!;
 
       expect(episodes, hasLength(2));
       expect(episodes.every((e) => e.url!.contains('-1-')), isTrue);
@@ -233,7 +240,9 @@ void main() {
     test('returns null on a missing or unreadable config', () {
       expect(DbkuParser.parsePlayUrl('<html></html>'), isNull);
       expect(
-        DbkuParser.parsePlayUrl('<script>var player_aaaa={"encrypt":2}</script>'),
+        DbkuParser.parsePlayUrl(
+          '<script>var player_aaaa={"encrypt":2}</script>',
+        ),
         isNull,
       );
     });
@@ -251,19 +260,27 @@ void main() {
       const url = 'https://vid.example.com/x/chunklist.m3u8';
 
       expect(await dbku.resolveEpisodeUrl(url), url);
-      expect(await dbku.getDownloadUrl(
-        const Video(apiId: 1, title: 't', coverUrl: ''),
-        episode: const VideoEpisode(
-          qualities: [VideoQuality(name: '标清', url: url)],
-        ),
-      ), url);
-    });
-
-    test('defaults to a passthrough for sources that need no resolving', () async {
       expect(
-        await MockDataSource().resolveEpisodeUrl('https://example.com/a.m3u8'),
-        'https://example.com/a.m3u8',
+        await dbku.getDownloadUrl(
+          const Video(apiId: 1, title: 't', coverUrl: ''),
+          episode: const VideoEpisode(
+            qualities: [VideoQuality(name: '标清', url: url)],
+          ),
+        ),
+        url,
       );
     });
+
+    test(
+      'defaults to a passthrough for sources that need no resolving',
+      () async {
+        expect(
+          await MockDataSource().resolveEpisodeUrl(
+            'https://example.com/a.m3u8',
+          ),
+          'https://example.com/a.m3u8',
+        );
+      },
+    );
   });
 }

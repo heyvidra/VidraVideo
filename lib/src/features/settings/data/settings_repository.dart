@@ -154,7 +154,10 @@ class SettingsRepository {
       final tempDir = await getApplicationCacheDirectory();
       if (await tempDir.exists()) {
         await for (var entity in tempDir.list()) {
-          await entity.delete(recursive: true);
+          // Per entry: one file in use (Windows) used to end the whole clear.
+          try {
+            await entity.delete(recursive: true);
+          } catch (_) {}
         }
       }
     } catch (e) {

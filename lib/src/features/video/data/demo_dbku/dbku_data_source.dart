@@ -267,7 +267,11 @@ class DbkuDataSource implements VideoDataSource {
       );
     }
     final url = await resolveEpisodeUrl(playPath);
-    if (url == null) return episode.copyWith(qualities: const []);
+    // Kept, with its play-page path: playback, casting and downloads all
+    // resolve that path themselves. Dropping it shortened the list, and
+    // watch history is filed by POSITION — one timed-out request moved every
+    // later episode's progress, ticks and resume point onto its neighbour.
+    if (url == null) return episode;
     _resolvedThisSession[playPath] = url;
     return episode.copyWith(
       qualities: [VideoQuality(name: '标清', url: url)],

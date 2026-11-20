@@ -289,7 +289,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                       // unencoded is two of them — no route. "C#" searched for
                       // "C", and a lone % threw. The router decodes it back.
                       if (value.isNotEmpty) {
-                        context.push('/search/${Uri.encodeComponent(value)}');
+                        // Dots too: "." and ".." are path navigation to a URI
+                        // parser, and ".." pushed the home page.
+                        context.push(
+                          '/search/${Uri.encodeComponent(value).replaceAll('.', '%2E')}',
+                        );
                       }
                     },
                     onHomeRequested: () => context.go('/'),

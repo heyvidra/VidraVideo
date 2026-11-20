@@ -77,7 +77,7 @@ class VideoListNotifier extends Notifier<VideoListState> {
     return VideoListState(videos: [], isLoading: true);
   }
 
-  Future<void> loadNextPage() async {
+  Future<void> loadNextPage({bool forceRefresh = false}) async {
     if (_isFetching || !state.hasMore) return;
 
     final generation = _generation;
@@ -104,6 +104,8 @@ class VideoListNotifier extends Notifier<VideoListState> {
         area: _filter.area,
         year: _filter.year,
         page: state.page,
+        // Refresh means ask again, not re-read what was just remembered.
+        forceRefresh: forceRefresh,
       );
 
       if (!ref.mounted || generation != _generation) return;
@@ -149,7 +151,7 @@ class VideoListNotifier extends Notifier<VideoListState> {
 
   Future<void> refresh() async {
     state = VideoListState(videos: []);
-    await loadNextPage();
+    await loadNextPage(forceRefresh: true);
   }
 }
 

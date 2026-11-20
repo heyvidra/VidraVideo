@@ -261,11 +261,15 @@ class DbkuParser {
     return names.isEmpty ? null : names.join(',');
   }
 
-  /// `2026-07-20 12:30:00` (site-local, treated as UTC) to epoch seconds —
-  /// the unit [Video.vodTime] uses.
+  /// `2026-07-20 12:30:00` to epoch seconds — the unit [Video.vodTime] uses.
+  ///
+  /// The site prints Beijing time. Read as UTC it sat eight hours in the
+  /// future, and skewed "which catalog updated first" by the same amount.
   static int? _parseUpdated(String? text) {
     if (text == null) return null;
-    final parsed = DateTime.tryParse('${text.trim().replaceAll(' ', 'T')}Z');
+    final parsed = DateTime.tryParse(
+      '${text.trim().replaceAll(' ', 'T')}+08:00',
+    );
     return parsed == null ? null : parsed.millisecondsSinceEpoch ~/ 1000;
   }
 
