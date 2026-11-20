@@ -14,6 +14,13 @@ final initialThemeModeProvider = Provider<ThemeMode>((ref) => ThemeMode.light);
 class ThemeModeNotifier extends Notifier<ThemeMode> {
   @override
   ThemeMode build() {
+    // `--dart-define=THEME=dark|light`: this run only, nothing read or
+    // written. Same reason as REDUCE_EFFECTS — a dev build shares the
+    // installed app's settings database.
+    const forced = String.fromEnvironment('THEME');
+    if (forced == 'dark') return ThemeMode.dark;
+    if (forced == 'light') return ThemeMode.light;
+
     final db = ref.watch(appDatabaseProvider);
     final initial = ref.watch(initialThemeModeProvider);
     final settingsRepo = SettingsRepository(db);
