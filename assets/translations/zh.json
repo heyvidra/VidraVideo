@@ -271,7 +271,6 @@
       "parse": "解析",
       "parse_failed": "无法解析该链接",
       "retry": "重试",
-    "undo": "撤销",
       "quality": "清晰度",
       "quality_best": "最佳(自动)",
       "quality_audio": "仅音频",
@@ -341,12 +340,16 @@
     "loading_category": "加载中…"
   },
   "errors": {
+    "yfsp_unreachable": "爱壹帆连接失败",
+    "yfsp_challenge": "爱壹帆开启了人机验证",
+    "yfsp_rate_limited": "爱壹帆访问过于频繁，请稍后再试",
     "cancelled": "请求已取消",
     "timeout": "连接超时，片源响应太慢",
     "offline": "连不上网络",
     "no_response": "片源没有响应"
   },
   "common": {
+    "undo": "撤销",
     "refresh": "刷新",
     "human_check": "完成人机验证",
     "language": "语言",

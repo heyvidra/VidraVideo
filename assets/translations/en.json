@@ -271,7 +271,6 @@
       "parse": "Parse",
       "parse_failed": "Could not parse this URL",
       "retry": "Retry",
-    "undo": "Undo",
       "quality": "Quality",
       "quality_best": "Best (auto)",
       "quality_audio": "Audio only",
@@ -341,12 +340,16 @@
     "loading_category": "Loading…"
   },
   "errors": {
+    "yfsp_unreachable": "Could not reach iyf",
+    "yfsp_challenge": "iyf is asking for a human check",
+    "yfsp_rate_limited": "Too many requests to iyf — try again later",
     "cancelled": "Request cancelled",
     "timeout": "Timed out waiting for the source",
     "offline": "No internet connection",
     "no_response": "No response from the source"
   },
   "common": {
+    "undo": "Undo",
     "refresh": "Refresh",
     "human_check": "Verify you're human",
     "language": "Language",

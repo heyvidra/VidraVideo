@@ -178,11 +178,7 @@ final _uriAttributeTag = RegExp(
 );
 final _uriAttribute = RegExp(r'URI="([^"]*)"');
 
-String _signTagUri(
-  String line,
-  Uri playlistUrl,
-  String Function(Uri) signUri,
-) {
+String _signTagUri(String line, Uri playlistUrl, String Function(Uri) signUri) {
   if (!_uriAttributeTag.hasMatch(line)) return line;
   return line.replaceAllMapped(_uriAttribute, (m) {
     final value = m.group(1)!.trim();

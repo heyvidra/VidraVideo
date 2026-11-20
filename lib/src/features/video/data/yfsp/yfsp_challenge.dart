@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/network/api_exception.dart';
@@ -38,13 +39,15 @@ class YfspBrowser {
       throw ChallengeRequiredException();
     } on PlatformException catch (e) {
       logD('Yfsp', 'browser fetch failed: $e');
-      throw ApiException(message: '爱壹帆连接失败');
+      throw ApiException(message: tr('errors.yfsp_unreachable'));
     }
 
     final status = (env?['status'] as num?)?.toInt() ?? -1;
     final body = env?['body'] as String? ?? '';
 
-    if (status == -1) throw ApiException(message: '爱壹帆连接失败');
+    if (status == -1) {
+      throw ApiException(message: tr('errors.yfsp_unreachable'));
+    }
     // The wall is told apart from the API's own answer by the BODY, not a code:
     // Cloudflare's interactive page carries a marker, while whatever the API
     // itself returns is JSON we still want to parse for its code/msg.
@@ -107,5 +110,5 @@ class YfspBrowser {
 /// error screen keys the "human check" button off it.
 class ChallengeRequiredException extends ApiException {
   ChallengeRequiredException()
-    : super(message: '爱壹帆开启了人机验证', statusCode: 403);
+    : super(message: tr('errors.yfsp_challenge'), statusCode: 403);
 }
