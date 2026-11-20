@@ -134,6 +134,12 @@ sentry:
   # EU-region org: sentry-cli defaults to the US endpoint and the upload would
   # 404 against it. The DSN carries its own region, so only this side needs it.
   url: https://de.sentry.io
+  # No commit association. `auto` asks git for the previous release's commit,
+  # and the macOS job's checkout is shallow: the first tagged build after a
+  # release existed in this org (1.16.10) died here, after a 10-minute build,
+  # with "Could not find the SHA of the previous release". Nothing reads the
+  # association, so it is off rather than paid for with a full clone.
+  commits: false
   # No `release:` on purpose. The plugin derives `name@version+buildNumber`
   # from the pubspec above, which is exactly what Telemetry sends at runtime —
   # pinning it here would be a second copy of the version to forget to bump,
