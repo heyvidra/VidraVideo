@@ -144,12 +144,19 @@ class _Pill extends StatelessWidget {
                 Icon(icon, size: 20, color: focused ? Colors.black : _fg),
                 const SizedBox(width: 8),
               ],
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: on ? FontWeight.w600 : FontWeight.w400,
-                  color: focused ? Colors.black : _fg,
+              // Flexible: a label is translated text of no fixed length, and
+              // a pill in a fixed-width rail must clip rather than spill onto
+              // the content beside it.
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: on ? FontWeight.w600 : FontWeight.w400,
+                    color: focused ? Colors.black : _fg,
+                  ),
                 ),
               ),
             ],
@@ -258,7 +265,9 @@ class _TvShellState extends State<TvShell> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(
-              width: 150,
+              // Wide enough for the longest label in either language
+              // ("Continue Watching") at rest and focused.
+              width: 196,
               child: Focus(
                 canRequestFocus: false,
                 skipTraversal: true,
