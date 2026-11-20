@@ -29,6 +29,20 @@ class M3U8Parser {
       throw const DownloadCancelledException();
     }
 
+    // ponytail: this fallback only concatenates plain TS. Anything it cannot
+    // do honestly fails here instead of "completing" a file that will not
+    // play: an HTML error page, ciphertext, fMP4 without its init segment.
+    // The SDK path handles all of these; add them here only if the fallback
+    // ever becomes a path people actually run.
+    if (!content.contains('#EXTM3U')) {
+      throw Exception('Not an HLS playlist');
+    }
+    if (RegExp(
+      r'#EXT-X-KEY:(?!.*METHOD=NONE)|#EXT-X-MAP|#EXT-X-BYTERANGE',
+    ).hasMatch(content)) {
+      throw Exception('Unsupported HLS playlist (encrypted or fMP4)');
+    }
+
     final lines = content.split('\n');
     final segments = <String>[];
     bool isMediaPlaylist = false;
@@ -163,6 +177,9 @@ class M3U8Downloader implements SegmentDownloader {
     DownloadProgressCallback? onProgress,
     bool Function()? shouldCancel,
   }) async {
+    // The caller's name is an SDK template; this path writes TS and nothing
+    // expands it, so the file came out literally named `Title.%(ext)s`.
+    outputPath = outputPath.replaceAll('%(ext)s', 'ts');
     try {
       onProgress?.call(0.0, 0, null, 'Fetching playlist...');
       _throwIfCancelled(shouldCancel);
@@ -173,7 +190,14 @@ class M3U8Downloader implements SegmentDownloader {
       // explicitly. This is the highest-volume request site in the app on the
       // fallback path — one playlist plus every TS segment — and a CDN that
       // starts refusing non-browsers would break it before anything else.
-      final dio = Dio()..interceptors.add(const BrowserHeaders());
+      // Timeouts: without them a stalled socket left the episode
+      // "downloading" forever, holding a slot.
+      final dio = Dio(
+        BaseOptions(
+          connectTimeout: const Duration(seconds: 30),
+          receiveTimeout: const Duration(seconds: 30),
+        ),
+      )..interceptors.add(const BrowserHeaders());
       final response = await _withCancelWatcher(
         (token) => dio.get(m3u8Url, cancelToken: token),
         shouldCancel,
@@ -349,7 +373,6 @@ class M3U8Downloader implements SegmentDownloader {
         options: Options(
           responseType: ResponseType.bytes,
           followRedirects: true,
-          validateStatus: (status) => status! < 500,
         ),
       );
 

@@ -123,7 +123,7 @@ void main() {
       final headers = headersFor('https://api.olelive.com/v1/pub/vod/list');
       expect(headers['Referer'], 'https://www.olevod.com/');
       expect(headers['Sec-Fetch-Site'], 'cross-site');
-      expect(headers['Origin'], 'https://www.olevod.com/');
+      expect(headers['Origin'], 'https://www.olevod.com');
     });
 
     test('a host that serves its own pages refers to itself', () {
@@ -149,8 +149,10 @@ void main() {
 
       expect(site('https://a.com/x', 'https://a.com/'), 'same-origin');
       expect(site('https://img.a.com/x', 'https://www.a.com/'), 'same-site');
-      expect(site('https://api.olelive.com/x', 'https://www.olevod.com/'),
-          'cross-site');
+      expect(
+        site('https://api.olelive.com/x', 'https://www.olevod.com/'),
+        'cross-site',
+      );
       // Scheme is part of an origin.
       expect(site('http://a.com/x', 'https://a.com/'), 'same-site');
     });

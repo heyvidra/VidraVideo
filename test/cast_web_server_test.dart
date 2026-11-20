@@ -272,6 +272,39 @@ void main() {
       expect(cdn.lastHeaders.containsKey('referer'), isFalse);
     });
 
+    test('a path this cast never handed out is not read off disk', () async {
+      // olevod's resolver is the identity, so anything non-http that reached
+      // it came straight back as a local playlist path.
+      final secret = File(
+        '${Directory.systemTemp.path}/vidra_cast_secret_'
+        '${DateTime.now().microsecondsSinceEpoch}',
+      );
+      await secret.writeAsString('PRIVATE KEY');
+      addTearDown(secret.delete);
+      server.resolve = (url) async => url;
+      try {
+        await server.start(peerHost: '127.0.0.1');
+      } on CastServerException {
+        return;
+      }
+      server.serve(
+        CastPlaylist(
+          title: 'T',
+          items: [
+            CastItem(title: 'E1', url: '$origin/e1.m3u8', sourceIndex: 0),
+          ],
+        ),
+      );
+      final client = HttpClient();
+      final res = await (await client.getUrl(
+        Uri.parse(server.proxied(secret.path)),
+      )).close();
+      final text = await utf8.decodeStream(res);
+      client.close();
+      expect(res.statusCode, HttpStatus.forbidden);
+      expect(text, isNot(contains('PRIVATE')));
+    });
+
     test('an unlisted origin is refused', () async {
       final url = await proxiedPlaylist();
       if (url == null) return;

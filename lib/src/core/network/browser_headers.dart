@@ -88,7 +88,13 @@ class BrowserHeaders extends Interceptor {
     // GETs. Sending it always would contradict Sec-Fetch-Site; sending it never
     // would contradict Sec-Fetch-Mode: cors.
     if (site != 'same-origin') {
-      headers.putIfAbsent('Origin', () => referer);
+      // An origin has no path; the referer ends in '/'.
+      headers.putIfAbsent(
+        'Origin',
+        () => referer.endsWith('/')
+            ? referer.substring(0, referer.length - 1)
+            : referer,
+      );
     }
   }
 

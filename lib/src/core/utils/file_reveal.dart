@@ -25,7 +25,12 @@ Future<bool> revealInFileManager(String filePath) async {
     if (Platform.isMacOS) {
       await Process.run('open', ['-R', filePath]);
     } else if (Platform.isWindows) {
-      await Process.run('explorer', ['/select,', filePath]);
+      // Backslashes only: downloads are joined with '/', and Explorer given
+      // a forward slash opens Documents instead of selecting the file.
+      await Process.run('explorer', [
+        '/select,',
+        filePath.replaceAll('/', r'\'),
+      ]);
     } else {
       await Process.run('xdg-open', [p.dirname(filePath)]);
     }

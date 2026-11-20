@@ -29,6 +29,11 @@ class EpisodeDownloadInfo {
   final double progress; // 0.0 to 1.0
   final int bytesDownloaded;
   final int totalBytes;
+
+  /// What [bytesDownloaded] already was when this run began at [startTime] —
+  /// a resume picks up from its checkpoint, and those bytes were not moved
+  /// in this run. Not persisted, like [phase].
+  final int bytesAtStart;
   final DateTime? startTime;
   final DateTime? completedTime;
   final String? error;
@@ -44,6 +49,7 @@ class EpisodeDownloadInfo {
     this.progress = 0.0,
     this.bytesDownloaded = 0,
     this.totalBytes = 0,
+    this.bytesAtStart = 0,
     this.startTime,
     this.completedTime,
     this.error,
@@ -64,6 +70,7 @@ class EpisodeDownloadInfo {
     double? progress,
     int? bytesDownloaded,
     int? totalBytes,
+    int? bytesAtStart,
     DateTime? startTime,
     DateTime? completedTime,
     String? error,
@@ -79,6 +86,7 @@ class EpisodeDownloadInfo {
       progress: progress ?? this.progress,
       bytesDownloaded: bytesDownloaded ?? this.bytesDownloaded,
       totalBytes: totalBytes ?? this.totalBytes,
+      bytesAtStart: bytesAtStart ?? this.bytesAtStart,
       startTime: startTime ?? this.startTime,
       completedTime: completedTime ?? this.completedTime,
       error: error ?? this.error,
@@ -261,7 +269,11 @@ class DownloadTask {
       if (e.bytesDownloaded <= 0) continue;
       final secs = DateTime.now().difference(e.startTime!).inSeconds;
       if (secs <= 0) continue;
-      total += e.bytesDownloaded / secs;
+      // Bytes moved in THIS run. Resuming at 600 MB used to read as 600 MB
+      // in the first second. Below the baseline means the checkpoint was
+      // gone and the download began again, so everything counts.
+      final moved = e.bytesDownloaded - e.bytesAtStart;
+      total += (moved >= 0 ? moved : e.bytesDownloaded) / secs;
     }
     return total;
   }

@@ -92,7 +92,19 @@ class DownloadManager {
       //
       // Not awaited: it is a disk scan, and nothing about starting the queue
       // depends on its result. A failure inside is swallowed and logged.
-      unawaited(_downloadService.sweepOrphanedResumeFiles());
+      unawaited(
+        _downloadService.sweepOrphanedResumeFiles(
+          // Anything that can still be resumed or retried keeps its partial.
+          keep: {
+            for (final t in _tasks.values)
+              for (final e in t.episodes)
+                if (e.url != null &&
+                    e.status != DownloadStatus.completed &&
+                    e.status != DownloadStatus.cancelled)
+                  _outputName(t.taskId, e.url!),
+          },
+        ),
+      );
       _startProcessing();
     } else if (watchDb) {
       _listenToDbChanges();
@@ -477,6 +489,7 @@ class DownloadManager {
           ep.copyWith(
             status: DownloadStatus.downloading,
             startTime: DateTime.now(),
+            bytesAtStart: ep.bytesDownloaded,
           ),
         );
       }
@@ -646,10 +659,35 @@ class DownloadManager {
   }
 
   static String _plainName(DownloadTask task, EpisodeDownloadInfo episode) =>
-      '${task.videoTitle}_${episode.title}'.replaceAll(
-        RegExp(r'[<>:"/\\|?*]'),
-        '_',
+      capFileName(
+        '${task.videoTitle}_${episode.title}'.replaceAll(
+          RegExp(r'[<>:"/\\|?*\x00-\x1f]'),
+          '_',
+        ),
       );
+
+  /// [name] cut to [maxBytes] of UTF-8, on a character boundary.
+  ///
+  /// A file name is limited to 255 BYTES and the engine appends
+  /// `.mp4.vidradlp.tmp.hls` to this one, so a pasted video with a long CJK
+  /// title (3 bytes a character) failed every attempt with "File name too
+  /// long".
+  static String capFileName(String name, {int maxBytes = 200}) {
+    var bytes = 0;
+    final out = StringBuffer();
+    for (final rune in name.runes) {
+      bytes += rune < 0x80
+          ? 1
+          : rune < 0x800
+          ? 2
+          : rune < 0x10000
+          ? 3
+          : 4;
+      if (bytes > maxBytes) break;
+      out.writeCharCode(rune);
+    }
+    return out.toString();
+  }
 
   /// The file name for this episode: `title_episode`, unless an earlier
   /// download already has that name.

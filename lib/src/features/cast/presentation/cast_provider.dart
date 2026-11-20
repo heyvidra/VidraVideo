@@ -214,6 +214,7 @@ class CastController extends Notifier<CastState> {
     // Say so before the slow part, not after: device probe, pairing and
     // connect together run to tens of seconds, and a page that looks
     // untouched invites a second tap and a second cast.
+    final previous = state;
     state = CastState(device: device, video: video, connecting: true);
     _elapsed
       ..reset()
@@ -237,6 +238,23 @@ class CastController extends Notifier<CastState> {
       _airplayPoll?.cancel();
       _airplayPoll = null;
       _lastWrite = null;
+      // And tell the previous television so. stop() only ever sees the
+      // CURRENT route, so a cast replaced by one to a different TV or route
+      // was never stopped: the manager kept polling the old set every two
+      // seconds and AVPlayer stayed attached to the old AirPlay receiver.
+      // The same DLNA set being re-cast is left as it was.
+      try {
+        if (previous.route == CastRoute.airplay &&
+            device.protocol != DeviceProtocol.airPlay) {
+          await AirPlaySender.stop();
+        } else if (previous.route == CastRoute.dlna &&
+            previous.device?.id != device.id) {
+          await _manager.stop().timeout(const Duration(seconds: 5));
+          await _manager.disconnect();
+        }
+      } catch (e) {
+        logD('cast', 'previous cast teardown: ${e.runtimeType}');
+      }
       // Bind fresh, too — the previous session's server holds the previous
       // TV's interface, and the address it chose may not reach this one.
       await _server.stop();
@@ -356,6 +374,7 @@ class CastController extends Notifier<CastState> {
     final tizen = TizenRemoteController(host);
     _mark('browser.launch');
     if (!await tizen.launchBrowser(url)) {
+      tizen.disconnect();
       // Take the server down again. It is serving this show to the LAN and
       // nothing on screen would say so, because the UI is about to be told
       // the cast failed.
@@ -371,10 +390,11 @@ class CastController extends Notifier<CastState> {
     try {
       await _server.pageFetched.timeout(const Duration(seconds: 25));
     } on TimeoutException {
+      tizen.disconnect();
       await _server.stop();
       throw const CastException('the TV never opened the page');
     }
-    unawaited(_nudgeFullscreen(tizen));
+    unawaited(_nudgeFullscreen(tizen, url));
   }
 
   /// Presses a key on the television so its browser can go fullscreen.
@@ -388,16 +408,29 @@ class CastController extends Notifier<CastState> {
   /// KEY_UP rather than KEY_ENTER: nothing on the page is focusable, so it
   /// has no effect beyond existing, while Enter could activate whatever a TV
   /// browser decided to focus.
-  Future<void> _nudgeFullscreen(TizenRemoteController tizen) async {
-    for (final delay in const [
-      Duration(seconds: 4),
-      Duration(seconds: 4),
-      Duration(seconds: 6),
-    ]) {
-      await Future<void>.delayed(delay);
-      // Spread out because the page has to exist first, and how long the TV
-      // takes to open its browser is not ours to know.
-      await tizen.sendKeyEvent(CastKeyEvent.up);
+  ///
+  /// [url] is the page this cast is serving; once the server is serving
+  /// something else (stopped, or a new cast), the presses stop — they would
+  /// land in whatever menu the viewer has moved on to.
+  Future<void> _nudgeFullscreen(TizenRemoteController tizen, String url) async {
+    try {
+      for (final delay in const [
+        Duration(seconds: 4),
+        Duration(seconds: 4),
+        Duration(seconds: 6),
+      ]) {
+        await Future<void>.delayed(delay);
+        if (_server.pageUrl != url) return;
+        // Spread out because the page has to exist first, and how long the
+        // TV takes to open its browser is not ours to know.
+        await tizen.sendKeyEvent(CastKeyEvent.up);
+      }
+    } catch (e) {
+      logD('cast', 'fullscreen nudge: ${e.runtimeType}');
+    } finally {
+      // The socket was only ever for these presses; it used to stay open
+      // until the television dropped it, one per cast.
+      tizen.disconnect();
     }
   }
 

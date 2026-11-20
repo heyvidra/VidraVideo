@@ -93,14 +93,13 @@ class CastButton extends ConsumerWidget {
   /// Public because it is the rule, and a rule is worth asserting on
   /// directly rather than through a dialog.
   static List<CastDevice> devicesOn(
-    String? lanAddress,
+    Iterable<String> lanAddresses,
     List<CastDevice> devices,
   ) {
-    final mine = _subnetOf(lanAddress);
-    if (mine == null) return const [];
+    final mine = {for (final a in lanAddresses) ?_subnetOf(a)};
     return [
       for (final d in devices)
-        if (_subnetOf(Uri.tryParse(d.address)?.host) == mine) d,
+        if (mine.contains(_subnetOf(Uri.tryParse(d.address)?.host))) d,
     ];
   }
 
@@ -297,7 +296,7 @@ class _DevicePickerDialogState extends ConsumerState<_DevicePickerDialog> {
 
   /// This machine's address on the LAN, which decides which remembered
   /// televisions are worth offering — see [_reachable].
-  String? _lan;
+  List<String> _lan = const [];
 
   /// The AirPlay receivers the system sees right now, by name.
   List<String> _airplay = const [];
@@ -309,7 +308,7 @@ class _DevicePickerDialogState extends ConsumerState<_DevicePickerDialog> {
     _timer = Timer(_hintAfter, () {
       if (mounted) setState(() => _slow = true);
     });
-    CastWebServer.lanAddress().then((a) {
+    CastWebServer.lanAddresses().then((a) {
       if (mounted) setState(() => _lan = a);
     });
     // Asked again every second for as long as the picker is open, not once:

@@ -12,14 +12,14 @@ void main() {
   group('which televisions the picker may offer', () {
     test('one on this machine\'s own subnet is offered', () {
       final devices = [_tv('http://192.168.1.12:1416')];
-      expect(CastButton.devicesOn('192.168.1.24', devices), devices);
+      expect(CastButton.devicesOn(['192.168.1.24'], devices), devices);
     });
 
     test('one from another network is not', () {
       // The flat before this one, the office, a hotel: still in the cache,
       // still unreachable.
       expect(
-        CastButton.devicesOn('192.168.1.24', [_tv('http://10.0.0.5:1416')]),
+        CastButton.devicesOn(['192.168.1.24'], [_tv('http://10.0.0.5:1416')]),
         isEmpty,
       );
     });
@@ -28,30 +28,40 @@ void main() {
       // An LG hands out a new UPnP port on every reboot. The address goes
       // stale; the network it is on does not.
       expect(
-        CastButton.devicesOn('192.168.1.24', [_tv('http://192.168.1.12:1905')]),
+        CastButton.devicesOn(
+          ['192.168.1.24'],
+          [_tv('http://192.168.1.12:1905')],
+        ),
         hasLength(1),
       );
     });
 
     test('no address of our own means nothing is reachable', () {
       expect(
-        CastButton.devicesOn(null, [_tv('http://192.168.1.12:1416')]),
+        CastButton.devicesOn(const [], [_tv('http://192.168.1.12:1416')]),
         isEmpty,
       );
     });
 
     test('an address that is not four octets is not a subnet', () {
       expect(
-        CastButton.devicesOn('192.168.1.24', [_tv('http://tv.local:1416')]),
+        CastButton.devicesOn(['192.168.1.24'], [_tv('http://tv.local:1416')]),
         isEmpty,
       );
+    });
+
+    test('wired and wireless at once: a TV on either network is offered', () {
+      final wifiTv = _tv('http://192.168.50.7:1416');
+      expect(CastButton.devicesOn(['192.168.1.24', '192.168.50.3'], [wifiTv]), [
+        wifiTv,
+      ]);
     });
 
     test('the ones that qualify come back in the order they arrived', () {
       final near1 = _tv('http://192.168.1.12:1416', id: 'a');
       final far = _tv('http://172.16.4.9:1416', id: 'b');
       final near2 = _tv('http://192.168.1.30:8060', id: 'c');
-      expect(CastButton.devicesOn('192.168.1.24', [near1, far, near2]), [
+      expect(CastButton.devicesOn(['192.168.1.24'], [near1, far, near2]), [
         near1,
         near2,
       ]);

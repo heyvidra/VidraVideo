@@ -139,8 +139,22 @@ class DownloadService {
     required Duration minimumAge,
   }) => now.difference(lastModified) >= minimumAge;
 
+  /// Whether [fileName] is an engine partial nobody will come back for.
+  ///
+  /// The engine's own scan only knows single-file http downloads, which
+  /// leave a manifest. HLS — every catalog download — leaves
+  /// `<name>.ts.vidradlp.tmp` (up to a whole episode) and a `.hls` sidecar
+  /// with no manifest, so a paused-then-deleted or failed download stayed on
+  /// disk for good. [keep] holds the output names of episodes that can still
+  /// be resumed.
+  static bool orphanedPartial(String fileName, Set<String> keep) =>
+      (fileName.endsWith('.vidradlp.tmp') ||
+          fileName.endsWith('.vidradlp.tmp.hls')) &&
+      !keep.any((name) => fileName.startsWith('$name.'));
+
   Future<int> sweepOrphanedResumeFiles({
     Duration minimumAge = const Duration(minutes: 10),
+    Set<String> keep = const {},
   }) async {
     if (!vidradlpLibraryAvailable()) return 0;
     final dir = await _resolveDownloadsDir();
@@ -184,6 +198,22 @@ class DownloadService {
         logD('DownloadService', '清理残留失败 $temp: $e');
       }
     }
+    try {
+      for (final f in dir.listSync(followLinks: false).whereType<File>()) {
+        if (!orphanedPartial(f.uri.pathSegments.last, keep)) continue;
+        if (!sweepable(
+          lastModified: f.lastModifiedSync(),
+          now: now,
+          minimumAge: minimumAge,
+        )) {
+          continue;
+        }
+        f.deleteSync();
+        swept++;
+      }
+    } catch (e) {
+      logD('DownloadService', '清理残留失败: ${e.runtimeType}');
+    }
     if (swept > 0) {
       logR('DownloadService', 'swept $swept orphaned resume file(s)');
     }
@@ -196,8 +226,8 @@ class DownloadService {
     final repo = _settingsRepo;
     if (repo == null) return getDownloadsDirectory();
     final settings = await repo.getSettings();
-    final path = (settings.downloadPath != null &&
-            settings.downloadPath!.isNotEmpty)
+    final path =
+        (settings.downloadPath != null && settings.downloadPath!.isNotEmpty)
         ? settings.downloadPath!
         : await repo.getDefaultDownloadPath();
     return Directory(path);

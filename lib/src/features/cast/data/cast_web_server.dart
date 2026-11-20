@@ -186,6 +186,10 @@ class CastWebServer {
     _client.close(force: true);
   }
 
+  /// The page being served right now, or null when nothing is. Different for
+  /// every cast: the token is minted per start.
+  String? get pageUrl => _baseUrl == null ? null : '$_baseUrl/player?t=$_token';
+
   /// The page URL for [playlist] — hand this to the TV's browser.
   String serve(CastPlaylist playlist) {
     final base = _baseUrl;
@@ -277,6 +281,23 @@ class CastWebServer {
     return physical ?? any;
   }
 
+  /// Every address this machine has on a network a television could be on.
+  /// The picker's rule for "reachable": wired and wireless at once are two
+  /// such networks, and the TV is as likely to be on the second.
+  static Future<List<String>> lanAddresses() async {
+    final interfaces = await NetworkInterface.list(
+      type: InternetAddressType.IPv4,
+      includeLoopback: false,
+      includeLinkLocal: false,
+    );
+    return [
+      for (final i in interfaces)
+        if (!_isVirtual(i.name))
+          for (final a in i.addresses)
+            if (!a.address.startsWith('169.254')) a.address,
+    ];
+  }
+
   /// The /24 an address sits in. Crude — the real prefix length is not
   /// something dart:io exposes — but home networks are /24 and this only ever
   /// has to break a tie between interfaces.
@@ -335,6 +356,11 @@ class CastWebServer {
       logD('cast', 'request ${req.uri.path} failed: $e');
       try {
         req.response.statusCode = HttpStatus.internalServerError;
+      } catch (_) {
+        // Headers already went out. The close below still has to happen:
+        // skipping it left the television on a response that never ended.
+      }
+      try {
         await req.response.close();
       } catch (_) {
         // The renderer hung up mid-response; nothing left to say.
@@ -382,6 +408,15 @@ class CastWebServer {
     // could play it.
     String? localPlaylist;
     if (!_isHttp(target) && resolve != null) {
+      // Only the placeholders this cast handed out. [resolve] may answer with
+      // a path on this machine, and one source's resolver is the identity —
+      // so without this, `url=/Users/me/.ssh/id_rsa` was read off disk and
+      // served to whoever held the token, which travels the LAN in the clear.
+      if (!(_playlist?.items.any((i) => i.url == raw) ?? false)) {
+        req.response.statusCode = HttpStatus.forbidden;
+        await req.response.close();
+        return;
+      }
       final resolved = await resolve!(raw);
       final fetchable = resolved == null ? null : Uri.tryParse(resolved);
       if (resolved == null || fetchable == null) {
@@ -787,7 +822,14 @@ class CastWebServer {
         break;
       }
       logD('cast', 'resuming ${target.host} at $written/$total');
-      final next = await _fetch(target, _resumeRange(startedAt, written));
+      // A throw here (DNS or Wi-Fi blip) is the same answer as "cannot be
+      // resumed"; letting it escape skipped the close at the bottom.
+      HttpClientResponse? next;
+      try {
+        next = await _fetch(target, _resumeRange(startedAt, written));
+      } catch (e) {
+        logD('cast', 'resume fetch failed: ${e.runtimeType}');
+      }
       // A CDN that will not range us cannot be resumed; leaving the response
       // short is no worse than the truncation we were already sending.
       if (next == null || next.statusCode != HttpStatus.partialContent) {
