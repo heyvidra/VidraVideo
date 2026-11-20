@@ -188,8 +188,9 @@ class EpisodeSection extends ConsumerWidget {
       // Says what the checkmarks mean before the grid shows them. Borrowed
       // progress is the one thing on this page nobody would guess: a tick on a
       // catalog you have never played is either magic or a bug until the rule
-      // is stated once.
-      if (hasSources)
+      // is stated once. Not on a film: the rule is about episode numbers, and
+      // a film's list is quality lines and dubs.
+      if (hasSources && isEpisodicType(video.type))
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(_gutter + 4, 0, _gutter + 4, 12),
           sliver: SliverToBoxAdapter(
@@ -1276,7 +1277,9 @@ class _SourcePill extends ConsumerWidget {
               locallyCachedVideoProvider((id: videoId, sourceId: sourceId)),
             )
             .value;
-    final count = mine?.urls?.length;
+    // A film's lines are not episodes, so there is nothing to count: "1 集"
+    // beside a feature film reads as a one-episode series.
+    final count = isEpisodicType(mine?.type) ? mine?.urls?.length : null;
 
     // Only against a DIFFERENT catalog, and only when both sides are known.
     // One claim at most — see [compareSourceRows] for why a count delta and a
