@@ -151,6 +151,14 @@ class EpisodeSection extends ConsumerWidget {
                       isAscending: isAscending,
                       isDownloadMode: isDownloadMode,
                       lastRefresh: lastRefresh,
+                      shown: picked == null
+                          ? null
+                          : (
+                              id: counterparts
+                                  .firstWhere((c) => c.sourceId == picked)
+                                  .videoId,
+                              sourceId: picked,
+                            ),
                       onDownloadAll: () {
                         // The catalog on screen, not always this page's own:
                         // with another one picked the grid shows ITS
@@ -370,6 +378,7 @@ class _BarTop extends ConsumerWidget {
     required this.isAscending,
     required this.isDownloadMode,
     required this.lastRefresh,
+    required this.shown,
     required this.onDownloadAll,
   });
 
@@ -380,6 +389,12 @@ class _BarTop extends ConsumerWidget {
   final ValueNotifier<bool> isAscending;
   final ValueNotifier<bool> isDownloadMode;
   final ValueNotifier<DateTime?> lastRefresh;
+
+  /// The other catalog whose episodes the grid is showing, when one is
+  /// picked. Refresh has to reach it: refetching only this page's own
+  /// catalog left the grid on screen exactly as it was, and started the
+  /// cooldown all the same.
+  final ({int id, String? sourceId})? shown;
   final VoidCallback onDownloadAll;
 
   @override
@@ -481,6 +496,8 @@ class _BarTop extends ConsumerWidget {
     ref.invalidate(
       videoByIdProvider((id: video.apiId, sourceId: video.sourceId)),
     );
+    final other = shown;
+    if (other != null) ref.invalidate(videoByIdProvider(other));
     ref.invalidate(
       episodeHistoriesProvider((
         videoId: video.apiId,

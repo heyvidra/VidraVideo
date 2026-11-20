@@ -154,6 +154,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       // native side reuses by name, so a retry can never spawn a second pet.
       await Future<void>.delayed(const Duration(seconds: 2));
       if (!await desktopApp.hasWindow(PetWindowLauncher.windowName)) {
+        // Missing is also what "the user closed it in those two seconds"
+        // looks like, and that close wrote showPet = false. Ask the stored
+        // row, not the snapshot above, or the retry reopens a pet that was
+        // just dismissed.
+        final now = await ref.read(settingsRepositoryProvider).getSettings();
+        if (!mounted || !now.showPet) return;
         logR('Pet', 'restore: window missing after 2s — retrying once');
         await PetWindowLauncher.show();
       }

@@ -354,7 +354,9 @@ class EpisodeItem extends ConsumerWidget {
       messenger.showSnackBar(
         SnackBar(content: Text(tr('cast.sent_to', args: [label]))),
       );
-    } on CastException catch (e) {
+    } catch (e) {
+      // Everything, not only CastException: a socket or SOAP failure from
+      // the TV is not one, and it went unreported — the tap just did nothing.
       messenger.showSnackBar(
         SnackBar(content: Text(tr('cast.failed', args: ['$e']))),
       );
