@@ -12,7 +12,7 @@
     "section_general": "General"
   },
   "recent": {
-    "title": "Recent Activity",
+    "title": "Continue Watching",
     "clear_all": "Clear All",
     "empty": "No recent playback history",
     "watched_to": "Up to {}",
@@ -118,7 +118,7 @@
       "mode_auto": "Auto",
       "mode_on": "On",
       "mode_off": "Off",
-      "player_window": "Open the player in its own window",
+      "player_window": "Where the player opens",
       "player_window_desc_auto_on": "Auto — this machine plays in the current window",
       "player_window_desc_auto_off": "Auto — this machine opens a separate window",
       "player_mode_window": "New window",
