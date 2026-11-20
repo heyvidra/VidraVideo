@@ -109,4 +109,21 @@ void main() {
     expect(s, isNotEmpty);
     expect(s.values.every((v) => v is num), isTrue);
   });
+
+  test('unfocused frames are counted but never timed, and waiting is '
+      'reported apart from work', () {
+    final a = FrameAggregator();
+    // 12ms frame: 2 build, 3 raster, 7 spent queued.
+    a.addMicros(12000, 2000, 3000, 7000);
+    a.addUnfocused();
+    a.addUnfocused();
+    final s = a.summary();
+    expect(s['frames'], 1, reason: 'throttled background frames are not jank');
+    expect(s['jank_16ms'], 0);
+    expect(s['unfocused_frames'], 2);
+    expect(s['wait_avg_ms'], 7.0);
+    a.reset();
+    a.addMicros(1000, 0, 0);
+    expect(a.summary()['unfocused_frames'], 0);
+  });
 }

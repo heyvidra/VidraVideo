@@ -53,6 +53,14 @@ class FrameAggregator {
   int _worstMicros = 0;
   int _buildMicros = 0;
   int _rasterMicros = 0;
+  int _waitMicros = 0;
+  int _unfocused = 0;
+
+  /// A frame drawn while the app was not the focused one. Counted, never
+  /// timed: the system throttles a window nobody is looking at, and those
+  /// 100ms frames read as one frame in six being dropped on a machine that
+  /// was rendering perfectly — which is what the first real reports showed.
+  void addUnfocused() => _unfocused++;
 
   /// Every frame seen since the last [reset], not just the sampled ones.
   int get frames => _frames;
@@ -65,7 +73,17 @@ class FrameAggregator {
 
   /// Adds one frame. Micros rather than [Duration] so the timings callback,
   /// which runs on every batch, allocates nothing per frame.
-  void addMicros(int totalMicros, int buildMicros, int rasterMicros) {
+  ///
+  /// [waitMicros] is the time a frame spent NOT being built or painted —
+  /// queued behind something else on the UI or raster thread. Slow frames
+  /// with small build and raster times are that, and without the number a
+  /// report cannot say so.
+  void addMicros(
+    int totalMicros,
+    int buildMicros,
+    int rasterMicros, [
+    int waitMicros = 0,
+  ]) {
     if (totalMicros < 0) return;
     if (totalMicros > _maxFrameMicros) totalMicros = _maxFrameMicros;
     _spans[_next] = totalMicros;
@@ -80,6 +98,7 @@ class FrameAggregator {
     if (totalMicros > _worstMicros) _worstMicros = totalMicros;
     _buildMicros += buildMicros;
     _rasterMicros += rasterMicros;
+    if (waitMicros > 0) _waitMicros += waitMicros;
   }
 
   /// [addMicros] for callers that already hold [Duration]s.
@@ -111,6 +130,8 @@ class FrameAggregator {
       'jank_33ms': _severeJank,
       'build_avg_ms': _ms(_buildMicros ~/ _frames),
       'raster_avg_ms': _ms(_rasterMicros ~/ _frames),
+      'wait_avg_ms': _ms(_waitMicros ~/ _frames),
+      'unfocused_frames': _unfocused,
     };
   }
 
@@ -123,6 +144,8 @@ class FrameAggregator {
     _worstMicros = 0;
     _buildMicros = 0;
     _rasterMicros = 0;
+    _waitMicros = 0;
+    _unfocused = 0;
   }
 
   /// Nearest-rank percentile, in integers throughout: `n * percent / 100`
@@ -288,6 +311,10 @@ class FrameMetrics {
       _firstFrameMarked = true;
       mark('first_frame_reported');
     }
+    // Read once per batch. `resumed` is "this app has focus" on desktop;
+    // null is before the first lifecycle message, when it does.
+    final state = SchedulerBinding.instance.lifecycleState;
+    final focused = state == null || state == AppLifecycleState.resumed;
     try {
       for (var i = 0; i < timings.length; i++) {
         final timing = timings[i];
@@ -317,10 +344,15 @@ class FrameMetrics {
             'raster=${(rasterFinish - rasterStart) ~/ 1000}',
           );
         }
+        if (!focused) {
+          aggregator.addUnfocused();
+          continue;
+        }
         aggregator.addMicros(
           rasterFinish - vsync,
           buildFinish - buildStart,
           rasterFinish - rasterStart,
+          (buildStart - vsync) + (rasterStart - buildFinish),
         );
       }
     } catch (e) {
