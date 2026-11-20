@@ -72,8 +72,18 @@ class ReduceEffects {
   /// loaded; the settings screen re-seeds it when the user flips the switch.
   static bool current = false;
 
+  /// `--dart-define=REDUCE_EFFECTS=on|off`: overrides the stored setting for
+  /// this run without writing it. A debug build shares its settings database
+  /// with the installed app, so flipping the real switch to look at the
+  /// reduced UI changes the developer's own app. Unset in a release build.
+  static const _forced = String.fromEnvironment('REDUCE_EFFECTS');
+
   static void seed(AppSettings settings) {
-    current = resolve(ReduceEffectsMode.fromStored(settings.reduceEffects));
+    current = resolve(
+      ReduceEffectsMode.fromStored(
+        _forced.isEmpty ? settings.reduceEffects : _forced,
+      ),
+    );
     // The player package carries its own copy of this switch, because it is a
     // package and cannot read this one. Set it HERE rather than at the call
     // sites: _runApp() seeds every engine — player and pet included, each its
