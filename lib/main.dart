@@ -52,6 +52,8 @@ Future<void> _setupNotifications() async {
   }
 }
 
+const _forcedLocale = String.fromEnvironment('LOCALE');
+
 Future<void> main(List<String> args) async {
   // A secondary window learns WHICH window it is from its engine's entrypoint
   // arguments. The native side also posts a `windowReady` message carrying the
@@ -183,7 +185,15 @@ Future<void> _runApp() async {
         supportedLocales: const [Locale('zh'), Locale('en')],
         path: 'assets/translations',
         fallbackLocale: const Locale('en'),
-        startLocale: savedLocale != null ? Locale(savedLocale) : null,
+        // `--dart-define=LOCALE=en|zh`: this run only. saveLocale goes off
+        // with it, or the package would read back (and overwrite) the
+        // language the installed app saved.
+        startLocale: _forcedLocale.isNotEmpty
+            ? Locale(_forcedLocale)
+            : savedLocale != null
+            ? Locale(savedLocale)
+            : null,
+        saveLocale: _forcedLocale.isEmpty,
         child: UncontrolledProviderScope(
           container: container,
           child: const MyApp(),
