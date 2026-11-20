@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:vidra_player/vidra_player.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -17,7 +18,16 @@ import '../data/history_repository.dart';
 import '../data/video_repository.dart';
 import '../domain/video_collection.dart' hide VideoEpisode, VideoQuality;
 import '../../../common/netflix_loading.dart';
+import '../../../tv/tv_screens.dart' show TvPlayerHint, showTvPlayerMenu;
 import '../../../window/video_player_window.dart';
+
+/// How far one tick of a HELD seek key jumps on a TV, given how many
+/// auto-repeats have arrived; null means "the player's own step".
+///
+/// 5s a tick crosses a two-hour film in minutes of holding, so the step
+/// grows: the player's own for the first ~1s held, then 15s, then a minute.
+int? tvHeldSeekSeconds(int repeats) =>
+    repeats < 8 ? null : (repeats < 24 ? 15 : 60);
 
 class VideoPlayerScreen extends ConsumerStatefulWidget {
   final String videoId;
@@ -56,6 +66,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
   PlayerController? _controller;
   VidraMediaRepository? _mediaRepository;
   bool _isClosing = false;
+  int _heldSeeks = 0;
 
   /// Constructed with the State, which is the moment the screen opened — the
   /// startup clock has to start before initState, not after the player exists.
@@ -324,7 +335,12 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
       initialEpisodeIndex: widget.initialEpisodeIndex,
       episodesSort: false,
       theme: const PlayerUITheme.netflix(),
-      features: const PlayerFeatures.all(),
+      features: Platform.isAndroid
+          ? const PlayerFeatures(
+              enableKeyboardShortcuts: false,
+              enablePictureInPicture: false,
+            )
+          : const PlayerFeatures.all(),
       behavior: PlayerBehavior(
         autoHideDelay: const Duration(seconds: 3),
         mouseHideDelay: const Duration(seconds: 2),
@@ -356,7 +372,10 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
       config: config,
       video: metadata,
       episodes: episodes,
-      windowDelegate: BitsdojoWindowDelegate(),
+      // A TV has no window to resize, float or close.
+      windowDelegate: Platform.isAndroid
+          ? const _NoWindowDelegate()
+          : BitsdojoWindowDelegate(),
       mediaRepository: _mediaRepository,
       sourceResolver: _resolveSource,
     );
@@ -401,6 +420,90 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
     return Padding(
       padding: const EdgeInsets.only(left: _trafficLightsInset),
       child: button,
+    );
+  }
+
+  /// Every key a remote has, on a TV. The player's own shortcuts are switched
+  /// off there (see [newController]) because they are a keyboard's: up/down
+  /// is volume, which a TV remote already has a rocker for, and the panels
+  /// for episodes and quality open on hover. So this owns the keys instead:
+  /// left/right seek, centre plays/pauses or confirms the resume dialog, and
+  /// up/down/menu open [showTvPlayerMenu].
+  Widget _remoteKeys(Widget child, Video? video) {
+    return Focus(
+      canRequestFocus: false,
+      onKeyEvent: (node, event) {
+        final controller = _controller;
+        if (controller == null || event is KeyUpEvent) {
+          return KeyEventResult.ignored;
+        }
+        final key = event.logicalKey;
+        final dialog =
+            controller.visibility.showResumeDialog ||
+            controller.visibility.showReplayDialog;
+        // Seeking is the one thing worth repeating while a key is held.
+        final seek = key == LogicalKeyboardKey.arrowLeft
+            ? 'arrow_left'
+            : key == LogicalKeyboardKey.arrowRight
+            ? 'arrow_right'
+            : key == LogicalKeyboardKey.mediaFastForward
+            ? 'l'
+            : key == LogicalKeyboardKey.mediaRewind
+            ? 'j'
+            : null;
+        if (seek != null) {
+          // Held down, the step grows — see [tvHeldSeekSeconds].
+          _heldSeeks = event is KeyRepeatEvent ? _heldSeeks + 1 : 0;
+          final seconds = tvHeldSeekSeconds(_heldSeeks);
+          if (seconds == null) {
+            controller.handleKeyboardShortcut(seek);
+          } else {
+            final back = seek == 'arrow_left' || seek == 'j';
+            final step = Duration(seconds: back ? -seconds : seconds);
+            controller.seekRelative(step);
+            controller.showSeekFeedback(step);
+          }
+          return KeyEventResult.handled;
+        }
+        if (event is! KeyDownEvent) return KeyEventResult.ignored;
+        if (key == LogicalKeyboardKey.select ||
+            key == LogicalKeyboardKey.enter ||
+            key == LogicalKeyboardKey.gameButtonA) {
+          controller.handleKeyboardShortcut(dialog ? 'enter' : 'space');
+          return KeyEventResult.handled;
+        }
+        if (key == LogicalKeyboardKey.mediaTrackNext) {
+          controller.playNextEpisode();
+          return KeyEventResult.handled;
+        }
+        if (key == LogicalKeyboardKey.mediaTrackPrevious) {
+          controller.playPreviousEpisode();
+          return KeyEventResult.handled;
+        }
+        if (key == LogicalKeyboardKey.mediaPlayPause ||
+            key == LogicalKeyboardKey.mediaPlay ||
+            key == LogicalKeyboardKey.mediaPause) {
+          controller.handleKeyboardShortcut('space');
+          return KeyEventResult.handled;
+        }
+        if (!dialog &&
+            (key == LogicalKeyboardKey.arrowUp ||
+                key == LogicalKeyboardKey.arrowDown ||
+                key == LogicalKeyboardKey.contextMenu)) {
+          showTvPlayerMenu(
+            context,
+            controller: controller,
+            video: video,
+            sourceId: widget.sourceId,
+          );
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: Stack(
+        fit: StackFit.expand,
+        children: [child, const TvPlayerHint()],
+      ),
     );
   }
 
@@ -523,7 +626,11 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
             }
           }
 
-          return VideoPlayerWidget(controller: _controller!);
+          final player = VideoPlayerWidget(controller: _controller!);
+          return Platform.isAndroid
+              // Only a catalog video can be found on another source.
+              ? _remoteKeys(player, direct == null ? video : null)
+              : player;
         },
         loading: () => const Center(child: NetflixLoading(size: 50)),
         error: (e, st) =>
@@ -770,4 +877,13 @@ class _PlaybackHealth {
 
   static String _safeErrorCode(PlayerError error) =>
       _codeShape.hasMatch(error.code) ? error.code : 'other';
+}
+
+/// The player asks its host to fullscreen, float and close a window. On a TV
+/// the picture already is the screen, and leaving is the Back key.
+class _NoWindowDelegate implements WindowDelegate {
+  const _NoWindowDelegate();
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => Future<void>.value();
 }

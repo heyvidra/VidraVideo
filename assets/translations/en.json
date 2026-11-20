@@ -402,5 +402,14 @@
   "source": {
     "latency_ms": "{} ms",
     "latency_unreachable": "unreachable"
+  },
+  "tv": {
+      "exit_hint": "Press Back again to exit",
+      "menu_hint": "Press ↓ for episodes · quality · source",
+      "voice": "Voice",
+      "phone": "Use phone",
+      "phone_title": "Type or speak on your phone",
+      "phone_steps": "1. Put your phone on the same Wi-Fi as the TV\n2. Scan the code with the phone camera\n3. Type a title, or tap the microphone on the phone keyboard and say it",
+      "phone_no_network": "Not on a local network, so phone input is unavailable"
   }
 }
