@@ -10,7 +10,7 @@
 // This test rebuilds that shape: an app whose content area is a nested
 // Navigator inset by a 200px sidebar.
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vidra/src/common/dropdown_menu.dart';
 

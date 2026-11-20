@@ -4,7 +4,7 @@ import 'dart:math' as math;
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/gestures.dart' show kSecondaryMouseButton;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../core/utils/log.dart';
 import '../core/utils/window.dart';

@@ -1,7 +1,7 @@
 import 'dart:io' show Platform;
 
 import 'package:bitsdojo_window/bitsdojo_window.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:vidra_player/core/interfaces/window_delegate.dart';
 
 import '../../config/app_config.dart';

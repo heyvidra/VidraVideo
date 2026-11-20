@@ -1,10 +1,11 @@
+import 'package:vidra/src/common/material_bridge.dart';
 import 'dart:async';
 import 'dart:io' show Platform;
 import 'dart:math' as math;
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:local_notifier/local_notifier.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -443,14 +444,16 @@ class _MyAppState extends ConsumerState<MyApp> {
       routerConfig: router,
       debugShowCheckedModeBanner: false,
       scrollBehavior: NoScrollbarBehavior(),
-      localizationsDelegates: context.localizationDelegates,
+      localizationsDelegates: appLocalizationsDelegates(context),
       supportedLocales: context.supportedLocales,
       locale: context.locale,
       showSemanticsDebugger: false,
       builder: (context, child) {
-        return RoutedWindowHost(
-          onCloseRequested: _handleMainWindowClose,
-          defaultChild: child ?? const SizedBox.shrink(),
+        return legacyMaterialBridge(
+          RoutedWindowHost(
+            onCloseRequested: _handleMainWindowClose,
+            defaultChild: child ?? const SizedBox.shrink(),
+          ),
         );
       },
     );

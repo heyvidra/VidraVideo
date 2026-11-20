@@ -96,6 +96,7 @@ dependencies:
   # The TV's "type on your phone" code. Pure Dart; a QR encoder is not a few
   # lines, and typing a LAN address into a phone by hand is not a feature.
   qr_flutter: ^4.1.0
+  material_ui: ^1.11.1
 
 # fvp 0.36+ regression (upstream commit 6a2d588): event plumbing moved from
 # native callbacks to Dart streams, but MdkVideoPlayer.dispose() closes
@@ -104,6 +105,13 @@ dependencies:
 # ../fvp is a vendored 0.37.3 with the subscriptions cancelled in dispose()
 # (see PATCH(vidra) markers). Drop this override once fixed upstream.
 dependency_overrides:
+  # TEMP(material_ui): local checkouts until the package tags are pushed.
+  vidra_player:
+    path: /Users/sidym/Workspace/vidra_player
+  vidra_player_kit:
+    path: /Users/sidym/Workspace/vidra_player/packages/vidra_player_fvp
+  vidra_cast:
+    path: /Users/sidym/Workspace/vidra_cast
   fvp:
     git:
       url: https://github.com/heyvidra/fvp.git

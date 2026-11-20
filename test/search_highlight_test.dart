@@ -2,7 +2,7 @@
 // keep every character of the original title, match case-insensitively, and
 // hand back a single unstyled span when there is nothing to highlight.
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vidra/src/features/video/presentation/widgets/list/search_video_list_tile.dart';
 

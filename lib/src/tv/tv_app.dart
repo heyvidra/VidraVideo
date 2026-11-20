@@ -1,5 +1,6 @@
+import 'package:vidra/src/common/material_bridge.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -125,9 +126,11 @@ class _TvApp extends StatelessWidget {
       theme: AppTheme.darkTheme,
       routerConfig: _router,
       debugShowCheckedModeBanner: false,
-      localizationsDelegates: context.localizationDelegates,
+      localizationsDelegates: appLocalizationsDelegates(context),
       supportedLocales: context.supportedLocales,
       locale: context.locale,
+      builder: (context, child) =>
+          legacyMaterialBridge(child ?? const SizedBox.shrink()),
     );
   }
 }

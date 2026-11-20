@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:drift/drift.dart';
 import 'app_database.dart' as db; // Same directory
 import '../../features/video/domain/video_collection.dart' as domain;

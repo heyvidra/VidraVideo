@@ -1,5 +1,5 @@
 import 'package:bitsdojo_window/bitsdojo_window.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vidra/src/features/video/domain/video_collection.dart';
 import 'package:vidra/src/features/subscription/presentation/subscription_screen.dart';

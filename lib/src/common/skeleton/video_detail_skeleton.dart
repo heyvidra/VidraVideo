@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../config/design_tokens.dart';
 import 'skeleton_box.dart';

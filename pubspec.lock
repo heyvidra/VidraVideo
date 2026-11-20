@@ -676,7 +676,7 @@ packages:
     source: hosted
     version: "0.13.0"
   material_ui:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: material_ui
       sha256: a6b19012df437a356cbc01f8ea22a105e07194c47c9a6009da0032a0ce35c4ab
@@ -1323,29 +1323,23 @@ packages:
   vidra_cast:
     dependency: "direct main"
     description:
-      path: "."
-      ref: "v0.1.13"
-      resolved-ref: "88e10338d90334cf7c1094a7ee29ed97f57b9ad2"
-      url: "https://github.com/heyvidra/vidra_cast.git"
-    source: git
+      path: "/Users/sidym/Workspace/vidra_cast"
+      relative: false
+    source: path
     version: "0.0.1"
   vidra_player:
     dependency: "direct main"
     description:
-      path: "."
-      ref: "12e541ca24a3c70db3503acb75b6c01f1f8ded04"
-      resolved-ref: "12e541ca24a3c70db3503acb75b6c01f1f8ded04"
-      url: "https://github.com/heyvidra/VidraPlayer.git"
-    source: git
-    version: "1.7.0"
+      path: "/Users/sidym/Workspace/vidra_player"
+      relative: false
+    source: path
+    version: "1.8.0"
   vidra_player_kit:
     dependency: "direct main"
     description:
-      path: "packages/vidra_player_fvp"
-      ref: "v1.7.0"
-      resolved-ref: "12e541ca24a3c70db3503acb75b6c01f1f8ded04"
-      url: "https://github.com/heyvidra/VidraPlayer.git"
-    source: git
+      path: "/Users/sidym/Workspace/vidra_player/packages/vidra_player_fvp"
+      relative: false
+    source: path
     version: "0.0.1"
   vm_service:
     dependency: transitive

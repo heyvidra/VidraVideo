@@ -1,5 +1,5 @@
 import 'dart:math';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Netflix 风格 Loading：红色竖条上下弹跳
 class NetflixLoading extends StatefulWidget {

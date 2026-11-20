@@ -6,7 +6,7 @@
 // down, and off-viewport tiles simply do not exist.
 
 import 'package:drift/native.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vidra/src/data/database/app_database.dart' hide Video;

@@ -1,7 +1,8 @@
+import 'package:vidra/src/common/material_bridge.dart';
 import 'dart:async';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_theme.dart';
 import '../core/providers/theme_provider.dart';
@@ -98,16 +99,18 @@ class _VideoPlayerWindowAppState extends ConsumerState<VideoPlayerWindowApp> {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,
-      localizationsDelegates: context.localizationDelegates,
+      localizationsDelegates: appLocalizationsDelegates(context),
       supportedLocales: context.supportedLocales,
       locale: context.locale,
       scrollBehavior: NoScrollbarBehavior(),
       builder: (context, child) {
-        return WindowEventListener(
-          onCloseRequested: _handleCloseRequest,
-          onArgumentsChanged: _handleArgumentsChanged,
-          rebuildOnArgumentsChanged: false,
-          child: child ?? const SizedBox.shrink(),
+        return legacyMaterialBridge(
+          WindowEventListener(
+            onCloseRequested: _handleCloseRequest,
+            onArgumentsChanged: _handleArgumentsChanged,
+            rebuildOnArgumentsChanged: false,
+            child: child ?? const SizedBox.shrink(),
+          ),
         );
       },
       home: VideoPlayerWindow(

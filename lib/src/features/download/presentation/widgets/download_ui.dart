@@ -1,5 +1,5 @@
 import 'package:vidra/src/common/cover_image.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Shared flat card box for download rows: surface fill, 14 radius, hairline.
 BoxDecoration downloadCardDecoration(ThemeData theme) => BoxDecoration(

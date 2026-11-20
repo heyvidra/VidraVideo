@@ -1,5 +1,5 @@
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flutter/material.dart' hide DropdownMenu;
+import 'package:material_ui/material_ui.dart' hide DropdownMenu;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../settings/presentation/settings_provider.dart';
 import '../../../common/bar_controls.dart';
