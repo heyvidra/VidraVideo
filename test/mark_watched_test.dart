@@ -15,31 +15,18 @@ import 'package:vidra/src/features/video/data/history_repository.dart';
 import 'package:vidra/src/features/video/domain/play_history.dart';
 import 'package:vidra/src/features/video/domain/resume_target.dart';
 
-/// The write the menu action performs, in the same order, against the real
-/// repository — this is the code that would regress.
+/// The write the menu action performs — the repository method itself, so
+/// the transaction it runs in is exercised too.
 Future<void> markWatched(
   HistoryRepository repo, {
   required int videoId,
   required String sourceId,
   required int episodeCount,
-}) async {
-  for (var i = 0; i < episodeCount; i++) {
-    final existing = await repo.getEpisodeHistory(videoId, i, sourceId);
-    final duration = (existing?.durationMillis ?? 0) > 0
-        ? existing!.durationMillis
-        : 1;
-    await repo.saveEpisodeHistory(
-      EpisodeHistory(
-        id: existing?.id ?? 0,
-        sourceId: sourceId,
-        videoId: videoId,
-        episodeIndex: i,
-        positionMillis: duration,
-        durationMillis: duration,
-      ),
-    );
-  }
-}
+}) => repo.markEpisodesWatched(
+  videoId: videoId,
+  sourceId: sourceId,
+  count: episodeCount,
+);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
