@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:async';
 import 'package:material_ui/material_ui.dart';
 
@@ -201,6 +202,17 @@ class WindowHelper {
     final r = appWindow.rect;
     return r.left <= -32000 || r.top <= -32000;
   }
+
+  /// Where the window is right now, in logical points.
+  static Rect logicalRect() => _logicalRectNow();
+
+  /// The smallest the MAIN window may be made: a fixed floor, capped by the
+  /// screen. One definition, because picture-in-picture inside the main
+  /// window lowers the floor and has to put exactly this back.
+  static Size mainMinSize(Size workArea) => Size(
+    math.min(960, workArea.width * 0.8),
+    math.min(600, workArea.height * 0.8),
+  );
 
   static Rect _logicalRectNow() {
     final rect = appWindow.rect;

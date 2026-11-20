@@ -1,7 +1,6 @@
 import 'package:vidra/src/common/material_bridge.dart';
 import 'dart:async';
 import 'dart:io' show Platform;
-import 'dart:math' as math;
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
@@ -270,10 +269,7 @@ List<WindowConfiguration> _buildWindowConfigurations() {
         // Capped at the full work area, a small scaled display — 1366x768 at
         // 150% is 911x458 logical points — got a minimum equal to the whole
         // screen: a window that could not be made any smaller than maximized.
-        return Size(
-          math.min(960, screenSize.width * 0.8),
-          math.min(600, screenSize.height * 0.8),
-        );
+        return WindowHelper.mainMinSize(screenSize);
       },
       alignment: Alignment.center,
       backgroundEffectBuilder: _resolveBackgroundEffect,

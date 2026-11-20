@@ -88,13 +88,27 @@ class BitsdojoWindowDelegate implements WindowDelegate {
   @override
   Future<void> exitPip() => _inOrder(_exitPip);
 
+  /// The main window as it was before an in-app player took it into
+  /// picture-in-picture. The player-window slots are not this window's to
+  /// write: saved there, the catalog's frame became the next player
+  /// window's size and place. Null whenever the main window is not in PiP.
+  Rect? _hostRect;
+  bool _hostOnTop = false;
+
   Future<void> _enterPip() async {
+    // Playing inside the main window: remember it here instead of in the
+    // player's slots, and put every piece back on the way out.
+    final host = appWindow.isMainWindow;
+    if (host) {
+      _hostRect = WindowHelper.logicalRect();
+      _hostOnTop = appWindow.alwaysOnTop;
+    }
     // Exact pre-transition snapshot, written immediately — a debounced save
     // here used to be cancelled by the transition's own metric events, so
     // the normal-mode frame was never persisted at all.
     WindowHelper.transitionInProgress = true;
     try {
-      await WindowHelper.saveNow(isPipOverride: false);
+      if (!host) await WindowHelper.saveNow(isPipOverride: false);
 
       final targetSize =
           await WindowHelper.getSavedWindowSize(isPipOverride: true) ??
@@ -129,16 +143,24 @@ class BitsdojoWindowDelegate implements WindowDelegate {
     try {
       await WindowHelper.saveNow(isPipOverride: true);
 
-      final targetSize = await WindowHelper.playerSize();
+      final hostRect = _hostRect;
+      _hostRect = null;
+      final targetSize = hostRect?.size ?? await WindowHelper.playerSize();
       // Return to where the window was BEFORE pip (saved by enterPip's
       // snapshot); center only when nothing usable is stored.
-      final savedPosition = await WindowHelper.savedPlayerPosition();
+      final savedPosition =
+          hostRect?.topLeft ?? await WindowHelper.savedPlayerPosition();
       // Stored logical; animateTo/position speak physical pixels on Windows.
       final normalTarget = savedPosition == null
           ? null
           : WindowHelper.logicalToPhysical(savedPosition);
 
-      appWindow.minSize = AppConfig.playerMiniSize;
+      // The main window gets its own floor back; left at the mini player's,
+      // the catalog could be dragged down to a size it was never laid out
+      // for, for the rest of the session.
+      appWindow.minSize = hostRect == null
+          ? AppConfig.playerMiniSize
+          : WindowHelper.mainMinSize(appWindow.workingScreenSize);
       WindowHelper.isPip = false;
 
       await appWindow.animateTo(
@@ -148,7 +170,8 @@ class BitsdojoWindowDelegate implements WindowDelegate {
         duration: _resolvedPipTransitionDuration,
       );
 
-      appWindow.alwaysOnTop = false;
+      // Whatever the titlebar's pin said before, not "off".
+      appWindow.alwaysOnTop = hostRect != null && _hostOnTop;
     } finally {
       await _settleTransition();
     }

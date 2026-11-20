@@ -365,11 +365,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
               enableKeyboardShortcuts: false,
               enablePictureInPicture: false,
             )
-          // No picture-in-picture when playing inside the main window: it
-          // shrank the CATALOG window, left its minimum size at the mini
-          // player's for the rest of the session, saved the catalog's frame
-          // as the player window's, and cleared pin-to-top.
-          : PlayerFeatures(enablePictureInPicture: !appWindow.isMainWindow),
+          : const PlayerFeatures.all(),
       behavior: PlayerBehavior(
         autoHideDelay: const Duration(seconds: 3),
         mouseHideDelay: const Duration(seconds: 2),
