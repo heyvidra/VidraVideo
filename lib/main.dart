@@ -249,9 +249,13 @@ List<WindowConfiguration> _buildWindowConfigurations() {
       // anything else.
       minSizeBuilder: (window) {
         final screenSize = window.workingScreenSize;
+        // Never above the opening size (80% of the work area, just above).
+        // Capped at the full work area, a small scaled display — 1366x768 at
+        // 150% is 911x458 logical points — got a minimum equal to the whole
+        // screen: a window that could not be made any smaller than maximized.
         return Size(
-          math.min(960, screenSize.width),
-          math.min(600, screenSize.height),
+          math.min(960, screenSize.width * 0.8),
+          math.min(600, screenSize.height * 0.8),
         );
       },
       alignment: Alignment.center,
