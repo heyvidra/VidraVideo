@@ -340,6 +340,12 @@
     "any": "All",
     "loading_category": "Loading…"
   },
+  "errors": {
+    "cancelled": "Request cancelled",
+    "timeout": "Timed out waiting for the source",
+    "offline": "No internet connection",
+    "no_response": "No response from the source"
+  },
   "common": {
     "refresh": "Refresh",
     "human_check": "Verify you're human",

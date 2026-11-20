@@ -527,7 +527,7 @@ class _LatencyRefreshButtonState extends ConsumerState<_LatencyRefreshButton>
     if (until != null) _armFor(until);
 
     return Padding(
-      padding: const EdgeInsets.only(right: 16),
+      padding: const EdgeInsets.only(right: 8),
       child: Tooltip(
         message: enabled
             ? tr('dashboard.latency.refresh')
@@ -535,6 +535,8 @@ class _LatencyRefreshButtonState extends ConsumerState<_LatencyRefreshButton>
         child: MouseRegion(
           cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
           child: GestureDetector(
+            // The glyph is 13px; the padding below is what gets clicked.
+            behavior: HitTestBehavior.opaque,
             onTap: enabled
                 ? () async {
                     setState(() => _probing = true);
@@ -552,15 +554,18 @@ class _LatencyRefreshButtonState extends ConsumerState<_LatencyRefreshButton>
                     }
                   }
                 : null,
-            child: RotationTransition(
-              turns: _spin,
-              child: Icon(
-                Icons.refresh_rounded,
-                size: 13,
-                // Dimmed rather than hidden: a control that vanishes for a
-                // minute reads as a glitch, and its absence would also shuffle
-                // everything on this row sideways twice a minute.
-                color: enabled ? t.fg2 : t.fg3.withValues(alpha: 0.45),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: RotationTransition(
+                turns: _spin,
+                child: Icon(
+                  Icons.refresh_rounded,
+                  size: 13,
+                  // Dimmed rather than hidden: a control that vanishes for a
+                  // minute reads as a glitch, and its absence would also
+                  // shuffle everything on this row sideways twice a minute.
+                  color: enabled ? t.fg2 : t.fg3.withValues(alpha: 0.45),
+                ),
               ),
             ),
           ),

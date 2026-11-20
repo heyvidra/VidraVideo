@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 import '../core/network/browser_headers.dart';
 
@@ -39,10 +40,22 @@ class CoverImage extends StatelessWidget {
   final Widget? errorWidget;
   final BoxFit fit;
 
+  /// The package default keeps 200 files. A page is 35 posters, so the sixth
+  /// page started evicting the first — and scrolling back up re-downloaded
+  /// covers that had been on screen a minute earlier. Same store key as the
+  /// default manager, so the files already on disk carry over.
+  ///
+  /// ponytail: a count, not a byte budget. ~1000 posters is tens of MB; put
+  /// a size cap here if covers ever get large.
+  static final _cache = CacheManager(
+    Config(DefaultCacheManager.key, maxNrOfCacheObjects: 1000),
+  );
+
   @override
   Widget build(BuildContext context) {
     return CachedNetworkImage(
       imageUrl: imageUrl,
+      cacheManager: _cache,
       httpHeaders: BrowserHeaders.forImage(Uri.parse(imageUrl)),
       width: width,
       height: height,

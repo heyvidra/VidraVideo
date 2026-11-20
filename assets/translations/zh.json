@@ -340,6 +340,12 @@
     "any": "全部",
     "loading_category": "加载中…"
   },
+  "errors": {
+    "cancelled": "请求已取消",
+    "timeout": "连接超时，片源响应太慢",
+    "offline": "连不上网络",
+    "no_response": "片源没有响应"
+  },
   "common": {
     "refresh": "刷新",
     "human_check": "完成人机验证",

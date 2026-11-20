@@ -80,18 +80,29 @@ Future<void> _runApp() async {
   // traffic to an origin, and nothing ties them together.
   BrowserIdentity.seed();
 
-  await EasyLocalization.ensureInitialized();
-  // The pet does no Dart-side HTTP — the sprite is painted locally and the
-  // bubble text arrives through window arguments — so the Windows root-CA
-  // seeding has nothing there to protect.
-  if (!isPetWindow) {
-    await installBundledRoots();
-  }
-  // Toasts are only ever sent by the subscription refresh, which lives in
-  // the main engine; secondary engines were paying this setup for nothing.
-  if (isMainWindow) {
-    await _setupNotifications();
-  }
+  // Opened here so the settings read overlaps the setup below instead of
+  // queueing behind it. Every engine, the pet included: MyApp's provider
+  // shell (theme, router) reads the database provider unconditionally, and
+  // the pet itself writes its parked position through the settings repository.
+  final database = AppDatabase();
+  final settingsRepository = SettingsRepository(database);
+  final settingsLoad = settingsRepository.getSettings();
+
+  // None of these depends on another, and each is a platform-channel or
+  // asset round trip: awaited one after the other they were four waits
+  // before the first frame where one will do.
+  await Future.wait([
+    settingsLoad,
+    EasyLocalization.ensureInitialized(),
+    // The pet does no Dart-side HTTP — the sprite is painted locally and the
+    // bubble text arrives through window arguments — so the Windows root-CA
+    // seeding has nothing there to protect.
+    if (!isPetWindow) installBundledRoots(),
+    // Toasts are only ever sent by the subscription refresh, which lives in
+    // the main engine; secondary engines were paying this setup for nothing.
+    if (isMainWindow) _setupNotifications(),
+  ]);
+  final appSettings = await settingsLoad;
 
   // The pet never hosts playback; every other window may.
   if (!isPetWindow) {
@@ -109,13 +120,6 @@ Future<void> _runApp() async {
       logR('Main', 'Error initializing VidraPlayerKit: $e');
     }
   }
-
-  // 2. Data layers — every engine, the pet included: MyApp's provider shell
-  // (theme, router) reads the database provider unconditionally, and the pet
-  // itself writes its parked position through the settings repository.
-  final database = AppDatabase();
-  final settingsRepository = SettingsRepository(database);
-  final appSettings = await settingsRepository.getSettings();
 
   // Before the window configurations resolve: the background-effect builders
   // read this synchronously, and seeding it here is what keeps an Intel Mac

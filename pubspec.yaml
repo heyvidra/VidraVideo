@@ -19,6 +19,9 @@ dependencies:
   go_router: ^17.0.1
   path_provider: ^2.1.5
   cached_network_image: ^3.4.1
+  # Already here through cached_network_image; named so the cover cache's
+  # size can be set.
+  flutter_cache_manager: ^3.4.1
   url_launcher: ^6.3.2
   vidra_player:
     git:

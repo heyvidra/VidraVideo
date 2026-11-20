@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 import '../telemetry/telemetry.dart';
 
@@ -21,18 +22,17 @@ class ApiException implements Exception {
   factory ApiException.fromDioException(DioException error) {
     _reportFailure(error);
     final message = switch (error.type) {
-      DioExceptionType.cancel => 'Request to server was cancelled',
-      DioExceptionType.connectionTimeout => 'Connection timeout with server',
-      DioExceptionType.receiveTimeout =>
-        'Receive timeout in connection with server',
-      DioExceptionType.sendTimeout => 'Send timeout in connection with server',
-      DioExceptionType.connectionError => 'No internet connection',
+      DioExceptionType.cancel => tr('errors.cancelled'),
+      DioExceptionType.connectionTimeout => tr('errors.timeout'),
+      DioExceptionType.receiveTimeout => tr('errors.timeout'),
+      DioExceptionType.sendTimeout => tr('errors.timeout'),
+      DioExceptionType.connectionError => tr('errors.offline'),
       DioExceptionType.badCertificate => 'Bad certificate',
       DioExceptionType.badResponse => null, // handled below
       // unknown + any type future dio versions add
       _ =>
         (error.message?.contains('SocketException') ?? false)
-            ? 'No internet connection'
+            ? tr('errors.offline')
             // ponytail: the underlying error is the only thing that tells a
             // Windows TLS failure apart from a DNS/proxy one, and it is what
             // the user reads off the error screen. Keep it verbatim.
@@ -44,7 +44,7 @@ class ApiException implements Exception {
 
   factory ApiException.fromResponse(Response? response) {
     if (response == null) {
-      return ApiException(message: 'No response from server');
+      return ApiException(message: tr('errors.no_response'));
     }
     final statusCode = response.statusCode;
     final data = response.data;
