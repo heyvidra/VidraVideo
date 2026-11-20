@@ -165,6 +165,10 @@ class CastController extends Notifier<CastState> {
     );
   }
 
+  /// The line last cast on. A television that cannot play one line cannot
+  /// play it on the next show either, so the picker starts from here.
+  static String? lastQuality;
+
   Future<void> startDiscovery() => _manager.startDiscovery();
   Future<void> stopDiscovery() => _manager.stopDiscovery();
 
@@ -197,12 +201,16 @@ class CastController extends Notifier<CastState> {
     required int episodeIndex,
     int startPositionSeconds = 0,
     Rect? airPlayAnchor,
+    String? quality,
   }) async {
     final playlist = buildCastPlaylist(
       video: video,
       episodeIndex: episodeIndex,
       startPositionSeconds: startPositionSeconds,
+      quality: quality,
     );
+    // What the picker offers first next time, for this run of the app.
+    if (quality != null) lastQuality = quality;
     if (playlist == null) throw const CastException('no playable episode');
     // The button's own busy flag only guards the show it belongs to; walking
     // to another show's page and tapping there gets past it, and two casts

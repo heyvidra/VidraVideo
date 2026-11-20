@@ -31,6 +31,7 @@
     "title": "Cast",
     "casting": "Casting",
     "pick_device": "Choose a device",
+    "quality": "Quality",
     "searching": "Looking for devices…",
     "sent_to": "Sent to {}",
     "failed": "Cast failed: {}",

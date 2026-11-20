@@ -8,7 +8,12 @@ class CastPlaylist {
     required this.items,
     this.startIndex = 0,
     this.startPositionSeconds = 0,
+    this.quality,
   });
+
+  /// The line this playlist was built from ("标清", "高清"), or null for the
+  /// source's first. Kept so casting another episode stays on it.
+  final String? quality;
 
   final String title;
   final List<CastItem> items;
@@ -82,17 +87,50 @@ enum CastRoute {
 /// handed an empty URI shows an error the viewer cannot act on — and
 /// [CastPlaylist.startIndex] is corrected for anything dropped before it, so
 /// "cast episode 7" opens episode 7 and not whatever slid into that slot.
+/// The lines [video] can be cast on, in the order the source lists them.
+///
+/// By name: a show's episodes carry the same set of lines, and the name is
+/// what the viewer chose. One entry or none means there is nothing to pick.
+List<String> castQualitiesOf(Video video) {
+  final names = <String>[];
+  for (final e in video.urls ?? const <VideoEpisode>[]) {
+    for (final q in e.qualities ?? const <VideoQuality>[]) {
+      final name = q.name;
+      if (name != null &&
+          (q.url?.trim().isNotEmpty ?? false) &&
+          !names.contains(name)) {
+        names.add(name);
+      }
+    }
+  }
+  return names;
+}
+
+/// [episode]'s stream on [quality]; an episode that lacks that line plays on
+/// its first rather than dropping out of the queue.
+String? _castUrl(VideoEpisode episode, String? quality) {
+  if (quality != null) {
+    for (final q in episode.qualities ?? const <VideoQuality>[]) {
+      if (q.name == quality && (q.url?.trim().isNotEmpty ?? false)) {
+        return q.url;
+      }
+    }
+  }
+  return episode.url;
+}
+
 CastPlaylist? buildCastPlaylist({
   required Video video,
   required int episodeIndex,
   int startPositionSeconds = 0,
+  String? quality,
 }) {
   final episodes = video.urls ?? const <VideoEpisode>[];
   final items = <CastItem>[];
   var start = 0;
   var seenPlayable = 0;
   for (var i = 0; i < episodes.length; i++) {
-    final url = episodes[i].url;
+    final url = _castUrl(episodes[i], quality);
     if (url == null || url.trim().isEmpty) continue;
     if (i <= episodeIndex) start = seenPlayable;
     seenPlayable++;
@@ -110,5 +148,6 @@ CastPlaylist? buildCastPlaylist({
     items: items,
     startIndex: start.clamp(0, items.length - 1),
     startPositionSeconds: startPositionSeconds,
+    quality: quality,
   );
 }

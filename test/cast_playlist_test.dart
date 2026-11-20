@@ -63,18 +63,23 @@ void main() {
     expect(p.items[p.startIndex].url, 'http://a/3.m3u8');
   });
 
-  test('picking an episode that has no URL falls back to the one before it', () {
-    final p = buildCastPlaylist(
-      video: show([ep('第1集', 'http://a/1.m3u8'), ep('第2集', null)]),
-      episodeIndex: 1,
-    )!;
-    expect(p.items, hasLength(1));
-    expect(p.startIndex, 0);
-  });
+  test(
+    'picking an episode that has no URL falls back to the one before it',
+    () {
+      final p = buildCastPlaylist(
+        video: show([ep('第1集', 'http://a/1.m3u8'), ep('第2集', null)]),
+        episodeIndex: 1,
+      )!;
+      expect(p.items, hasLength(1));
+      expect(p.startIndex, 0);
+    },
+  );
 
   test('a show with nothing playable is not castable at all', () {
-    expect(buildCastPlaylist(video: show([ep('第1集', null)]), episodeIndex: 0),
-        isNull);
+    expect(
+      buildCastPlaylist(video: show([ep('第1集', null)]), episodeIndex: 0),
+      isNull,
+    );
     expect(buildCastPlaylist(video: show(const []), episodeIndex: 0), isNull);
   });
 
@@ -99,7 +104,10 @@ void main() {
   group('sourceIndexOf', () {
     test('with nothing dropped the two agree', () {
       final p = buildCastPlaylist(
-        video: show([ep('第1集', 'http://a/1.m3u8'), ep('第2集', 'http://a/2.m3u8')]),
+        video: show([
+          ep('第1集', 'http://a/1.m3u8'),
+          ep('第2集', 'http://a/2.m3u8'),
+        ]),
         episodeIndex: 0,
       )!;
       expect(p.sourceIndexOf(0), 0);
@@ -136,5 +144,53 @@ void main() {
       startPositionSeconds: 754,
     )!;
     expect(p.startPositionSeconds, 754);
+  });
+
+  group('choosing a line', () {
+    VideoEpisode two(String title, {String? sd, String? hd}) => VideoEpisode(
+      title: title,
+      qualities: [
+        if (sd != null) VideoQuality(name: '标清', url: sd),
+        if (hd != null) VideoQuality(name: '高清', url: hd),
+      ],
+    );
+
+    test('the lines are offered once each, in the source\'s order', () {
+      final v = show([
+        two('第1集', sd: 'https://x/1-sd', hd: 'https://x/1-hd'),
+        two('第2集', sd: 'https://x/2-sd', hd: 'https://x/2-hd'),
+      ]);
+      expect(castQualitiesOf(v), ['标清', '高清']);
+      expect(castQualitiesOf(show([ep('第1集', 'https://x/1')])), hasLength(1));
+    });
+
+    test('the queue is built on the chosen line and remembers it', () {
+      final v = show([
+        two('第1集', sd: 'https://x/1-sd', hd: 'https://x/1-hd'),
+        two('第2集', sd: 'https://x/2-sd', hd: 'https://x/2-hd'),
+      ]);
+      final p = buildCastPlaylist(video: v, episodeIndex: 1, quality: '高清')!;
+      expect(p.items.map((i) => i.url), ['https://x/1-hd', 'https://x/2-hd']);
+      expect(p.startIndex, 1);
+      expect(p.quality, '高清');
+    });
+
+    test('an episode without that line stays in the queue on its first', () {
+      // Dropping it would shift every later episode by one.
+      final v = show([
+        two('第1集', sd: 'https://x/1-sd', hd: 'https://x/1-hd'),
+        two('第2集', sd: 'https://x/2-sd'),
+      ]);
+      final p = buildCastPlaylist(video: v, episodeIndex: 0, quality: '高清')!;
+      expect(p.items.map((i) => i.url), ['https://x/1-hd', 'https://x/2-sd']);
+    });
+
+    test('no choice is the first line, as before', () {
+      final v = show([two('第1集', sd: 'https://x/1-sd', hd: 'https://x/1-hd')]);
+      expect(
+        buildCastPlaylist(video: v, episodeIndex: 0)!.items.single.url,
+        'https://x/1-sd',
+      );
+    });
   });
 }

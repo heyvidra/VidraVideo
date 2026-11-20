@@ -11,6 +11,7 @@ import '../../video/domain/resume_target.dart';
 import '../../video/domain/video_collection.dart';
 import '../../video/presentation/play_history_provider.dart';
 import '../data/cast_web_server.dart';
+import '../domain/cast_target.dart';
 import '../../video/presentation/widgets/cross_source_watch_badge.dart'
     show crossSourceWatchFor;
 import '../../video/presentation/widgets/detail/video_detail_header.dart'
@@ -26,6 +27,14 @@ class CastButton extends ConsumerWidget {
   const CastButton({super.key, required this.video});
 
   final Video video;
+
+  /// The device picker on its own, for a test to pump: it is private, and
+  /// what it shows for a show with two lines is worth asserting on.
+  @visibleForTesting
+  static Widget pickerForTest({
+    required List<String> qualities,
+    required ValueNotifier<String?> quality,
+  }) => _DevicePickerDialog(qualities: qualities, quality: quality);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -206,9 +215,22 @@ class CastButton extends ConsumerWidget {
     // takes the app down with it.
     final messenger = ScaffoldMessenger.of(context);
     unawaited(controller.startDiscovery());
+    // Only when there is a choice. The picker writes the selection here;
+    // the dialog's own result stays the device.
+    final qualities = castQualitiesOf(video);
+    final quality = ValueNotifier<String?>(
+      qualities.length < 2
+          ? null
+          : qualities.contains(CastController.lastQuality)
+          ? CastController.lastQuality
+          : qualities.first,
+    );
     final device = await showDialog<CastDevice>(
       context: context,
-      builder: (_) => const _DevicePickerDialog(),
+      builder: (_) => _DevicePickerDialog(
+        qualities: qualities.length < 2 ? const [] : qualities,
+        quality: quality,
+      ),
     );
     unawaited(controller.stopDiscovery());
     if (device == null) return;
@@ -231,6 +253,7 @@ class CastButton extends ConsumerWidget {
         episodeIndex: resume.index,
         startPositionSeconds: resume.seconds,
         airPlayAnchor: anchor,
+        quality: quality.value,
       );
       messenger.showSnackBar(
         SnackBar(content: Text(tr('cast.sent_to', args: [device.name]))),
@@ -278,8 +301,53 @@ class CastButton extends ConsumerWidget {
 /// Discovery is not instant and has no "done" — devices trickle in over a
 /// few seconds — so the list says it is still looking rather than showing an
 /// empty state that reads as "you have no TV".
+class _QualityChip extends StatelessWidget {
+  const _QualityChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = VidraTokens.of(context);
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            color: selected ? t.cyan.withValues(alpha: 0.16) : null,
+            border: Border.all(color: selected ? t.cyan : t.edge),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              color: selected ? t.cyan : t.fg2,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _DevicePickerDialog extends ConsumerStatefulWidget {
-  const _DevicePickerDialog();
+  const _DevicePickerDialog({required this.qualities, required this.quality});
+
+  /// The lines to choose between; empty when the show has only one.
+  final List<String> qualities;
+  final ValueNotifier<String?> quality;
 
   @override
   ConsumerState<_DevicePickerDialog> createState() =>
@@ -373,6 +441,37 @@ class _DevicePickerDialogState extends ConsumerState<_DevicePickerDialog> {
                   color: t.fg,
                 ),
               ),
+              if (widget.qualities.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                // Above the list, because it is chosen first: tapping a
+                // television casts at once.
+                ValueListenableBuilder<String?>(
+                  valueListenable: widget.quality,
+                  builder: (context, selected, _) => Row(
+                    children: [
+                      Text(
+                        tr('cast.quality'),
+                        style: TextStyle(fontSize: 12, color: t.fg3),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            for (final q in widget.qualities)
+                              _QualityChip(
+                                label: q,
+                                selected: q == selected,
+                                onTap: () => widget.quality.value = q,
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 12),
               Flexible(
                 child: devices.isEmpty

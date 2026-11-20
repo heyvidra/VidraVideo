@@ -31,6 +31,7 @@
     "title": "投屏",
     "casting": "投屏中",
     "pick_device": "选择要投屏的设备",
+    "quality": "清晰度",
     "searching": "正在查找设备…",
     "sent_to": "已投到 {}",
     "failed": "投屏失败：{}",

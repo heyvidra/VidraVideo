@@ -356,6 +356,8 @@ class EpisodeItem extends ConsumerWidget {
             video: video,
             episodeIndex: originalIndex,
             startPositionSeconds: resumeSeconds,
+            // Stay on the line the cast was started on.
+            quality: cast.playlist?.quality,
           );
       messenger.showSnackBar(
         SnackBar(content: Text(tr('cast.sent_to', args: [label]))),
