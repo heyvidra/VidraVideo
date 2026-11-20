@@ -8,18 +8,21 @@ import 'package:vidra/src/core/telemetry/scrub.dart';
 /// breadcrumb the SDK recorded on its own, a home directory in a file path.
 void main() {
   group('text', () {
-    test('a URL keeps its host and loses everything that identifies content', () {
-      const raw =
-          'failed on https://cdn.olelive.com/vod/83579/ep12.m3u8?_vv=abc123';
-      final out = Scrub.text(raw);
+    test(
+      'a URL keeps its host and loses everything that identifies content',
+      () {
+        const raw =
+            'failed on https://cdn.olelive.com/vod/83579/ep12.m3u8?_vv=abc123';
+        final out = Scrub.text(raw);
 
-      expect(out, contains('https://cdn.olelive.com/'));
-      // The video id, the episode and the signed token are the whole point.
-      expect(out, isNot(contains('83579')));
-      expect(out, isNot(contains('ep12')));
-      expect(out, isNot(contains('_vv')));
-      expect(out, isNot(contains('abc123')));
-    });
+        expect(out, contains('https://cdn.olelive.com/'));
+        // The video id, the episode and the signed token are the whole point.
+        expect(out, isNot(contains('83579')));
+        expect(out, isNot(contains('ep12')));
+        expect(out, isNot(contains('_vv')));
+        expect(out, isNot(contains('abc123')));
+      },
+    );
 
     test('a home directory never survives — it is named after its owner', () {
       final out = Scrub.text('wrote /Users/zhangwei/Movies/九门 第3集.mp4 ok');
@@ -32,6 +35,54 @@ void main() {
       final out = Scrub.text(r'opening C:\Users\wei\Videos\show.mp4');
       expect(out, isNot(contains('wei')));
       expect(out, contains('<path>'));
+    });
+
+    test('a path with a space in it is gone whole, not up to the space', () {
+      // The download folder is the user's choice and files are named after
+      // the show. The old pattern stopped at the first space.
+      final out = Scrub.text(
+        "open failed, path = '/Users/wei/Movies/Vidra/Breaking Bad/第1集.mp4'",
+      );
+      expect(out, isNot(contains('Bad')));
+      expect(out, isNot(contains('第1集')));
+      expect(out, startsWith('open failed, path = '));
+
+      final win = Scrub.text(
+        r'cannot open C:\Users\Zhang Wei\Videos\九门\第3集.mp4',
+      );
+      expect(win, isNot(contains('Wei')));
+      expect(win, isNot(contains('九门')));
+    });
+
+    test('a path on any root, and a scheme-less stream path', () {
+      for (final raw in [
+        'wrote /Volumes/Media/Vidra/九门/第3集.mp4',
+        'stat /private/var/folders/ab/九门.tmp failed',
+        'GET /vod/play/83579/ep12.m3u8 -> 404',
+      ]) {
+        final out = Scrub.text(raw);
+        expect(out, contains('<path>'), reason: raw);
+        expect(out, isNot(contains('九门')), reason: raw);
+        expect(out, isNot(contains('83579')), reason: raw);
+      }
+    });
+
+    test('a failed statement keeps its SQL and loses its values', () {
+      // What sqlite3 formats when the settings row is locked mid-write.
+      const raw =
+          'SqliteException(5): while executing statement, database is locked\n'
+          '  Causing statement: UPDATE "app_settings" SET "search_history" = ?;'
+          ', parameters: ["九门","breaking bad"]';
+      final out = Scrub.text(raw);
+      expect(out, contains('database is locked'));
+      expect(out, contains('UPDATE "app_settings"'));
+      expect(out, isNot(contains('九门')));
+      expect(out, isNot(contains('breaking bad')));
+    });
+
+    test('ordinary slashes are not paths', () {
+      const raw = 'retry 2/3 after 403, and/or a redirect; ratio 16/9';
+      expect(Scrub.text(raw), raw);
     });
 
     test('text with nothing sensitive is left alone', () {

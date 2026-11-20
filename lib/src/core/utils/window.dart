@@ -207,9 +207,13 @@ class WindowHelper {
   }
 
   /// Debounced save for metric churn (user drag-resizes). Dropped entirely
+  /// Set by the window service around its fullscreen toggles. While it is
+  /// up nothing is persisted — see [saveNow].
+  static bool isFullscreen = false;
+
   /// during programmatic transitions — see [transitionInProgress].
   static void saveWindowSize({bool? isPipOverride}) {
-    if (_repository == null || transitionInProgress) return;
+    if (_repository == null || transitionInProgress || isFullscreen) return;
 
     final pip = isPipOverride ?? isPip;
     // Snapshot rect AND scale now — by the time the debounce fires the
@@ -235,7 +239,11 @@ class WindowHelper {
   /// also the ONLY point that captures pure window MOVES, which emit no
   /// metric events at all).
   static Future<void> saveNow({bool? isPipOverride}) async {
-    if (_repository == null) return;
+    // Fullscreen is not a size the window HAS, it is a state it is in. Saved
+    // as one, the whole-display frame replaced the user's real size and
+    // position, and a crash, force-quit or logout while fullscreen made it
+    // permanent: the player reopened filling the work area.
+    if (_repository == null || isFullscreen) return;
     final pip = isPipOverride ?? isPip;
     // The pending debounce for this slot is staler than what we hold now.
     if (pip) {

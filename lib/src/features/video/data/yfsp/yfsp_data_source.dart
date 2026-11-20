@@ -110,7 +110,10 @@ class YfspDataSource implements VideoDataSource {
       hadFilters: area != null || year != null,
     );
 
-    final bucket = info.isEmpty ? null : info.first as Map<String, dynamic>?;
+    // `is`, not `as`: a bucket of another shape is a shape problem to report
+    // below, not a TypeError to throw from here.
+    final first = info.isEmpty ? null : info.first;
+    final bucket = first is Map<String, dynamic> ? first : null;
     final rows = bucket?['result'] as List?;
     if (rows == null && page == 1) {
       _report(
@@ -158,7 +161,10 @@ class YfspDataSource implements VideoDataSource {
       'isfree': '-1',
     }, endpoint: 'yfsp.searchVideos');
 
-    final bucket = info.isEmpty ? null : info.first as Map<String, dynamic>?;
+    // `is`, not `as`: a bucket of another shape is a shape problem to report
+    // below, not a TypeError to throw from here.
+    final first = info.isEmpty ? null : info.first;
+    final bucket = first is Map<String, dynamic> ? first : null;
     final rows = bucket?['result'] as List?;
     return (rows ?? const [])
         .whereType<Map<String, dynamic>>()
@@ -217,7 +223,10 @@ class YfspDataSource implements VideoDataSource {
       'cid': classPath ?? '',
     }, endpoint: 'yfsp.episodes');
 
-    final bucket = info.isEmpty ? null : info.first as Map<String, dynamic>?;
+    // `is`, not `as`: a bucket of another shape is a shape problem to report
+    // below, not a TypeError to throw from here.
+    final first = info.isEmpty ? null : info.first;
+    final bucket = first is Map<String, dynamic> ? first : null;
     final rows = bucket?['playList'] as List?;
     if (rows == null || rows.isEmpty) {
       _report('yfsp.episodes', field: 'playList');
@@ -402,7 +411,10 @@ class YfspDataSource implements VideoDataSource {
 
     final Map<String, dynamic>? body;
     try {
-      body = jsonDecode(text) as Map<String, dynamic>?;
+      // Valid JSON that is not an object — a bare array, a string — is not a
+      // FormatException, and a hard cast threw past every handler below.
+      final decoded = jsonDecode(text);
+      body = decoded is Map<String, dynamic> ? decoded : null;
     } on FormatException {
       // Not JSON — almost always the SPA's HTML shell, and that means the
       // signing keys ROTATED: a stale public key makes the API drop its CORS
@@ -423,7 +435,9 @@ class YfspDataSource implements VideoDataSource {
       _report(endpoint, field: 'not_json');
       return const [];
     }
-    final data = body?['data'] as Map<String, dynamic>?;
+    // PHP backends send `"data": []` for an empty object.
+    final rawData = body?['data'];
+    final data = rawData is Map<String, dynamic> ? rawData : null;
     if (data == null) {
       _report(endpoint, field: 'data');
       return const [];

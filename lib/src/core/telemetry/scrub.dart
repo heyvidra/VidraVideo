@@ -21,10 +21,34 @@ class Scrub {
   /// the video id, the episode number and the signed token live.
   static final _url = RegExp(r'(https?://[^\s/?#]+)[^\s]*');
 
-  /// Any absolute POSIX or Windows path: `/Users/somebody/Movies/…`. macOS
-  /// home directories are named after their owner, so a path is a name.
-  static final _posixPath = RegExp(r'(?<![\w.])/(?:Users|home|var|tmp)/[^\s,;)"\]]*');
-  static final _winPath = RegExp(r'[A-Za-z]:\\\\?[^\s,;)"\]]*');
+  /// Any absolute path, to the END OF ITS LINE.
+  ///
+  /// macOS home directories are named after their owner, and this app's
+  /// download files are named after the show, so a path is a name twice over.
+  /// The patterns used to stop at the first space and knew four POSIX roots:
+  /// `/Users/wei/Movies/Breaking Bad/第1集.mp4` came out as
+  /// `<path> Bad/第1集.mp4`, and `/Volumes/…` or `C:\Users\Zhang Wei\…` kept
+  /// most of themselves. A path can contain anything but a newline, so that
+  /// is where the match ends — whatever followed it on the line goes too.
+  ///
+  /// POSIX: a slash that starts a token (not one inside `a/b`, and not the
+  /// ones in a URL, which [_url] has already rewritten) followed by at least
+  /// two segments. That also takes scheme-less stream paths like
+  /// `/vod/play/83579/ep12.m3u8`.
+  static final _posixPath = RegExp(r'(?<![\w.:/…])/[^\s/]+/[^\n]*');
+  static final _winPath = RegExp(r'(?:[A-Za-z]:\\|\\\\)[^\n]*');
+
+  /// The values a failed database statement was run with.
+  ///
+  /// sqlite3 formats them into its exception — `…, parameters: 九门, …` — and
+  /// drift's own errors say `with args [...]`. Those values are the search
+  /// history, a title being saved to 想看, a watch position: exactly the
+  /// content that must not leave. The statement itself is placeholders and
+  /// stays; it is the useful half.
+  static final _sqlParams = RegExp(
+    r'(parameters:|with args|args:)[^\n]*',
+    caseSensitive: false,
+  );
 
   /// Keys whose VALUE is content no matter how it got here.
   static const _bannedKeys = {
@@ -55,6 +79,7 @@ class Scrub {
   };
 
   static String text(String value) => value
+      .replaceAllMapped(_sqlParams, (m) => '${m[1]} <redacted>')
       .replaceAllMapped(_url, (m) => '${m[1]}/…')
       .replaceAll(_posixPath, '<path>')
       .replaceAll(_winPath, '<path>');

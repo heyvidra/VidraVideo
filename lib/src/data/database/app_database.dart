@@ -694,6 +694,15 @@ LazyDatabase _openConnection() {
         target: file,
       );
     }
-    return NativeDatabase.createInBackground(file);
+    return NativeDatabase.createInBackground(
+      file,
+      // Every window is its own engine with its own connection to this one
+      // file, and sqlite's default is to fail a write the instant another
+      // connection holds the lock. "database is locked" then surfaced as a
+      // dropped window-geometry save, a throw out of the player launcher, or
+      // an unhandled error whose text carries the statement's values. Wait
+      // for the other writer instead; they are all milliseconds long.
+      setup: (db) => db.execute('PRAGMA busy_timeout = 5000;'),
+    );
   });
 }

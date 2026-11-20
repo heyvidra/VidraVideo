@@ -342,6 +342,7 @@
     "loading_category": "Loading…"
   },
   "errors": {
+    "bad_response": "The source sent a response this app could not read",
     "yfsp_unreachable": "Could not reach iyf",
     "yfsp_challenge": "iyf is asking for a human check",
     "yfsp_rate_limited": "Too many requests to iyf — try again later",

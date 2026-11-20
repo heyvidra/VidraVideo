@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'dart:io' show HttpDate;
 
 import 'package:dio/dio.dart';
@@ -84,6 +85,22 @@ class OlevodDataSource implements VideoDataSource {
     if ((skew - _skew).abs() < const Duration(minutes: 1)) return false;
     _skew = skew;
     return true;
+  }
+
+  /// A 200 whose body is not what the code indexes into: HTML or an empty
+  /// body where JSON was expected, a field whose type drifted. The body is
+  /// read dynamically and only DioException was caught, so those surfaced as
+  /// a raw TypeError — an unhandled error on the detail page, and one bad row
+  /// taking a whole search down with it. Reported by TYPE only; the error
+  /// text can quote the row.
+  ApiException _badBody(String endpoint, Object error) {
+    if (error is ApiException) return error;
+    _reportShape(
+      endpoint,
+      field: 'body',
+      errorType: error.runtimeType.toString(),
+    );
+    return ApiException(message: tr('errors.bad_response'));
   }
 
   /// Reports a response that arrived but did not carry what the parser needs.
@@ -249,6 +266,8 @@ class OlevodDataSource implements VideoDataSource {
     } on DioException catch (e) {
       logD('Olevod', 'Error fetching video detail: $e');
       throw ApiException.fromDioException(e);
+    } catch (e) {
+      throw _badBody('olevod.getVideoDetail', e);
     }
   }
 
@@ -290,6 +309,8 @@ class OlevodDataSource implements VideoDataSource {
     } on DioException catch (e) {
       logD('Olevod', 'Error searching videos: $e');
       throw ApiException.fromDioException(e);
+    } catch (e) {
+      throw _badBody('olevod.searchVideos', e);
     }
   }
 

@@ -31,11 +31,13 @@ class BitsdojoWindowDelegate implements WindowDelegate {
 
   @override
   Future<void> enterFullscreen() async {
+    WindowHelper.isFullscreen = true;
     appWindow.toggleFullScreen();
   }
 
   @override
   Future<void> exitFullscreen() async {
+    WindowHelper.isFullscreen = false;
     appWindow.toggleFullScreen();
   }
 
@@ -61,11 +63,32 @@ class BitsdojoWindowDelegate implements WindowDelegate {
 
   @override
   Future<void> toggleFullscreen() async {
+    WindowHelper.isFullscreen = !WindowHelper.isFullscreen;
     appWindow.toggleFullScreen();
   }
 
+  /// PiP transitions, one at a time.
+  ///
+  /// The player calls these un-awaited, so a second toggle (or a close,
+  /// which exits PiP) could start while the first was still animating. Its
+  /// "exact snapshot" then captured a half-animated frame into a slot — every
+  /// later PiP opened at that in-between size — and the first transition's
+  /// settle lowered [WindowHelper.transitionInProgress] under the second.
+  Future<void> _pipQueue = Future.value();
+
+  Future<void> _inOrder(Future<void> Function() transition) {
+    final run = _pipQueue.then((_) => transition());
+    _pipQueue = run.catchError((Object _) {});
+    return run;
+  }
+
   @override
-  Future<void> enterPip() async {
+  Future<void> enterPip() => _inOrder(_enterPip);
+
+  @override
+  Future<void> exitPip() => _inOrder(_exitPip);
+
+  Future<void> _enterPip() async {
     // Exact pre-transition snapshot, written immediately — a debounced save
     // here used to be cancelled by the transition's own metric events, so
     // the normal-mode frame was never persisted at all.
@@ -101,8 +124,7 @@ class BitsdojoWindowDelegate implements WindowDelegate {
     }
   }
 
-  @override
-  Future<void> exitPip() async {
+  Future<void> _exitPip() async {
     WindowHelper.transitionInProgress = true;
     try {
       await WindowHelper.saveNow(isPipOverride: true);
@@ -138,5 +160,4 @@ class BitsdojoWindowDelegate implements WindowDelegate {
     await Future<void>.delayed(const Duration(milliseconds: 200));
     WindowHelper.transitionInProgress = false;
   }
-
 }

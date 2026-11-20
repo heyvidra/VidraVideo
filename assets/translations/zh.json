@@ -342,6 +342,7 @@
     "loading_category": "加载中…"
   },
   "errors": {
+    "bad_response": "片源返回了无法识别的内容",
     "yfsp_unreachable": "爱壹帆连接失败",
     "yfsp_challenge": "爱壹帆开启了人机验证",
     "yfsp_rate_limited": "爱壹帆访问过于频繁，请稍后再试",

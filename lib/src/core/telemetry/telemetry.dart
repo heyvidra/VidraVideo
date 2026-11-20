@@ -70,50 +70,53 @@ class Telemetry {
     }
 
     _enabled = true;
-    await SentryFlutter.init((options) {
-      options.dsn = _dsn;
-      options.release = release;
-      options.environment = _environment;
+    await SentryFlutter.init(
+      (options) {
+        options.dsn = _dsn;
+        options.release = release;
+        options.environment = _environment;
 
-      // The whole privacy posture, in one place.
-      options.sendDefaultPii = false;
-      options.attachScreenshot = false;
-      options.beforeSend = (event, hint) => Scrub.event(event);
-      options.beforeSendTransaction = (tx, hint) => Scrub.transaction(tx);
-      // Breadcrumbs are the biggest leak surface: the HTTP and navigation
-      // integrations record full URLs and route names on their own. Scrub
-      // every one, whoever recorded it.
-      options.beforeBreadcrumb = (crumb, hint) =>
-          crumb == null ? null : Scrub.breadcrumb(crumb);
+        // The whole privacy posture, in one place.
+        options.sendDefaultPii = false;
+        options.attachScreenshot = false;
+        options.beforeSend = (event, hint) => Scrub.event(event);
+        options.beforeSendTransaction = (tx, hint) => Scrub.transaction(tx);
+        // Breadcrumbs are the biggest leak surface: the HTTP and navigation
+        // integrations record full URLs and route names on their own. Scrub
+        // every one, whoever recorded it.
+        options.beforeBreadcrumb = (crumb, hint) =>
+            crumb == null ? null : Scrub.breadcrumb(crumb);
 
-      // Errors always; traces are sampled because a cast session or a frame
-      // report is worth keeping while routine navigation is not.
-      options.tracesSampleRate = 1.0;
-      options.enableAutoPerformanceTracing = false;
+        // Errors always; traces are sampled because a cast session or a frame
+        // report is worth keeping while routine navigation is not.
+        options.tracesSampleRate = 1.0;
+        options.enableAutoPerformanceTracing = false;
 
-      options.autoInitializeNativeSdk = isMainEngine;
-      options.debug = false;
-    }, appRunner: () async {
-      Sentry.configureScope((scope) {
-        scope.setTag('window', windowKind);
-        for (final tag in deviceTags.entries) {
-          scope.setTag(tag.key, tag.value);
+        options.autoInitializeNativeSdk = isMainEngine;
+        options.debug = false;
+      },
+      appRunner: () async {
+        Sentry.configureScope((scope) {
+          scope.setTag('window', windowKind);
+          for (final tag in deviceTags.entries) {
+            scope.setTag(tag.key, tag.value);
+          }
+        });
+        // A heartbeat, once per launch, from the main engine only.
+        //
+        // Everything else here reports an exception or a filled measurement
+        // window, so a healthy machine that renders little sends nothing at all
+        // — and "nothing arrived" then means either "all is well" or "this has
+        // been broken since the release" with no way to tell which. 1.12.0
+        // shipped in exactly that state and cost an afternoon of proving the
+        // pipe was alive by hand. One event per launch is nothing against a
+        // 5k/month tier and it makes the absence of data readable.
+        if (isMainEngine) {
+          report('app.start', data: {'engine': windowKind});
         }
-      });
-      // A heartbeat, once per launch, from the main engine only.
-      //
-      // Everything else here reports an exception or a filled measurement
-      // window, so a healthy machine that renders little sends nothing at all
-      // — and "nothing arrived" then means either "all is well" or "this has
-      // been broken since the release" with no way to tell which. 1.12.0
-      // shipped in exactly that state and cost an afternoon of proving the
-      // pipe was alive by hand. One event per launch is nothing against a
-      // 5k/month tier and it makes the absence of data readable.
-      if (isMainEngine) {
-        report('app.start', data: {'engine': windowKind});
-      }
-      await appRunner();
-    });
+        await appRunner();
+      },
+    );
   }
 
   static String get _environment {
@@ -196,7 +199,10 @@ class Telemetry {
         SentryEvent(
           message: SentryMessage(name),
           level: level,
-          contexts: Contexts()..['report'] = data,
+          // Scrubbed here, not in beforeSend: that hook rewrites messages,
+          // breadcrumbs and exceptions and never looks at contexts, so this
+          // map was the one channel with no second layer under it.
+          contexts: Contexts()..['report'] = Scrub.data(data),
         ),
       ).catchError((Object e) {
         logD('telemetry', 'report failed: $e');
