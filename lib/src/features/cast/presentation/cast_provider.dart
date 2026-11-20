@@ -257,28 +257,29 @@ class CastController extends Notifier<CastState> {
       // that never answers plus the stop and reconnect between them, measured
       // at 51s end to end. Samsung's is close behind — first-time pairing
       // (45s) plus the wait for the TV to fetch the page (25s).
-      final route = await () async {
-        // No probe for AirPlay: the system already knows the receiver, and
-        // the Tizen knock would only spend three seconds on a port that is
-        // not there.
-        if (device.protocol == DeviceProtocol.airPlay) {
-          _mark('route', detail: {'route': CastRoute.airplay.name});
-          await _castViaAirPlay(video, playlist, anchor: airPlayAnchor);
-          return CastRoute.airplay;
-        }
-        _mark('probe');
-        final route = await routeFor(device);
-        _mark('route', detail: {'route': route.name});
-        if (route == CastRoute.browser) {
-          await _castViaBrowser(device, video, playlist);
-        } else {
-          await _castViaDlna(device, video, playlist);
-        }
-        return route;
-      }().timeout(
-        const Duration(seconds: 120),
-        onTimeout: () => throw const CastException('the TV did not answer'),
-      );
+      final route =
+          await () async {
+            // No probe for AirPlay: the system already knows the receiver, and
+            // the Tizen knock would only spend three seconds on a port that is
+            // not there.
+            if (device.protocol == DeviceProtocol.airPlay) {
+              _mark('route', detail: {'route': CastRoute.airplay.name});
+              await _castViaAirPlay(video, playlist, anchor: airPlayAnchor);
+              return CastRoute.airplay;
+            }
+            _mark('probe');
+            final route = await routeFor(device);
+            _mark('route', detail: {'route': route.name});
+            if (route == CastRoute.browser) {
+              await _castViaBrowser(device, video, playlist);
+            } else {
+              await _castViaDlna(device, video, playlist);
+            }
+            return route;
+          }().timeout(
+            const Duration(seconds: 120),
+            onTimeout: () => throw const CastException('the TV did not answer'),
+          );
       _mark('ready');
       // Casting makes this machine the media server, so an idle sleep stops
       // the picture on the television. Held for the life of the session and
@@ -340,7 +341,17 @@ class CastController extends Notifier<CastState> {
     final host = Uri.parse(device.address).host;
     _mark('browser.serve');
     await _server.start(peerHost: host);
-    _server.onProgress = (p) => _recordProgress(video, playlist, p);
+    // Recorded against a playlist with no resume offset. The page is handed
+    // the whole file and SEEKS to the resume point, so what it reports is
+    // already absolute — unlike DLNA, whose stream is cut there and counts
+    // from zero. Adding the offset again pushed the saved position forward
+    // by the resume point on every cast, and inflated the duration with it.
+    final absolute = CastPlaylist(
+      title: playlist.title,
+      items: playlist.items,
+      startIndex: playlist.startIndex,
+    );
+    _server.onProgress = (p) => _recordProgress(video, absolute, p);
     final url = _server.serve(playlist);
     final tizen = TizenRemoteController(host);
     _mark('browser.launch');

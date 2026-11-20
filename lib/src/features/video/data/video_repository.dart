@@ -247,10 +247,10 @@ class VideoRepository {
     Video? cached;
     try {
       cached =
-          (await (_db.select(
-                _db.videos,
-              )..where((t) => t.sourceId.equals(sid) & t.apiId.equals(apiId)))
-              .getSingleOrNull())
+          (await (_db.select(_db.videos)..where(
+                    (t) => t.sourceId.equals(sid) & t.apiId.equals(apiId),
+                  ))
+                  .getSingleOrNull())
               ?.toDomain();
     } catch (e) {
       // Log error?
@@ -258,6 +258,16 @@ class VideoRepository {
     if (!forceRefresh && (cached?.urls?.isNotEmpty ?? false)) {
       return cached;
     }
+
+    // Two ids no catalog can answer for, and asking anyway is worse than not
+    // knowing. A pasted link's id is synthetic and negative: the request was
+    // a guaranteed miss on every progress save, and an unreachable catalog
+    // turned playing a LOCAL file into an error screen. And a source that is
+    // switched off is not in [_allDataSources], where [_getDataSource] falls
+    // back to the active one — so its id was looked up on the wrong catalog
+    // and the unrelated show that came back was saved over the real row,
+    // under the disabled source's name. Whatever is cached is the answer.
+    if (apiId < 0 || !_allDataSources.any((s) => s.id == sid)) return cached;
 
     final ds = _getDataSource(sid);
     var video = await ds.getVideoDetail(apiId, sourceKey: cached?.sourceKey);
@@ -439,7 +449,8 @@ class VideoRepository {
   }) async {
     final key = '$sourceId|search|$title';
     final cached = _searchCache.get(key);
-    final results = cached ?? await _getDataSource(sourceId).searchVideos(title);
+    final results =
+        cached ?? await _getDataSource(sourceId).searchVideos(title);
     if (cached == null) _searchCache.set(key, results);
 
     final wanted = crossSourceKey(title, year);

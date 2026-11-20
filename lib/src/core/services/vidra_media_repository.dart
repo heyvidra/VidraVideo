@@ -15,15 +15,24 @@ class _HistoryThrottler {
   final Duration _duration;
   Timer? _timer;
   void Function()? _pendingAction;
+  String? _pendingKey;
 
   _HistoryThrottler(this._duration);
 
-  void run(void Function() action) {
+  /// [key] names what the save is FOR. A newer save for the same thing
+  /// replaces the pending one — that is the throttle. A save for something
+  /// else must not: switching episodes within five seconds of a seek used to
+  /// drop the outgoing episode's final position, because the incoming
+  /// episode's first save took the only slot.
+  void run(String key, void Function() action) {
+    if (_pendingKey != null && _pendingKey != key) _pendingAction?.call();
+    _pendingKey = key;
     _pendingAction = action;
     if (_timer?.isActive ?? false) return;
     _timer = Timer(_duration, () {
       _pendingAction?.call();
       _pendingAction = null;
+      _pendingKey = null;
     });
   }
 
@@ -31,6 +40,7 @@ class _HistoryThrottler {
     _timer?.cancel();
     _pendingAction?.call();
     _pendingAction = null;
+    _pendingKey = null;
   }
 
   void dispose() {
@@ -108,7 +118,7 @@ class VidraMediaRepository
     final parsed = _parseVideoId(videoId);
 
     // 2. Throttle the actual heavy save operation (DB + potential native calls)
-    _saveThrottler.run(() async {
+    _saveThrottler.run(cacheKey, () async {
       // Save progress only (lightweight operation)
       final domainHistory = domain.EpisodeHistory(
         videoId: parsed.apiId,
