@@ -200,17 +200,28 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
 
     final ctrl = _controller;
     _controller = null;
-    if (ctrl != null) {
-      Future.microtask(() async {
-        try {
-          await ctrl.dispose();
-        } catch (e) {
-          logD('VideoPlayerScreen', 'Dispose on cleanup error: $e');
-        }
-      });
+    // The repository is flushed AFTER the controller has gone, not beside
+    // it: the controller's dispose is what hands over the final position,
+    // and the repository holds a save for five seconds. Flushed first, the
+    // flush found nothing, and the position then sat in a fresh five-second
+    // timer — late for every screen that re-reads history on the way out,
+    // and lost if the app quit inside it. This is the only teardown a page
+    // in the main window gets (and the only one a TV has).
+    final repo = _mediaRepository;
+    _mediaRepository = null;
+    if (ctrl == null) {
+      repo?.dispose();
+      return;
     }
-
-    _mediaRepository?.dispose();
+    Future.microtask(() async {
+      try {
+        await ctrl.dispose();
+      } catch (e) {
+        logD('VideoPlayerScreen', 'Dispose on cleanup error: $e');
+      } finally {
+        repo?.dispose();
+      }
+    });
   }
 
   Future<void> _handleSafeClose() async {

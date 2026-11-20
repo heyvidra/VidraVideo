@@ -48,6 +48,15 @@ class PlayerLauncher {
       final container = ProviderScope.containerOf(context, listen: false);
       await context.push(location);
       refreshAfterPlayback(container);
+      // And once more shortly after. The pop returns before the player page
+      // has torn down, and its teardown is what writes the final position;
+      // the first read can beat that write.
+      // ponytail: a fixed second. Have the page signal its last write if
+      // this ever proves too short.
+      Future<void>.delayed(
+        const Duration(seconds: 1),
+        () => refreshAfterPlayback(container),
+      );
       return;
     }
     await appWindow.openNewWindow(

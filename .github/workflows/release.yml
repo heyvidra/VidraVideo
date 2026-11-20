@@ -468,6 +468,10 @@ jobs:
     needs: draft
     if: ${{ !cancelled() && !failure() }}
     runs-on: ubuntu-latest
+    # `release` waits for this job to END, whatever the result. Failing is
+    # fine; hanging is not — a stuck Gradle download would hold finished
+    # desktop installers in draft for GitHub's six-hour default.
+    timeout-minutes: 30
     permissions:
       contents: write
 
@@ -568,8 +572,13 @@ jobs:
     # hand. A failed TV build ships a release without the APK row below.
     needs: [windows, macos, android_tv]
     # A manual run is a dry run: the artifacts are worth having, a Release is not.
+    # `!cancelled()`, not `always()`. Both let this run when android_tv
+    # failed, which is the point — but `always()` also runs it when the
+    # workflow was CANCELLED, so cancelling a run to stop a bad release (it
+    # has been done: 1.16.13) still published it if the desktop jobs had
+    # already finished and only the Android one was still going.
     if: >-
-      ${{ always() && startsWith(github.ref, 'refs/tags/v')
+      ${{ !cancelled() && startsWith(github.ref, 'refs/tags/v')
           && needs.windows.result == 'success'
           && needs.macos.result == 'success' }}
     runs-on: ubuntu-latest
@@ -657,8 +666,8 @@ jobs:
           拿错了不会损坏任何东西: Intel 机器打开 arm64 版会直接报"不支持",
           Apple 芯片打开 x64 版能跑但走 Rosetta 转译,会明显更慢。
 
-          **Android TV / 电视盒子:** 把 `Vidra-AndroidTV.apk` 拷到 U 盘用电视的文件管理器安装,
-          或 `adb install -r Vidra-AndroidTV.apk`。需要在电视设置里允许安装未知来源应用。
+          ${{ needs.android_tv.result == 'success' && '**Android TV / 电视盒子:** 把 `Vidra-AndroidTV.apk` 拷到 U 盘用电视的文件管理器安装,' || '' }}
+          ${{ needs.android_tv.result == 'success' && '或 `adb install -r Vidra-AndroidTV.apk`。需要在电视设置里允许安装未知来源应用。' || '' }}
 
           ### 💬 Feedback
 
