@@ -1,3 +1,4 @@
+import 'package:vidra/src/features/video/presentation/episode_label.dart';
 import 'package:vidra/src/core/utils/format.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
@@ -10,7 +11,6 @@ import 'package:vidra/src/config/reduce_effects.dart';
 import 'package:vidra/src/features/video/domain/video_collection.dart';
 import 'package:vidra/src/features/video/domain/play_history.dart'
     show EpisodeHistory, isEpisodicType;
-import 'package:vidra/src/features/video/domain/episode_number.dart';
 import 'package:vidra/src/features/video/domain/merged_history.dart';
 import 'package:vidra/src/features/video/domain/resume_target.dart';
 import 'package:vidra/src/features/video/domain/source_lead.dart';
@@ -552,13 +552,22 @@ class _WatchChip extends ConsumerWidget {
         newer ?? (furthest == null ? crossSourceWatchFor(ref, video) : null);
     if (match != null) {
       return _Chip(
-        label: tr(
-          'video.detail.watched_upto_on',
-          args: [
-            sourceDisplayName(ref, match.sourceId),
-            episodeLabel(match.lastEpisodeTitle, index: match.lastEpisodeIndex),
-          ],
-        ),
+        // A film's "episode" title is a dub or a quality, not a place in it.
+        label: !isEpisodicType(video.type)
+            ? tr(
+                'video.detail.seen_on',
+                args: [sourceDisplayName(ref, match.sourceId)],
+              )
+            : tr(
+                'video.detail.watched_upto_on',
+                args: [
+                  sourceDisplayName(ref, match.sourceId),
+                  localizedEpisodeLabel(
+                    match.lastEpisodeTitle,
+                    index: match.lastEpisodeIndex,
+                  ),
+                ],
+              ),
         tone: t.cyan,
       );
     }
@@ -567,7 +576,7 @@ class _WatchChip extends ConsumerWidget {
       // A film is located by its timestamp: its "episode" title is a quality
       // or a dub (576P, 粤语), and "看到 576P" says nothing about how far in.
       final label = isEpisodicType(video.type)
-          ? episodeLabel(
+          ? localizedEpisodeLabel(
               furthest < episodes.length ? episodes[furthest].title : null,
               index: furthest,
             )
@@ -1227,7 +1236,7 @@ class _UnmatchedSourcePillState extends ConsumerState<_UnmatchedSourcePill> {
         setState(() => _missing = true);
       }
     } catch (_) {
-      if (mounted) setState(() => _missing = true);
+      // Could not ask is not "not there": the pill stays tappable.
     } finally {
       if (mounted) setState(() => _searching = false);
     }

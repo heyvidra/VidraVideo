@@ -1,8 +1,36 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/log.dart';
 import '../data/history_repository.dart';
-import '../data/video_repository.dart' show disabledDataSourceIdsProvider;
+import '../data/video_repository.dart'
+    show disabledDataSourceIdsProvider, locallyCachedVideoProvider;
 import '../domain/play_history.dart';
+import '../domain/resume_target.dart';
+
+/// Where "continue" lands for a show, from what is on this machine only.
+///
+/// The detail page's button already answers through [resolveResumeTarget];
+/// the recent list and the card menu opened the remembered episode as-is, so
+/// one left during its credits reopened on the player's "replay?" prompt
+/// instead of the next episode.
+Future<int> resumeEpisodeIndex(
+  WidgetRef ref, {
+  required int videoId,
+  required String? sourceId,
+  required int lastEpisodeIndex,
+}) async {
+  final histories = await ref.read(
+    episodeHistoriesProvider((videoId: videoId, sourceId: sourceId)).future,
+  );
+  final cached = await ref.read(
+    locallyCachedVideoProvider((id: videoId, sourceId: sourceId)).future,
+  );
+  final count = cached?.urls?.length ?? 0;
+  return resolveResumeTarget(
+    histories: histories,
+    lastEpisodeIndex: lastEpisodeIndex,
+    episodeCount: count > 0 ? count : null,
+  ).episodeIndex;
+}
 
 final episodeHistoriesProvider = FutureProvider.autoDispose
     .family<Map<int, EpisodeHistory>, ({int videoId, String? sourceId})>((

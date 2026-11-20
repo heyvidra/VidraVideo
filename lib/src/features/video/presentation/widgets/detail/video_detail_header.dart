@@ -1,3 +1,4 @@
+import 'package:vidra/src/features/video/presentation/episode_label.dart';
 import 'package:vidra/src/common/cover_image.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
@@ -7,7 +8,6 @@ import 'package:vidra/src/features/video/domain/video_collection.dart';
 import 'package:vidra/src/features/video/data/video_repository.dart';
 import 'package:vidra/src/features/video/presentation/widgets/cards/popular_video_card.dart';
 import 'package:vidra/src/features/video/domain/play_history.dart';
-import 'package:vidra/src/features/video/domain/episode_number.dart';
 import 'package:vidra/src/features/video/domain/resume_target.dart';
 import 'package:vidra/src/features/video/presentation/widgets/cross_source_watch_badge.dart';
 import 'package:vidra/src/features/video/presentation/play_history_provider.dart';
@@ -479,7 +479,10 @@ class _PlayButton extends ConsumerWidget {
         label: tr(
           'video.detail.continue_watching',
           args: [
-            episodeLabel(newer.lastEpisodeTitle, index: newer.lastEpisodeIndex),
+            localizedEpisodeLabel(
+              newer.lastEpisodeTitle,
+              index: newer.lastEpisodeIndex,
+            ),
           ],
         ),
         onTap: () => PlayerLauncher.open(
@@ -497,7 +500,7 @@ class _PlayButton extends ConsumerWidget {
       episodeCount: episodes.isEmpty ? null : episodes.length,
     );
 
-    final label = episodeLabel(
+    final label = localizedEpisodeLabel(
       target.episodeIndex < episodes.length
           ? episodes[target.episodeIndex].title
           : null,

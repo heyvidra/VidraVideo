@@ -68,6 +68,9 @@ class PlayerLauncher {
       arguments: {
         'videoId': videoId,
         'episodeIndex': episodeIndex,
+        // Every launch is a new request, even with the same numbers: the
+        // open player may have moved on from the episode it was sent.
+        'launch': DateTime.now().microsecondsSinceEpoch,
         'sourceId': sourceId,
         'directUrl': ?directUrl,
         'directTitle': ?directTitle,

@@ -117,7 +117,19 @@ class VideoDetailScreen extends HookConsumerWidget {
         },
         loading: () => _LoadingWithCover(seed: seed),
         error: (error, stack) => Center(
-          child: Text('${tr("video.detail.error")}: $error (ID: $videoId)'),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(tr('video.detail.error', args: ['$error'])),
+              const SizedBox(height: 12),
+              // One failed refresh used to be the end of the page: nothing
+              // asked again until the viewer left and came back.
+              TextButton(
+                onPressed: () => ref.invalidate(videoByIdProvider),
+                child: Text(tr('common.retry')),
+              ),
+            ],
+          ),
         ),
       ),
     );

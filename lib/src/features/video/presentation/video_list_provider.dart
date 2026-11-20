@@ -58,12 +58,20 @@ class VideoListNotifier extends Notifier<VideoListState> {
 
   bool _isFetching = false;
 
+  /// Which build() a fetch belongs to. This object outlives a rebuild, so
+  /// without it a category switch during a fetch was dropped by the
+  /// [_isFetching] guard — and the old category's page then landed in the
+  /// new category's list as its page 1.
+  int _generation = 0;
+
   @override
   VideoListState build() {
     // Watch filter and repository here to ensure we rebuild when they change.
     // This triggers a fresh state and a new initial load.
     ref.watch(videoRepositoryProvider);
     ref.watch(videoListFilterProvider);
+    _generation++;
+    _isFetching = false;
 
     Future.microtask(() => loadNextPage());
     return VideoListState(videos: [], isLoading: true);
@@ -72,6 +80,7 @@ class VideoListNotifier extends Notifier<VideoListState> {
   Future<void> loadNextPage() async {
     if (_isFetching || !state.hasMore) return;
 
+    final generation = _generation;
     _isFetching = true;
     state = state.copyWith(isLoading: true, error: null);
 
@@ -97,10 +106,7 @@ class VideoListNotifier extends Notifier<VideoListState> {
         page: state.page,
       );
 
-      if (!ref.mounted) {
-        _isFetching = false;
-        return;
-      }
+      if (!ref.mounted || generation != _generation) return;
 
       final newVideos = result['list'] as List<Video>;
       // final total = result['total'] as int;
@@ -132,13 +138,12 @@ class VideoListNotifier extends Notifier<VideoListState> {
         hasMore: hasMore,
       );
     } catch (e) {
-      if (!ref.mounted) {
-        _isFetching = false;
-        return;
-      }
+      if (!ref.mounted || generation != _generation) return;
       state = state.copyWith(isLoading: false, error: e);
     } finally {
-      _isFetching = false;
+      // Only this build's flag: a stale fetch finishing must not unlock the
+      // guard while the current one is still in flight.
+      if (generation == _generation) _isFetching = false;
     }
   }
 

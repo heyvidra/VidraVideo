@@ -16,8 +16,8 @@ import sqflite_darwin
 import url_launcher_macos
 import video_player_avfoundation
 import vidra_cast
-import vidra_player
 import wakelock_plus
+import vidra_player
 
 func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
   BitsdojoWindowPlugin.register(with: registry.registrar(forPlugin: "BitsdojoWindowPlugin"))
@@ -31,6 +31,6 @@ func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
   UrlLauncherPlugin.register(with: registry.registrar(forPlugin: "UrlLauncherPlugin"))
   VideoPlayerPlugin.register(with: registry.registrar(forPlugin: "VideoPlayerPlugin"))
   VidraCastPlugin.register(with: registry.registrar(forPlugin: "VidraCastPlugin"))
-  VidraPlayerPlugin.register(with: registry.registrar(forPlugin: "VidraPlayerPlugin"))
   WakelockPlusMacosPlugin.register(with: registry.registrar(forPlugin: "WakelockPlusMacosPlugin"))
+  VidraPlayerPlugin.register(with: registry.registrar(forPlugin: "VidraPlayerPlugin"))
 }

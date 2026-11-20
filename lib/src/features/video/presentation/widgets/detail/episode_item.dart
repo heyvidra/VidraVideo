@@ -1,3 +1,4 @@
+import 'package:vidra/src/features/video/presentation/episode_label.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -114,7 +115,7 @@ class EpisodeItem extends ConsumerWidget {
     // episodes carry date + full segment names ("20260602(先导片:...)") that
     // no tile width can hold.
     return Tooltip(
-      message: episodeLabel(episode.title, index: originalIndex),
+      message: localizedEpisodeLabel(episode.title, index: originalIndex),
       waitDuration: const Duration(milliseconds: 350),
       child: Material(
         color: Colors.transparent,
@@ -209,7 +210,10 @@ class EpisodeItem extends ConsumerWidget {
                       // two-character caption ends up elided beside it.
                       Expanded(
                         child: Text(
-                          episodeLabel(episode.title, index: originalIndex),
+                          localizedEpisodeLabel(
+                            episode.title,
+                            index: originalIndex,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -306,7 +310,9 @@ class EpisodeItem extends ConsumerWidget {
           content: Text(
             tr(
               'video.detail.download_added',
-              args: [episodeLabel(episode.title, index: originalIndex)],
+              args: [
+                localizedEpisodeLabel(episode.title, index: originalIndex),
+              ],
             ),
           ),
           backgroundColor: Colors.green,
@@ -337,7 +343,7 @@ class EpisodeItem extends ConsumerWidget {
     final device = cast.device;
     if (device == null) return;
     final messenger = ScaffoldMessenger.of(context);
-    final label = episodeLabel(episode.title, index: originalIndex);
+    final label = localizedEpisodeLabel(episode.title, index: originalIndex);
     final h = history;
     final resumeSeconds = h != null && h.durationMillis > 0
         ? (h.positionMillis / 1000).round()

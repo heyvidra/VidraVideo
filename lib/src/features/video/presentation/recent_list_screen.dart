@@ -196,12 +196,25 @@ class _RecentListScreenState extends ConsumerState<RecentListScreen> {
                         // check the episode list or the blurb is common enough
                         // that a whole-card shortcut to playback fired on the
                         // wrong intent more often than the right one.
-                        onTap: () => PlayerLauncher.open(
-                          context,
-                          videoId: item.videoId,
-                          episodeIndex: item.lastEpisodeIndex,
-                          sourceId: item.sourceId,
-                        ),
+                        onTap: () async {
+                          // A film's entries are ways to play one thing, so
+                          // "finished, move on" does not apply to it.
+                          final index = isEpisodicType(item.type)
+                              ? await resumeEpisodeIndex(
+                                  ref,
+                                  videoId: item.videoId,
+                                  sourceId: item.sourceId,
+                                  lastEpisodeIndex: item.lastEpisodeIndex,
+                                )
+                              : item.lastEpisodeIndex;
+                          if (!context.mounted) return;
+                          await PlayerLauncher.open(
+                            context,
+                            videoId: item.videoId,
+                            episodeIndex: index,
+                            sourceId: item.sourceId,
+                          );
+                        },
                         watchLabel: watchLabel,
                         watchProgress: entry.progress,
                         // Through the card's own slot, so it sits BESIDE

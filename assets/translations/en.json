@@ -178,6 +178,7 @@
       "download_batch_added": "Added {} episodes to download list",
       "download_added": "Added {} to download list",
       "episode_prefix": "Episode {}",
+      "episode_short": "Ep {}",
       "new_badge": "NEW",
       "director": "Director",
       "writer": "Writer",

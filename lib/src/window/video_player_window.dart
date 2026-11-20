@@ -137,6 +137,7 @@ class _VideoPlayerWindowState extends State<VideoPlayerWindow>
   String? _videoId;
   String? _sourceId;
   int _episodeIndex = 0;
+  int _launch = 0;
 
   /// A stream that exists nowhere in the catalog — a pasted link, parsed but
   /// not downloaded. There is no videoId to resolve, so what the player needs
@@ -183,6 +184,7 @@ class _VideoPlayerWindowState extends State<VideoPlayerWindow>
       if (args.containsKey('episodeIndex')) {
         _episodeIndex = int.tryParse(args['episodeIndex'].toString()) ?? 0;
       }
+      _launch = int.tryParse('${args['launch']}') ?? _launch;
       // Read unconditionally: a second launch into the same window must be able
       // to CLEAR these, or a catalog video opened after a pasted link would
       // still play the link.
@@ -227,6 +229,7 @@ class _VideoPlayerWindowState extends State<VideoPlayerWindow>
           videoId: _videoId!,
           sourceId: _sourceId,
           initialEpisodeIndex: _episodeIndex,
+          launchId: _launch,
           directUrl: _directUrl,
           directTitle: _directTitle,
           directCoverUrl: _directCoverUrl,

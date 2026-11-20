@@ -194,6 +194,14 @@ class WindowHelper {
   /// physical on Windows — fed each restore through one extra multiply, and
   /// every save/restore cycle DOUBLED the stored position on a 200% display
   /// until it hit the int16 clamp and the window vanished off-screen.
+  /// Windows parks a minimised window at (-32000, -32000), 160x28, and still
+  /// reports a move. Saved, that replaced the viewer's real size and place
+  /// whenever the player was closed from the taskbar while minimised.
+  static bool get _minimised {
+    final r = appWindow.rect;
+    return r.left <= -32000 || r.top <= -32000;
+  }
+
   static Rect _logicalRectNow() {
     final rect = appWindow.rect;
     final scale = currentScale();
@@ -214,6 +222,7 @@ class WindowHelper {
   /// during programmatic transitions — see [transitionInProgress].
   static void saveWindowSize({bool? isPipOverride}) {
     if (_repository == null || transitionInProgress || isFullscreen) return;
+    if (_minimised) return;
 
     final pip = isPipOverride ?? isPip;
     // Snapshot rect AND scale now — by the time the debounce fires the
@@ -243,7 +252,7 @@ class WindowHelper {
     // as one, the whole-display frame replaced the user's real size and
     // position, and a crash, force-quit or logout while fullscreen made it
     // permanent: the player reopened filling the work area.
-    if (_repository == null || isFullscreen) return;
+    if (_repository == null || isFullscreen || _minimised) return;
     final pip = isPipOverride ?? isPip;
     // The pending debounce for this slot is staler than what we hold now.
     if (pip) {

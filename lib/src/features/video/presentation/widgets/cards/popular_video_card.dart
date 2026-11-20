@@ -1,3 +1,4 @@
+import 'package:vidra/src/features/video/presentation/episode_label.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -227,17 +228,15 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
       sourceId: video.sourceId,
       videoId: video.apiId,
     );
-    final elsewhere =
-        ref
-            .read(
-              crossSourceCounterpartsProvider((
-                title: video.title,
-                year: video.year,
-                sourceId: video.sourceId,
-              )),
-            )
-            .value ??
-        const <CrossSourceEntry>[];
+    // Awaited: nothing else on a catalog page keeps this alive, so a plain
+    // read was always still loading and the entries below never appeared.
+    final elsewhere = await ref.read(
+      crossSourceCounterpartsProvider((
+        title: video.title,
+        year: video.year,
+        sourceId: video.sourceId,
+      )).future,
+    );
 
     // Local DB read, so the menu can name the episode it would resume at
     // without waiting on the network.
@@ -247,6 +246,20 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
         sourceId: video.sourceId,
       )).future,
     );
+    // Same answer the detail page's button gives: past a finished episode.
+    var resumeAt = history?.lastEpisodeIndex ?? 0;
+    var resumeTitle = history?.lastEpisodeTitle;
+    if (history != null && isEpisodicType(video.type)) {
+      resumeAt = await resumeEpisodeIndex(
+        ref,
+        videoId: video.apiId,
+        sourceId: video.sourceId,
+        lastEpisodeIndex: history.lastEpisodeIndex,
+      );
+      // ponytail: a moved-on target is named by position, not by the
+      // source's title for it — that needs the episode list in hand.
+      if (resumeAt != history.lastEpisodeIndex) resumeTitle = null;
+    }
     if (!mounted) return;
 
     // The app's own menu material, not Material's: showMenu draws a
@@ -266,15 +279,9 @@ class _PopularVideoCardState extends ConsumerState<PopularVideoCard>
           PlayerMenuItem(
             text: tr(
               'video.menu.continue',
-              args: [
-                episodeLabel(
-                  history.lastEpisodeTitle,
-                  index: history.lastEpisodeIndex,
-                ),
-              ],
+              args: [localizedEpisodeLabel(resumeTitle, index: resumeAt)],
             ),
-            onTap: () =>
-                select(() => _playEpisode(index: history.lastEpisodeIndex)),
+            onTap: () => select(() => _playEpisode(index: resumeAt)),
           ),
         const PlayerMenuDivider(),
         PlayerMenuItem(

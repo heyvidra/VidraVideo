@@ -28,6 +28,9 @@ import 'src/core/providers/theme_provider.dart'; // Import theme_provider
 import 'src/features/video/data/video_repository.dart';
 import 'src/routing/app_router.dart';
 import 'src/features/settings/data/settings_repository.dart';
+import 'src/features/settings/domain/app_settings.dart'
+    as domain
+    show AppSettings;
 import 'src/features/settings/domain/app_settings.dart' show parseSourceIds;
 import 'src/features/settings/presentation/settings_provider.dart';
 import 'src/features/download/data/download_provider.dart';
@@ -100,7 +103,7 @@ Future<void> _runApp() async {
   // asset round trip: awaited one after the other they were four waits
   // before the first frame where one will do.
   await Future.wait([
-    settingsLoad,
+    settingsLoad.then<void>((_) {}, onError: (_) {}),
     EasyLocalization.ensureInitialized(),
     // The pet does no Dart-side HTTP — the sprite is painted locally and the
     // bubble text arrives through window arguments — so the Windows root-CA
@@ -110,7 +113,16 @@ Future<void> _runApp() async {
     // the main engine; secondary engines were paying this setup for nothing.
     if (isMainWindow) _setupNotifications(),
   ]);
-  final appSettings = await settingsLoad;
+  // Defaults rather than no app: this runs before runApp in every engine,
+  // so a throw here (a locked or damaged database file) was a blank window
+  // on every launch, with nothing on screen to say why.
+  domain.AppSettings appSettings;
+  try {
+    appSettings = await settingsLoad;
+  } catch (e) {
+    logR('main', 'settings load failed: ${e.runtimeType}');
+    appSettings = domain.AppSettings();
+  }
   FrameMetrics.mark('settings_and_setup');
 
   // The pet never hosts playback; every other window may.

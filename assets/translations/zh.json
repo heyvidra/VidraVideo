@@ -178,6 +178,7 @@
       "download_batch_added": "已添加 {} 集到下载列表",
       "download_added": "已添加 {} 到下载列表",
       "episode_prefix": "第 {} 集",
+      "episode_short": "第{}集",
       "new_badge": "新",
       "director": "导演",
       "writer": "编剧",

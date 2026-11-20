@@ -44,6 +44,10 @@ class VideoPlayerScreen extends ConsumerStatefulWidget {
   final String? directTitle;
   final String? directCoverUrl;
   final int initialEpisodeIndex;
+
+  /// Changes on every request to play, so asking for the episode this window
+  /// was opened on — after it has auto-advanced past it — is still heard.
+  final int launchId;
   final VideoPlayerWindowCloseController? closeController;
 
   const VideoPlayerScreen({
@@ -54,6 +58,7 @@ class VideoPlayerScreen extends ConsumerStatefulWidget {
     this.directTitle,
     this.directCoverUrl,
     this.initialEpisodeIndex = 0,
+    this.launchId = 0,
     this.closeController,
   });
 
@@ -107,7 +112,8 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
           }
         });
       }
-    } else if (oldWidget.initialEpisodeIndex != widget.initialEpisodeIndex) {
+    } else if (oldWidget.initialEpisodeIndex != widget.initialEpisodeIndex ||
+        oldWidget.launchId != widget.launchId) {
       if (_controller != null &&
           _controller!.media.currentEpisodeIndex !=
               widget.initialEpisodeIndex) {
@@ -359,7 +365,11 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
               enableKeyboardShortcuts: false,
               enablePictureInPicture: false,
             )
-          : const PlayerFeatures.all(),
+          // No picture-in-picture when playing inside the main window: it
+          // shrank the CATALOG window, left its minimum size at the mini
+          // player's for the rest of the session, saved the catalog's frame
+          // as the player window's, and cleared pin-to-top.
+          : PlayerFeatures(enablePictureInPicture: !appWindow.isMainWindow),
       behavior: PlayerBehavior(
         autoHideDelay: const Duration(seconds: 3),
         mouseHideDelay: const Duration(seconds: 2),
