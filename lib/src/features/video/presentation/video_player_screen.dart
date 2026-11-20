@@ -380,7 +380,11 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
   /// it owns that corner outright. The main window does not: macOS parks its
   /// three buttons at x = 20 / 40 / 60 with a 12pt diameter, so the last one
   /// ends at 66 — and this player's own button was landing on top of them.
-  static const double _trafficLightsInset = 80;
+  ///
+  /// Only macOS has them there. Windows and Linux draw their window buttons
+  /// on the catalog's toolbar, which this page replaces, so the corner is
+  /// empty and the control belongs in it.
+  static final double _trafficLightsInset = Platform.isMacOS ? 80 : 10;
 
   /// Leaves, in the way this player can leave.
   ///
@@ -399,7 +403,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
     );
     if (!_inApp) return button;
     return Padding(
-      padding: const EdgeInsets.only(left: _trafficLightsInset),
+      padding: EdgeInsets.only(left: _trafficLightsInset),
       child: button,
     );
   }

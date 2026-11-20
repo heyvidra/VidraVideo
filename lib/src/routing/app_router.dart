@@ -1,3 +1,4 @@
+import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vidra/src/features/video/domain/video_collection.dart';
@@ -122,16 +123,18 @@ final routerProvider = Provider<GoRouter>((ref) {
           final q = state.uri.queryParameters;
           final index = int.tryParse(q['index'] ?? '0') ?? 0;
           return myTransitionPage(
-            VideoPlayerScreen(
-              videoId: id,
-              sourceId: q['sourceId'],
-              // A pasted link that was parsed but never downloaded: nothing in
-              // the catalog describes it, so its address and titles ride along
-              // here exactly as they ride in the window's arguments map.
-              directUrl: q['directUrl'],
-              directTitle: q['directTitle'],
-              directCoverUrl: q['directCoverUrl'],
-              initialEpisodeIndex: index,
+            _InAppPlayer(
+              child: VideoPlayerScreen(
+                videoId: id,
+                sourceId: q['sourceId'],
+                // A pasted link that was parsed but never downloaded: nothing in
+                // the catalog describes it, so its address and titles ride along
+                // here exactly as they ride in the window's arguments map.
+                directUrl: q['directUrl'],
+                directTitle: q['directTitle'],
+                directCoverUrl: q['directCoverUrl'],
+                initialEpisodeIndex: index,
+              ),
             ),
           );
         },
@@ -139,3 +142,39 @@ final routerProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+/// The player as a page of the main window, with a strip to drag it by.
+///
+/// The main window has no native title bar: it is moved by the catalog's
+/// toolbar, and on Windows and Linux that toolbar also carries minimise,
+/// maximise and close. This page covers the toolbar, so without a handle of
+/// its own a playing window could not be moved at all — and since 1.16.8
+/// this page is where low-core Windows machines play by default. Same strip,
+/// same height, as the player's own window; double-click maximises.
+///
+/// ponytail: a drag handle only. Minimise and close stay on the taskbar and
+/// the keyboard while a video is up; give this page its own window buttons
+/// if that turns out to matter.
+class _InAppPlayer extends StatelessWidget {
+  const _InAppPlayer({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        child,
+        // Inset past the back button on the left and the player's own
+        // top-bar actions on the right, so both stay clickable.
+        Positioned(
+          top: 0,
+          left: 150,
+          right: 120,
+          height: 26,
+          child: MoveWindow(),
+        ),
+      ],
+    );
+  }
+}
