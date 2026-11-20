@@ -114,6 +114,10 @@ jobs:
 
       - name: Flutter Build (Windows Release)
         run: .\tool\build_windows.bat
+        env:
+          # Read by the script. The macOS build has always had this; Windows
+          # never did, so the diagnostics switch there sent nothing.
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
 
       # `flutter build windows` reports "Unable to generate build files" and
       # swallows the CMake output that says WHY, so a configure failure arrives

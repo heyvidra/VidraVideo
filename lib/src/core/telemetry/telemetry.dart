@@ -70,6 +70,37 @@ class Telemetry {
     }
 
     _enabled = true;
+    // Whether the app itself got started. Diagnostics wrap the app, so a
+    // failure to bring them up must not be a failure to launch — and Windows
+    // is initialising this for the first time ever in 1.16.18, on machines
+    // nobody here has run it on.
+    var started = false;
+    try {
+      await _init(
+        windowKind: windowKind,
+        isMainEngine: isMainEngine,
+        release: release,
+        deviceTags: deviceTags,
+        appRunner: () async {
+          started = true;
+          await appRunner();
+        },
+      );
+    } catch (e) {
+      logR('Telemetry', 'init failed: ${e.runtimeType}');
+      if (started) rethrow;
+      _enabled = false;
+      await appRunner();
+    }
+  }
+
+  static Future<void> _init({
+    required String windowKind,
+    required bool isMainEngine,
+    required String release,
+    required Map<String, String> deviceTags,
+    required Future<void> Function() appRunner,
+  }) async {
     await SentryFlutter.init(
       (options) {
         options.dsn = _dsn;
@@ -92,7 +123,12 @@ class Telemetry {
         options.tracesSampleRate = 1.0;
         options.enableAutoPerformanceTracing = false;
 
-        options.autoInitializeNativeSdk = isMainEngine;
+        // ponytail: Dart-side reporting only on Windows. The native crash
+        // handler there is a separate helper process this app has never
+        // shipped or run; frame reports and Dart errors — the reason for
+        // turning Windows on — do not need it. Enable once it has been seen
+        // working on a real machine.
+        options.autoInitializeNativeSdk = isMainEngine && !Platform.isWindows;
         options.debug = false;
       },
       appRunner: () async {
@@ -215,6 +251,9 @@ class Telemetry {
   /// Intel laptop from an M4, and nothing that identifies a person.
   static Map<String, String> deviceTags({required bool reduceEffects}) {
     return {
+      // 'macos' / 'windows'. [cpu] below was written when every report came
+      // from a Mac, where x64 means Intel; on Windows x64 is everything.
+      'platform': Platform.operatingSystem,
       'cpu': Platform.version.contains('x64') ? 'intel' : 'apple_silicon',
       'cores': '${Platform.numberOfProcessors}',
       'os': Platform.operatingSystemVersion.split(' ').take(3).join(' '),
