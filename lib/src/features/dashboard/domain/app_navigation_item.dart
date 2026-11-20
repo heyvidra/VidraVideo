@@ -72,7 +72,11 @@ enum AppNavigationItem {
   /// Which rail entry [location] belongs to. The route IS the identity —
   /// this replaced a parallel set of hand-numbered branch indexes that had
   /// to be edited in three files to add one entry.
-  static AppNavigationItem forLocation(String location) {
+  ///
+  /// Null on a search: results span every category, so no rail entry is
+  /// where you are, and leaving 首页 lit said the results were the home page.
+  static AppNavigationItem? forLocation(String location) {
+    if (location.startsWith('/search/')) return null;
     for (final item in AppNavigationItem.values) {
       if (item.route != '/' && location.startsWith(item.route)) return item;
     }
