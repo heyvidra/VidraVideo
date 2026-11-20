@@ -37,6 +37,13 @@ class _RecentListScreenState extends ConsumerState<RecentListScreen> {
     messenger
         .showSnackBar(
           SnackBar(
+            // Said out loud: a snackbar with an action defaults to staying
+            // until dismissed. This one is a grace period — the deletion
+            // commits when it closes — so left to the default it never
+            // committed: the row came back if the app was quit with the bar
+            // still up (1.16.8–1.16.11).
+            persist: false,
+            duration: const Duration(seconds: 5),
             content: Text(tr('recent.removed')),
             action: SnackBarAction(
               label: tr('common.undo'),
