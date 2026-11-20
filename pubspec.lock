@@ -1323,23 +1323,29 @@ packages:
   vidra_cast:
     dependency: "direct main"
     description:
-      path: "/Users/sidym/Workspace/vidra_cast"
-      relative: false
-    source: path
+      path: "."
+      ref: "v0.1.14"
+      resolved-ref: b82fda6cd8db110654e8dc865a9cacbc8c09401e
+      url: "https://github.com/heyvidra/vidra_cast.git"
+    source: git
     version: "0.0.1"
   vidra_player:
     dependency: "direct main"
     description:
-      path: "/Users/sidym/Workspace/vidra_player"
-      relative: false
-    source: path
+      path: "."
+      ref: fc335a921c27871e675daede2ad37abf385abdd8
+      resolved-ref: fc335a921c27871e675daede2ad37abf385abdd8
+      url: "https://github.com/heyvidra/VidraPlayer.git"
+    source: git
     version: "1.8.0"
   vidra_player_kit:
     dependency: "direct main"
     description:
-      path: "/Users/sidym/Workspace/vidra_player/packages/vidra_player_fvp"
-      relative: false
-    source: path
+      path: "packages/vidra_player_fvp"
+      ref: "v1.8.0"
+      resolved-ref: fc335a921c27871e675daede2ad37abf385abdd8
+      url: "https://github.com/heyvidra/VidraPlayer.git"
+    source: git
     version: "0.0.1"
   vm_service:
     dependency: transitive
