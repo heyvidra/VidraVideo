@@ -26,20 +26,20 @@ dependencies:
   vidra_player:
     git:
       url: https://github.com/heyvidra/VidraPlayer.git
-      # v1.8.0; pinned to the commit so it unifies with vidra_player_kit's
+      # v1.9.0; pinned to the commit so it unifies with vidra_player_kit's
       # internal `vidra_player: path: ../../` dep (pub won't match a tag to a
       # commit). This SHA and the tag below MUST name the same commit — the
       # tags are ANNOTATED, so this is what the tag dereferences to
-      # (`v1.8.0^{}`), not the tag object `git ls-remote` prints on the plain
+      # (`v1.9.0^{}`), not the tag object `git ls-remote` prints on the plain
       # `refs/tags` line. Getting that wrong resolves to a tree that is not a
       # commit and pub fails in a way that does not name this file.
-      ref: fc335a921c27871e675daede2ad37abf385abdd8
+      ref: a500dd7db83cf2927baf51e4899725f8d2723329
 
   vidra_player_kit:
     git:
       url: https://github.com/heyvidra/VidraPlayer.git
       path: packages/vidra_player_fvp
-      ref: v1.8.0
+      ref: v1.9.0
 
   # Diagnostics. The DSN is never in this repo — it arrives as a
   # --dart-define, and an empty one makes every call here a no-op, so a dev
@@ -105,11 +105,6 @@ dependencies:
 # ../fvp is a vendored 0.37.3 with the subscriptions cancelled in dispose()
 # (see PATCH(vidra) markers). Drop this override once fixed upstream.
 dependency_overrides:
-  # TEMP(seamless): local player checkout until its tag is pushed.
-  vidra_player:
-    path: /Users/sidym/Workspace/vidra_player
-  vidra_player_kit:
-    path: /Users/sidym/Workspace/vidra_player/packages/vidra_player_fvp
   fvp:
     git:
       url: https://github.com/heyvidra/fvp.git
