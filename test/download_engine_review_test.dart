@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vidra/src/core/services/download_service.dart';
 import 'package:vidra/src/core/services/m3u8_downloader.dart';
+import 'package:vidra/src/core/services/media_info_service.dart';
 import 'package:vidra/src/features/download/data/download_manager.dart';
 import 'package:vidra/src/features/download/domain/download_task.dart';
 
@@ -71,5 +72,24 @@ void main() {
         ['https://x/a.ts'],
       );
     });
+  });
+
+  test('a pasted link is a web address or nothing', () {
+    const n = MediaInfoService.normalizeUrl;
+    expect(n('  https://a.example/v?x=1  '), 'https://a.example/v?x=1');
+    // Copied from an address bar, without the scheme.
+    expect(n('www.youtube.com/watch?v=1'), 'https://www.youtube.com/watch?v=1');
+    // Two links pasted together: the first.
+    expect(
+      n('https://a.example/1\nhttps://b.example/2'),
+      'https://a.example/1',
+    );
+    // Never a path on this machine, nor another scheme.
+    expect(n('/Users/me/secret.txt'), isNull);
+    expect(n('file:///etc/hosts'), isNull);
+    expect(n('ftp://h.example/x'), isNull);
+    expect(n('javascript://x.y/alert(1)'), isNull);
+    expect(n('some copied error text'), isNull);
+    expect(n(''), isNull);
   });
 }

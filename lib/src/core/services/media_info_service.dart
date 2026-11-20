@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'dart:convert';
 import 'dart:isolate';
 
@@ -14,15 +15,29 @@ import 'vidradlp/vidradlp_flutter.dart';
 class MediaInfoService {
   const MediaInfoService();
 
+  /// What was pasted, as a web address the extractor may be given — or null.
+  ///
+  /// The old check asked only for an absolute path, so `/Users/me/file` and
+  /// `file:///etc/hosts` went to the native extractor while
+  /// `www.youtube.com/watch?v=1`, as copied from an address bar, was refused.
+  static String? normalizeUrl(String pasted) {
+    final first = pasted.trim().split(RegExp(r'\s+')).first;
+    if (first.isEmpty || first.length > 4096) return null;
+    final candidate = first.contains('://') ? first : 'https://$first';
+    final uri = Uri.tryParse(candidate);
+    if (uri == null || !uri.host.contains('.')) return null;
+    return uri.scheme == 'http' || uri.scheme == 'https' ? candidate : null;
+  }
+
   /// [configJson] is the vidraDlp client config (e.g. cookie_file); pass it so
   /// gated sites can be parsed with the user's cookies.
   Future<MediaInfo> extract(String url, {String? configJson}) async {
-    final trimmed = url.trim();
-    if (trimmed.isEmpty || Uri.tryParse(trimmed)?.hasAbsolutePath != true) {
-      throw const MediaInfoException('Invalid URL');
+    final trimmed = normalizeUrl(url);
+    if (trimmed == null) {
+      throw MediaInfoException(tr('download.url.invalid'));
     }
     if (!vidradlpLibraryAvailable()) {
-      throw const MediaInfoException('vidraDlp native library unavailable');
+      throw MediaInfoException(tr('download.url.engine_missing'));
     }
 
     final Map<String, dynamic> raw;

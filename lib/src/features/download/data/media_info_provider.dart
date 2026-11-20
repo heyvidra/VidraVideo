@@ -15,7 +15,18 @@ class UrlParseController extends Notifier<AsyncValue<MediaInfo?>> {
   @override
   AsyncValue<MediaInfo?> build() => const AsyncData(null);
 
+  String? _lastUrl;
+
+  /// Asks again for the link that just failed. The clipboard is the only
+  /// input this screen has, and by the time someone presses Retry it often
+  /// holds something else — the error text they copied, for one.
+  Future<void> retry() async {
+    final url = _lastUrl;
+    if (url != null) await parse(url);
+  }
+
   Future<void> parse(String url) async {
+    _lastUrl = url;
     state = const AsyncLoading();
     try {
       final settings = await ref.read(settingsRepositoryProvider).getSettings();

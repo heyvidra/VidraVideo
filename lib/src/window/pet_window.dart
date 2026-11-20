@@ -78,7 +78,7 @@ class PetWindowLauncher {
     logR(
       'Pet',
       'openNewWindow -> pos=${position.dx.round()},${position.dy.round()} '
-      'screen=${screen.right.round()}x${screen.bottom.round()}',
+          'screen=${screen.right.round()}x${screen.bottom.round()}',
     );
     await appWindow.openNewWindow(
       name: windowName,
@@ -403,8 +403,11 @@ class _PetState extends State<Pet> {
 
   Future<void> _tapSequence() async {
     _petController.wink();
+    // Something else may take the stage during the wink — a second tap, a
+    // download finishing. The jump that follows belongs to this wink only.
+    final mine = _petController.generation;
     await Future.delayed(PetChoreography.durationOf(PetState.wink));
-    if (mounted) _petController.jump();
+    if (mounted && _petController.generation == mine) _petController.jump();
   }
 
   @override

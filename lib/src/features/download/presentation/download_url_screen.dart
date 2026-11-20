@@ -70,7 +70,9 @@ class DownloadUrlScreen extends HookConsumerWidget {
                   children: [
                     _ErrorCard(
                       message: e is String ? e : e.toString(),
-                      onRetry: pasteAndParse,
+                      onRetry: ref
+                          .read(urlParseControllerProvider.notifier)
+                          .retry,
                     ),
                   ],
                 ),
@@ -213,12 +215,14 @@ class _PlaylistResult extends HookConsumerWidget {
             orElse: () => (value: selected.value, label: selected.value),
           )
           .label;
+      var count = 0;
       for (var i = 0; i < entries.length; i++) {
         final e = entries[i];
         if (e.url == null) continue;
+        count++;
         await manager.addTask(
           videoId: videoIdFromUrl(e.url!),
-          videoTitle: e.title ?? 'Item ${i + 1}',
+          videoTitle: e.title ?? tr('download.url.item', args: ['${i + 1}']),
           coverUrl: e.thumbnail,
           episodes: [
             {
@@ -235,9 +239,7 @@ class _PlaylistResult extends HookConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              tr('download.url.added_all', args: ['${entries.length}']),
-            ),
+            content: Text(tr('download.url.added_all', args: ['$count'])),
           ),
         );
       }
@@ -307,7 +309,7 @@ class _PlaylistResult extends HookConsumerWidget {
               itemBuilder: (context, i) {
                 final e = entries[i];
                 return _ResultItemCard(
-                  title: e.title ?? 'Item ${i + 1}',
+                  title: e.title ?? tr('download.url.item', args: ['${i + 1}']),
                   thumbnailUrl: e.thumbnail,
                   durationSecs: e.duration,
                   resolution: null,

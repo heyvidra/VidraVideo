@@ -120,8 +120,12 @@ class _DownloadTaskCardState extends ConsumerState<DownloadTaskCard> {
                               Text(
                                 episode.phase == 'remuxing'
                                     ? tr('download.remuxing')
-                                    : '${formatBytes(episode.bytesDownloaded)} / ${formatBytes(episode.totalBytes)}'
-                                          '${task.estimatedTimeRemaining != null ? " · ${tr('download.time_left', args: [formatDuration(task.estimatedTimeRemaining!)])}" : ""}',
+                                    // This episode's own numbers only. The
+                                    // time left is the whole task's and is
+                                    // shown once, on the card.
+                                    : episode.totalBytes > 0
+                                    ? '${formatBytes(episode.bytesDownloaded)} / ${formatBytes(episode.totalBytes)}'
+                                    : formatBytes(episode.bytesDownloaded),
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: theme.colorScheme.onSurfaceVariant,
@@ -339,8 +343,15 @@ class _DownloadTaskCardState extends ConsumerState<DownloadTaskCard> {
         add(tr('download.remuxing'), c: theme.colorScheme.primary);
         add(dot);
       }
+      // A total is only a total once every episode has reported its size;
+      // queued ones count as zero, which read "900 MB / 1.0 GB" beside 9%.
+      final sized = task.episodes.every(
+        (e) => e.totalBytes > 0 || e.status == DownloadStatus.cancelled,
+      );
       add(
-        '${formatBytes(task.totalBytesDownloaded)} / ${formatBytes(task.totalBytes)}',
+        sized
+            ? '${formatBytes(task.totalBytesDownloaded)} / ${formatBytes(task.totalBytes)}'
+            : formatBytes(task.totalBytesDownloaded),
       );
       if (task.downloadSpeed != null) {
         add(dot);

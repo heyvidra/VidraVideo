@@ -94,7 +94,10 @@ class _DropdownMenuState extends State<DropdownMenu>
 
   @override
   void dispose() {
-    _closeMenu();
+    // Directly, not through _closeMenu: that removes the entry when the
+    // reverse animation completes, and a disposed controller never does.
+    _overlayEntry?.remove();
+    _overlayEntry = null;
     _animationController.dispose();
     super.dispose();
   }

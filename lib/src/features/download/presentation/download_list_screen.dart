@@ -107,7 +107,14 @@ class _TaskList extends ConsumerWidget {
         ),
         itemCount: tasks.length,
         itemBuilder: (context, index) {
-          return DownloadTaskCard(task: tasks[index], isActive: isActive);
+          // Keyed: the card remembers whether it is expanded, and by position
+          // that memory passed to the next task whenever one finished or was
+          // deleted — opening it under a click meant for the one that left.
+          return DownloadTaskCard(
+            key: ValueKey(tasks[index].taskId),
+            task: tasks[index],
+            isActive: isActive,
+          );
         },
       ),
     );
