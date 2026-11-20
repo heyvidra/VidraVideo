@@ -65,11 +65,20 @@ final subscriptionCheckerProvider = Provider<SubscriptionChecker>((ref) {
     // page carries no progress line, so the check could not see an update
     // even then. There the cached row is the whole answer: nothing to
     // compare, nothing spent. dbku updates are caught by the listing tiers.
-    fetchDetail: (sub) => videos.getVideo(
-      sub.videoId,
-      sourceId: sub.sourceId,
-      forceRefresh: sub.sourceId != 'dbku',
-    ),
+    //
+    // And not at all for a show on a source that is switched off. The
+    // repository resolves an unknown source id to the ACTIVE source, so the
+    // request would go out to the wrong catalog under this show's id and
+    // come back as some other show — whose progress line is "different",
+    // and so an update. A disabled source's shows simply wait.
+    fetchDetail: (sub) async {
+      if (!sources.any((d) => d.id == sub.sourceId)) return null;
+      return videos.getVideo(
+        sub.videoId,
+        sourceId: sub.sourceId,
+        forceRefresh: sub.sourceId != 'dbku',
+      );
+    },
   );
 });
 
